@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Usage: /bin/bash change_brightness.sh [up, down]
+
+adjustment=$1
+max_brightness_file="/sys/class/backlight/intel_backlight/max_brightness"
+brightness_file="/sys/class/backlight/intel_backlight/brightness"
+
+# Guards
+if [ "$adjustment" != "up" ] && [ "$adjustment" != "down" ]; then
+  # No adjustment indicated - do nothing and exit
+  exit 0
+fi
+
+if [ ! -e "$max_brightness_file" ]; then
+  printf "%s\n" "Could not locate file: $max_brightness_file"
+  exit 1
+fi
+
+if [ ! -e "$brightness_file" ]; then
+  printf "%s\n" "Could not locate file: $brightness_file"
+  exit 1
+fi
+
+# Change the volume by 5%
+read max_brightness < "$max_brightness_file"
+read current_brightness < "$brightness_file"
+change_by=$((max_brightness * 5 / 100))
+
+if [ "$adjustment" = "up" ]; then
+  new_brightness=$((current_brightness + change_by))
+else
+  new_brightness=$((current_brightness - change_by))
+fi
+
+# Prevent values greater than the given max and less than zero
+if [ $new_brightness -gt $max_brightness ]; then
+  new_brightness=$max_brightness
+fi
+
+if [ $new_brightness -lt 0 ]; then
+  new_brightness=0
+fi
+
+# Write the new brightness to the brightness file
+sudo tee "$brightness_file" <<< $new_brightness
