@@ -1,0 +1,17 @@
+" spec_runner
+" ...
+
+Plug 'gabebw/vim-spec-runner'
+
+" Vim Spec Runner
+" Use <Leader>f to run the current spec file.
+map <Leader>f <Plug>RunCurrentSpecFile
+" Use <Leader>l to run the current line in a spec.
+map <Leader>l <Plug>RunFocusedSpec
+" Use <Leader>r to explicitly run the most recent spec.
+map <Leader>r <Plug>RunMostRecentSpec
+
+" Delegate to VTR
+let g:spec_runner_dispatcher = 'call VtrSendCommand("{command}")'
+
+" vim:ft=vim

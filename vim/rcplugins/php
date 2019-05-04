@@ -1,0 +1,6 @@
+" php
+" ...
+
+Plug 'StanAngeloff/php.vim'
+
+" vim:ft=vim

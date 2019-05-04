@@ -1,0 +1,64 @@
+" ALE
+" Asynchronous linting/fixing for Vim and Language Server Protocol (LSP)
+" integration
+
+Plug 'w0rp/ale'
+
+" ALE config
+let g:ale_set_highlights = 0
+let g:ale_lint_on_text_changed = 'never'
+let g:ale_ruby_rubocop_options = "--rails"
+let g:ale_yaml_yamllint_options = "-d relaxed"
+let g:ale_set_highlights = 0
+let g:ale_set_signs = 1
+
+let g:ale_pattern_options = {
+  \   '.*\.env$': { 'ale_enabled': 0 }
+  \ }
+
+" let g:ale_fixers = {
+"   \   "php": ["php_cs_fixer"]
+"   \ }
+" let g:ale_fix_on_save = 1
+
+let g:ale_php_phpcs_standard = "/Users/computer14/.style_ruleset.xml"
+" let g:ale_php_cs_fixer_options = "--config=/Users/computer14/.php_cs.php"
+
+highlight SignColumn ctermbg=236
+highlight ALEErrorSign ctermfg=red ctermbg=236
+highlight ALEWarningSign ctermfg=yellow ctermbg=236
+
+let g:ale_sign_error = "✖"
+let g:ale_sign_warning = "⇾"
+let g:ale_sign_info = "⇢"
+let g:ale_sign_style_error = "✕"
+let g:ale_sign_style_warning = "⚐"
+
+let g:lightline#ale#indicator_checking = "linting..."
+let g:lightline#ale#indicator_warnings = "⚑ "
+let g:lightline#ale#indicator_errors = "✖ "
+let g:lightline#ale#indicator_ok = "linted"
+
+augroup vimrcEx
+  autocmd!
+
+  " Set correct filetype
+  autocmd BufRead,BufNewFile *.env set filetype=config
+
+  highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
+  match ExtraWhitespace /\s\+\%#\@<!$/
+  autocmd BufWinEnter * match ExtraWhitespace /\s\+\%#\@<!$/
+  autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
+  autocmd InsertLeave * match ExtraWhitespace /\s\+$/
+  autocmd Filetype gitcommit setlocal spell textwidth=72
+  autocmd Filetype markdown setlocal spell textwidth=80
+
+  " ALE linting events
+  set updatetime=1000
+
+  nnoremap ]r :ALENextWrap<CR>
+  nnoremap [r :ALEPreviousWrap<CR>
+augroup end
+
+
+" vim:ft=vim

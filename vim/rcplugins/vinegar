@@ -1,0 +1,6 @@
+" vinegar
+" ...
+
+Plug 'tpope/vim-vinegar'
+
+" vim:ft=vim

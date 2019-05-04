@@ -1,0 +1,6 @@
+" rspec
+" ...
+
+Plug 'thoughtbot/vim-rspec'
+
+" vim:ft=vim

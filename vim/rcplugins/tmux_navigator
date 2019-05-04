@@ -1,0 +1,6 @@
+" tmux_navigator
+" ...
+
+Plug 'christoomey/vim-tmux-navigator'
+
+" vim:ft=vim

@@ -1,22 +1,25 @@
-set relativenumber
-set numberwidth=5
-set history=500
-set splitbelow
-set splitright
-set autoindent
-set textwidth=80
-set smartindent
-set smarttab
-set shiftwidth=2
-set softtabstop=2
-set tabstop=2
-set expandtab
-set nowrap
+" Vim configuration
+" Loads plugins and sources configurations in rcplugins and rcfiles.
 
-syntax enable
+set nocompatible
 
-nnoremap <C-H> <C-W><C-H>
-nnoremap <C-J> <C-W><C-J>
-nnoremap <C-K> <C-W><C-K>
-nnoremap <C-L> <C-W><C-L>
+" Need to set the leader before defining any leader mappings
+let mapleader = "\<Space>"
 
+" Source Vim configs in a directory.
+function! s:SourceConfigFilesIn(directory)
+  let directory_splat = '~/.vim/' . a:directory . '/*'
+  for config_file in split(glob(directory_splat), '\n')
+    if filereadable(config_file)
+      execute 'source' config_file
+    endif
+  endfor
+endfunction
+
+" Load plugin config files
+call plug#begin('~/.vim/bundle')
+call s:SourceConfigFilesIn('rcplugins')
+call plug#end()
+
+" Load custom Vim configs
+call s:SourceConfigFilesIn('rcfiles')     

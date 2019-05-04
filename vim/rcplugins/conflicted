@@ -1,0 +1,9 @@
+" conflicted
+" ...
+
+Plug 'christoomey/vim-conflicted'
+
+" Mark file as resolved of merge conflicts
+nnoremap <leader>n :GitNextConflict<CR>
+
+" vim:ft=vim

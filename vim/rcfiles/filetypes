@@ -1,0 +1,16 @@
+" Vim - filetypes
+" Filetype-specific configs.
+
+filetype plugin indent on
+
+augroup filetypeGroup
+  autocmd!
+
+  autocmd BufRead,BufNewFile *.env set filetype=config
+  autocmd FileType gitcommit setlocal spell textwidth=72
+  autocmd FileType make setlocal noexpandtab
+  autocmd FileType markdown setlocal spell textwidth=80
+  autocmd FileType bash,eruby,javascript,ruby,sh,vim,zsh setlocal colorcolumn=80
+augroup end
+
+" vim:ft=vim

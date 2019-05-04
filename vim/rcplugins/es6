@@ -1,0 +1,6 @@
+" es6
+" ...
+
+Plug 'isRuslan/vim-es6'
+
+" vim:ft=vim

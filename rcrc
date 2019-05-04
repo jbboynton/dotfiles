@@ -1,0 +1,6 @@
+# rcm Configuration File
+
+RCRC=rcrc rcup
+COPY_ALWAYS="ssh/*"
+SYMLINK_DIRS="bundle"
+UNDOTTED="bin"

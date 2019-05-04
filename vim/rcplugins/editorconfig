@@ -1,0 +1,9 @@
+" editorconfig
+" ...
+
+Plug 'editorconfig/editorconfig-vim'
+
+" recommended in the EditorConfig plugin docs
+let g:EditorConfig_exclude_patterns = ['fugitive://.*']
+
+" vim:ft=vim

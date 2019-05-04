@@ -1,0 +1,6 @@
+" html5
+" ...
+
+Plug 'othree/html5.vim'
+
+" vim:ft=vim

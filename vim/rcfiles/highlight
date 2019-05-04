@@ -1,0 +1,22 @@
+" Vim - highlight
+" Color customizations.
+
+highlight ColorColumn ctermbg=darkgray
+highlight LineNr ctermfg=darkblue ctermbg=black
+
+highlight DiffAdd ctermfg=white ctermbg=black
+highlight DiffDelete ctermfg=white ctermbg=black
+highlight DiffChange ctermfg=white ctermbg=black
+highlight DiffText ctermfg=yellow ctermbg=black
+
+highlight Pmenu ctermfg=cyan ctermbg=black
+highlight PmenuThumb ctermfg=green ctermbg=green
+highlight PmenuSel cterm=underline ctermfg=yellow ctermbg=black
+highlight PmenuSbar ctermfg=black ctermbg=black
+
+highlight WildMenu cterm=underline ctermfg=yellow ctermbg=black
+highlight StatusLine cterm=none ctermfg=cyan ctermbg=black
+
+highlight VertSplit ctermfg=black ctermbg=cyan
+
+" vim:ft=vim

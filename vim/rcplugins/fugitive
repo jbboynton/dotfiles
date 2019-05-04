@@ -1,0 +1,6 @@
+" fugitive
+" ...
+
+Plug 'tpope/vim-fugitive'
+
+" vim:ft=vim
