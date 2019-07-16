@@ -1,8 +1,8 @@
 #!/bin/bash
 
-function cd() {
+cd() {
   builtin cd "$@" \
-  && exa -abghlU --sort name --group-directories-first --git
+    && exa -abghlU --sort name --group-directories-first --git
 }
 
 cdv() {
@@ -18,14 +18,6 @@ g() {
     git "$@"
   else
     git status --short --branch
-  fi
-}
-
-v() {
-  if [[ "$#" -gt 0 ]]; then
-    /usr/bin/vim "$@"
-  else
-    /usr/bin/vim .
   fi
 }
 
@@ -47,5 +39,13 @@ root_directory() {
 
 modx() {
   chmod +x "$@"
+}
+
+v() {
+  if [[ "$#" -gt 0 ]]; then
+    vim "$@"
+  else
+    vim .
+  fi
 }
 

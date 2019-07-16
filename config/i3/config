@@ -59,9 +59,6 @@ bindsym $mod+Return exec i3-sensible-terminal
 # start Chromium
 bindsym $mod+Control+j exec firefox-developer-edition
 
-# launch KSP to the right
-assign [class="^KSP$"] output right
-
 # kill focused window
 bindsym $mod+q kill
 

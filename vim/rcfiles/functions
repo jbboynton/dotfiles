@@ -1,0 +1,40 @@
+" Vim - functions
+" Custom functions.
+
+" Execute a command silently
+function! g:RunSilentCommand(cmd)
+  :execute ':silent !' . a:cmd
+  :execute ':redraw!'
+  :echom 'Executed ' . a:cmd . '.'
+endfunction
+command! -nargs=1 Silent call g:RunSilentCommand(<q-args>)
+
+" Use <leader>l to toggle line numbers
+function! g:ToggleLineNumbers()
+  if &nu == 1
+     set nonumber
+     set norelativenumber
+  else
+     set number
+     set relativenumber
+  endif
+endfunction
+nnoremap <silent><leader>l :call g:ToggleLineNumbers()<CR>
+
+" Use <leader>p to toggle paste-mode
+function! g:TogglePasteMode()
+  if &nu == 1
+     set nonumber
+     set norelativenumber
+     set paste
+     :startinsert
+  else
+     set number
+     set relativenumber
+     set nopaste
+     :stopinsert
+  endif
+endfunction
+nnoremap <silent><leader>p :call g:TogglePasteMode()<CR>
+
+" vim:ft=vim

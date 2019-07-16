@@ -9,7 +9,7 @@ ensure_vim_plug_is_installed() {
 }
 
 install_vim_plug() {
-	curl -fLsSo "$vim_plug_path" --create-dirs "$vim_plug_url"
+  curl -fLsSo "$vim_plug_path" --create-dirs "$vim_plug_url"
 }
 
 install_vim_plugins() {

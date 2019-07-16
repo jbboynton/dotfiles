@@ -18,9 +18,9 @@ source ~/.zsh/prompt
 source ~/.zplug/init.zsh
 
 zplug "mafredri/zsh-async"
+zplug "zsh-users/zsh-completions"
 zplug "zsh-users/zsh-syntax-highlighting"
 zplug "zsh-users/zsh-history-substring-search"
-zplug "zsh-users/zsh-completions"
 
 zplug load
 

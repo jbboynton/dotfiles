@@ -19,13 +19,11 @@ set timeoutlen=500
 " disable ex mode
 map Q <Nop>
 
-
 " Appearence
 " ----------
 set t_Co=16          " use 16 colors
 set number           " show line numbers
 set ruler            " show cursor position
-
 
 set directory=/var/tmp          " create swap files in /var/tmp
 let g:netrw_home = "/var/tmp"   " save netrw history in /var/tmp
@@ -67,7 +65,6 @@ set number           " show line numbers
 set numberwidth=6    " min columns to use for line numbers
 set relativenumber   " show relative line numbers
 set modeline         " enable modelines
-
 set fillchars=vert:∥    " character used to separate vertical splits
 
 " Wild
@@ -75,14 +72,12 @@ set fillchars=vert:∥    " character used to separate vertical splits
 set wildmenu                 " enhanced commandline completion
 set wildmode=longest,full    " completion mode
 set wildignore+=*/tmp/*,*.swp,*.zip    " don't complete or expand
-
 set diffopt+=vertical    " diff options
 
 " Search
 " ------
 set ignorecase    " case-insensitive search
 set smartcase     " override 'ignorecase' if the search has upper case letters
-
 set lazyredraw    " avoid redrawing when possible
 
 " fix ':A opens related request spec' issue
@@ -106,6 +101,5 @@ let g:rails_projections = {
   \        "RSpec.describe '{}' do\nend",
   \   },
   \ }
-
 
 " vim:ft=vim
