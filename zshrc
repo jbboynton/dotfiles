@@ -29,7 +29,7 @@ for zsh_source in $HOME/.zsh/configs/*.zsh; do
 done
 
 if [ "$(tty)" = "/dev/tty1" ]; then
-  pgrep i3 || startx
+  pgrep i3 || ssh-agent startx
 fi
 
 tat
