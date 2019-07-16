@@ -33,4 +33,4 @@ if [ "$(tty)" = "/dev/tty1" ]; then
 fi
 
 tat
-only_one_monitor
+only_one_monitor -q
