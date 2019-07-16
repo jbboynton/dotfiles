@@ -5,11 +5,16 @@
 	editor = vim
 	excludesfile = ~/.gitignore_global
 [alias]
-	sla = log --oneline --decorate --graph --all
+  c = commit
 	co = checkout
 	r = rebase
 	rc = rebase --continue
+	sla = log --oneline --decorate --graph --all
+  a = add
+  p = push
 [fetch]
 	prune = true
 [merge]
 	ff = only
+
+# vim:ft=gitconfig
