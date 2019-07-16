@@ -1,0 +1,62 @@
+#!/bin/bash
+# Turns off the laptop screen when a VGA connection is detected.
+
+# Options
+quiet=''
+
+print_usage() {
+cat <<EOM
+Usage: toggle_screens [OPTION]
+Options:
+  -h    display this help message
+  -q    minimal output
+EOM
+}
+
+get_options() {
+  while getopts 'hiq' flag; do
+    case "${flag}" in
+      h) print_usage; exit ;;
+      q) quiet='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+connected_monitors_count() {
+  xrandr | grep ' connected ' | awk '{ print $1 }' | wc -l
+}
+
+toggle_laptop_monitor() {
+  state="$1"
+
+  if [ "$state" == "off" ]; then
+    info "Turning off eDP-1..."
+    xrandr --output eDP-1 --off
+  elif [ "$state" == "on" ]; then
+    info "Turning on eDP-1..."
+    xrandr --output eDP-1 --on
+  else
+    error "Invalid value passed (acceptable values are 'off' and 'on'): $1"
+  fi
+}
+
+check_connected_monitors() {
+  if [ "$(connected_monitors_count)" -gt 1 ]; then
+    toggle_laptop_monitor "off"
+  else
+    toggle_laptop_monitor "on"
+  fi
+}
+
+get_options "$@"
+check_connected_monitors
