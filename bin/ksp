@@ -1,0 +1,7 @@
+#!/bin/bash
+
+ksp_path="$HOME/.local/share/Steam/steamapps/common/Kerbal Space Program/KSP.x86_64"
+ksp_data_dir="$HOME/ksp"
+
+cd "$ksp_data_dir" >/dev/null
+optirun "$ksp_path" &

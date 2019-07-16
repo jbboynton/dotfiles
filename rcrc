@@ -3,4 +3,4 @@
 RCRC=rcrc rcup
 COPY_ALWAYS="ssh/*"
 SYMLINK_DIRS="bundle"
-UNDOTTED="bin"
+UNDOTTED="bin background.jpg"

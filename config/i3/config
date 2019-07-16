@@ -57,7 +57,10 @@ floating_modifier $mod
 bindsym $mod+Return exec i3-sensible-terminal
 
 # start Chromium
-bindsym $mod+Control+j exec chromium
+bindsym $mod+Control+j exec firefox-developer-edition
+
+# launch KSP to the right
+assign [class="^KSP$"] output right
 
 # kill focused window
 bindsym $mod+q kill
@@ -207,5 +210,5 @@ bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ to
 
 exec --no-startup-id nm-applet
 exec --no-startup-id pasystray
-exec --no-startup-id feh --bg-fill ~/background.jpg
+exec --no-startup-id feh --bg-fill ~/.config/i3/background.jpg
 

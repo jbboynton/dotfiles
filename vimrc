@@ -22,4 +22,4 @@ call s:SourceConfigFilesIn('rcplugins')
 call plug#end()
 
 " Load custom Vim configs
-call s:SourceConfigFilesIn('rcfiles')     
+call s:SourceConfigFilesIn('rcfiles')

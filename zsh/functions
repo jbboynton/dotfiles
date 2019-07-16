@@ -1,0 +1,51 @@
+#!/bin/bash
+
+function cd() {
+  builtin cd "$@" \
+  && exa -abghlU --sort name --group-directories-first --git
+}
+
+cdv() {
+  builtin cd "$@" && vim .
+}
+
+cdg() {
+  cd "$(root_directory)" || exit
+}
+
+g() {
+  if [[ "$#" -gt 0 ]]; then
+    git "$@"
+  else
+    git status --short --branch
+  fi
+}
+
+v() {
+  if [[ "$#" -gt 0 ]]; then
+    /usr/bin/vim "$@"
+  else
+    /usr/bin/vim .
+  fi
+}
+
+gcm() {
+  git commit -m "$*"
+}
+
+root_directory() {
+  project_root_dir="$(git rev-parse --show-toplevel)"
+  not_found="No \`.git\` directory could be located."
+
+  if [ ! -d "$project_root_dir" ]; then
+    echo "$not_found"
+    return 1
+  fi
+
+  echo "$project_root_dir"
+}
+
+modx() {
+  chmod +x "$@"
+}
+
