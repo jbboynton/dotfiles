@@ -1,6 +1,8 @@
 " Vim - highlight
 " Color customizations.
 
+highlight Search ctermfg=black ctermbg=darkgray
+
 highlight ColorColumn ctermbg=darkgray
 highlight LineNr ctermfg=darkblue ctermbg=black
 

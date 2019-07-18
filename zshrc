@@ -5,15 +5,12 @@ promptinit
 # Completion for kitty
 kitty + complete setup zsh | source /dev/stdin
 
-prompt walters
-
 HISTSIZE=20000
 HISTFILE=~/.zsh_history
 SAVEHIST=20000
 
 source ~/.zsh/aliases
 source ~/.zsh/functions
-source ~/.zsh/prompt
 
 source ~/.zplug/init.zsh
 
@@ -33,4 +30,3 @@ if [ "$(tty)" = "/dev/tty1" ]; then
 fi
 
 tat
-only_one_monitor -q
