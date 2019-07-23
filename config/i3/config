@@ -54,7 +54,7 @@ font pango:monospace 8
 floating_modifier $mod
 
 # start a terminal
-bindsym $mod+Return exec i3-sensible-terminal
+bindsym $mod+Return exec --no-startup-id run_or_focus kitty
 
 # start Chromium
 bindsym $mod+Control+j exec firefox-developer-edition
