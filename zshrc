@@ -2,9 +2,6 @@ autoload -Uz compinit promptinit
 compinit
 promptinit
 
-# Completion for kitty
-kitty + complete setup zsh | source /dev/stdin
-
 HISTSIZE=20000
 HISTFILE=~/.zsh_history
 SAVEHIST=20000
