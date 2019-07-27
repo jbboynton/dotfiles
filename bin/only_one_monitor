@@ -42,9 +42,11 @@ toggle_laptop_monitor() {
   if [ "$state" == "off" ]; then
     info "Turning off eDP-1..."
     xrandr --output eDP-1 --off
+    xrandr --auto
   elif [ "$state" == "on" ]; then
     info "Turning on eDP-1..."
     xrandr --output eDP-1 --on
+    xrandr --auto
   else
     error "Invalid value passed (acceptable values are 'off' and 'on'): $1"
   fi

@@ -2,7 +2,7 @@
 
 cd() {
   builtin cd "$@" \
-    && exa -abghlU --sort name --group-directories-first --git
+    && exa -abghlm --sort name --group-directories-first --git
 }
 
 cdv() {
@@ -11,6 +11,11 @@ cdv() {
 
 cdg() {
   cd "$(root_directory)" || exit
+}
+
+dotfiles() {
+  builtin cd "$HOME/.dotfiles"
+  vim .
 }
 
 g() {

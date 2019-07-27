@@ -1,0 +1,10 @@
+#!/bin/sh
+
+wm_class="Alacritty"
+count="$(ps aux | grep -c "Alacritty")"
+
+if [ "$count" -eq 1 ]; then
+  nohup alacritty > /tmp/alacritty.out &
+else
+  i3-msg "[class=\"^Alacritty$\"] focus"
+fi
