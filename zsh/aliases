@@ -1,4 +1,5 @@
 alias aliases="vim ~/.dotfiles/zsh/aliases"
+alias dotfiles="cd ~/.dotfiles"
 alias functions="vim ~/.dotfiles/zsh/functions"
 alias hrc="heroku run rails console"
 alias kittyconfig="vim ~/.dotfiles/config/kitty/kitty.conf"

@@ -13,11 +13,6 @@ cdg() {
   cd "$(root_directory)" || exit
 }
 
-dotfiles() {
-  builtin cd "$HOME/.dotfiles"
-  vim .
-}
-
 g() {
   if [[ "$#" -gt 0 ]]; then
     git "$@"
