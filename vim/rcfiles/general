@@ -41,6 +41,7 @@ set hidden                " allow buffers to exist in the background
 set encoding=utf-8        " self explanatory
 set autoread              " reload files modified outside vim
 set showcmd               " show incomplete commands at the bottom
+set noshowmode            " don't show the mode of operation
 set laststatus=2          " always show the status line
 set nojoinspaces          " only insert one space after a period
 set maxmempattern=2000000 " max memory available for pattern matching
@@ -60,19 +61,19 @@ set sidescroll=7          " horizontally scroll 7 columns at a time
 
 " Editor Config
 " -------------
-set textwidth=80     " show 80 characters
-set number           " show line numbers
-set numberwidth=6    " min columns to use for line numbers
-set relativenumber   " show relative line numbers
-set modeline         " enable modelines
-set fillchars=vert:∥    " character used to separate vertical splits
+set textwidth=80          " show 80 characters
+set number                " show line numbers
+set numberwidth=6         " min columns to use for line numbers
+set relativenumber        " show relative line numbers
+set modeline              " enable modelines
+set fillchars=vert:∥      " character used to separate vertical splits
 
 " Wild
 " ----
-set wildmenu                 " enhanced commandline completion
-set wildmode=longest,full    " completion mode
+set wildmenu              " enhanced commandline completion
+set wildmode=longest,full " completion mode
 set wildignore+=*/tmp/*,*.swp,*.zip    " don't complete or expand
-set diffopt+=vertical    " diff options
+set diffopt+=vertical     " diff options
 
 " Search
 " ------

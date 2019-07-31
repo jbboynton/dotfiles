@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Attach or create tmux session named the same as current directory.
 
 path_name="$(basename "$PWD" | tr . -)"
@@ -27,11 +27,6 @@ create_detached_session() {
 create_if_needed_and_attach() {
   if not_in_tmux; then
     tmux new-session -As "$session_name"
-  else
-    if ! session_exists; then
-      create_detached_session
-    fi
-    tmux switch-client -t "$session_name"
   fi
 }
 
@@ -42,3 +37,4 @@ tmux_should_start() {
 if tmux_should_start; then
   create_if_needed_and_attach
 fi
+

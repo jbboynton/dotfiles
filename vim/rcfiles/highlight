@@ -3,13 +3,16 @@
 
 highlight Search ctermfg=black ctermbg=darkgray
 
+highlight Folded cterm=bold ctermfg=darkgray ctermbg=cyan
+highlight FoldColumn ctermbg=darkgray
+
 highlight ColorColumn ctermbg=darkgray
 highlight LineNr ctermfg=darkblue ctermbg=black
 
-highlight DiffAdd ctermfg=white ctermbg=black
-highlight DiffDelete ctermfg=white ctermbg=black
-highlight DiffChange ctermfg=white ctermbg=black
-highlight DiffText ctermfg=yellow ctermbg=black
+highlight DiffAdd ctermfg=white ctermbg=darkgray
+highlight DiffDelete ctermfg=white ctermbg=darkgray
+highlight DiffChange ctermfg=white ctermbg=darkgray
+highlight DiffText ctermfg=yellow ctermbg=darkgray
 
 highlight Pmenu ctermfg=cyan ctermbg=black
 highlight PmenuThumb ctermfg=green ctermbg=green
@@ -21,4 +24,6 @@ highlight StatusLine cterm=none ctermfg=cyan ctermbg=black
 
 highlight VertSplit ctermfg=black ctermbg=cyan
 
-" vim:ft=vim
+highlight Visual ctermfg=none ctermbg=darkgray
+
+" " vim:ft=vim
