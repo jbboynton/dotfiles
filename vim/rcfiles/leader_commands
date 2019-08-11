@@ -2,9 +2,4 @@
 " Commands invoked with the leader key.
 
 " Copy contents of the current buffer
-nnoremap <Leader>y :silent w !xsel<CR>
-
-" Replace tabs with spaces
-nnoremap <leader><Space> :%s/\t/  /g<CR>
-
-" vim:ft=vim
+nnoremap <Leader>y :silent w !xsel -i -b<CR>

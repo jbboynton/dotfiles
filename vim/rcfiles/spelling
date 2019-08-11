@@ -1,0 +1,52 @@
+" Vim - spelling
+
+set spellfile=$HOME/.vim/spell/en.utf-8.add
+set complete+=kspell
+
+" Auto-commit changes to the spell file
+function! s:SaveSpellFileAsync()
+  let dotfiles_dir = '~/.dotfiles'
+  let spell_file = expand('~/.vim/spell/en.utf-8.add')
+  let save_script = expand('~/.bin/save_spell_file')
+
+  if !filereadable(spell_file)
+    echohl Error
+    echom 'Error: no spell file found (looked in: ' . spell_file . ')'
+    echohl None
+  elseif !filereadable(save_script)
+    echohl Error
+    echom 'Error: no save script found (looked in: ' . save_script . ')'
+    echohl None
+  else
+    echom 'Saving spell file...'
+    let b:dispatch = '-dir=' . dotfiles_dir . ' ' . save_script
+    :Dispatch!
+    echom 'Saved.'
+  endif
+endfunction
+
+function! s:ModifySpellFile(action)
+  if a:action == 'zg'
+    :normal zg
+  elseif a:action == 'zw'
+    :normal zw
+  elseif a:action == 'zug'
+    :normal zug
+  elseif a:action == 'zuw'
+    :normal zuw
+  else
+    echohl Error
+    echom 'Error: invalid action (expecting zg, zw, zug, or zuw)'
+    echohl None
+  endif
+
+  call s:SaveSpellFileAsync()
+endfunction
+command! -nargs=1 ModifySpellFile call s:ModifySpellFile(<q-args>)
+
+nnoremap <Leader>zg :ModifySpellFile zg<CR>
+nnoremap <Leader>zw :ModifySpellFile zw<CR>
+nnoremap <Leader>zug :ModifySpellFile zug<CR>
+nnoremap <Leader>zuw :ModifySpellFile zuw<CR>
+
+" vim:ft=vim

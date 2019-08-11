@@ -1,4 +1,5 @@
 #!/bin/sh
+# Starts Alacritty if it isn't running, or focuses the terminal if it is.
 
 wm_class="alacritty"
 count="$(ps aux | grep -c "alacritty")"

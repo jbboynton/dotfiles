@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Usage: /bin/bash change_brightness.sh [up, down]
 
 adjustment=$1

@@ -1,6 +1,9 @@
 " Vim - highlight
 " Color customizations.
 
+highlight CursorParen cterm=bold ctermfg=green ctermbg=black
+highlight MatchParen cterm=bold ctermfg=green ctermbg=black
+
 highlight Search ctermfg=black ctermbg=darkgray
 
 highlight Folded cterm=bold ctermfg=darkgray ctermbg=cyan
@@ -14,6 +17,14 @@ highlight DiffDelete ctermfg=white ctermbg=darkgray
 highlight DiffChange ctermfg=white ctermbg=darkgray
 highlight DiffText ctermfg=yellow ctermbg=darkgray
 
+highlight SpellBad cterm=bold,underline ctermfg=red ctermbg=black
+highlight SpellCap cterm=bold,underline ctermfg=red ctermbg=black
+highlight SpellRare cterm=bold,underline ctermfg=red ctermbg=black
+
+highlight Todo cterm=underline ctermfg=yellow ctermbg=black
+highlight Error cterm=bold,underline ctermfg=red ctermbg=black
+highlight ErrorMsg cterm=bold,underline ctermfg=red ctermbg=black
+
 highlight Pmenu ctermfg=cyan ctermbg=black
 highlight PmenuThumb ctermfg=green ctermbg=green
 highlight PmenuSel cterm=underline ctermfg=yellow ctermbg=black
@@ -26,4 +37,4 @@ highlight VertSplit ctermfg=black ctermbg=cyan
 
 highlight Visual ctermfg=none ctermbg=darkgray
 
-" " vim:ft=vim
+" vim:ft=vim

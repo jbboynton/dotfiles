@@ -1,0 +1,31 @@
+" Vim - note taking
+" Configuration specific to taking notes in Vim.
+
+" Uses vim-dispatch to asynchronously push saved notes to GitHub
+function! s:SaveNotesAsync()
+  let save_script = expand('~/notes/bin/save.sh')
+
+  if !exists(":Dispatch")
+    echohl Error
+    echom 'Error: Dispatch! command not found (is vim-dispatch installed?)'
+    echohl None
+  elseif !filereadable(save_script)
+    echohl Error
+    echom 'Error: no save script found (looked in: ' . save_script . ')'
+    echohl None
+  else
+    echom 'Saving notes...'
+    let b:dispatch = save_script
+    :Dispatch!
+    echom 'Saved.'
+  endif
+endfunction
+command! SaveNotesAsync call s:SaveNotesAsync()
+
+augroup notesGroup
+  autocmd!
+
+  autocmd BufWritePost $HOME/notes/*.md :SaveNotesAsync
+augroup end
+
+" vim:ft=vim

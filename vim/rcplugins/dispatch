@@ -1,0 +1,6 @@
+" Vim plugin - dispatch
+" https://github.com/tpope/vim-dispatch
+
+Plug 'tpope/vim-dispatch'
+
+" vim:ft=vim

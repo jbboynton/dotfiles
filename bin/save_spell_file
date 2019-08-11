@@ -1,0 +1,31 @@
+#!/bin/bash
+# Saves Vim's spell file to GitHub.
+
+set -e
+
+current_branch="$(git symbolic-ref --short -q HEAD)"
+
+on_master() {
+  [ "$current_branch" == "master" ]
+}
+
+checkout_master() {
+  git checkout master
+}
+
+save() {
+  local root="$(git rev-parse --show-toplevel)"
+
+  git add "$root/vim/spell/en.utf-8.add"
+  git commit -m "Auto-committed on save."
+  git push origin master
+}
+
+checkout_original_branch() {
+  git checkout "$current_branch"
+}
+
+on_master || checkout_master
+save
+checkout_original_branch
+
