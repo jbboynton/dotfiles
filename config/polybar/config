@@ -1,0 +1,178 @@
+;==========================================================
+;
+;
+;   ██████╗  ██████╗ ██╗  ██╗   ██╗██████╗  █████╗ ██████╗
+;   ██╔══██╗██╔═══██╗██║  ╚██╗ ██╔╝██╔══██╗██╔══██╗██╔══██╗
+;   ██████╔╝██║   ██║██║   ╚████╔╝ ██████╔╝███████║██████╔╝
+;   ██╔═══╝ ██║   ██║██║    ╚██╔╝  ██╔══██╗██╔══██║██╔══██╗
+;   ██║     ╚██████╔╝███████╗██║   ██████╔╝██║  ██║██║  ██║
+;   ╚═╝      ╚═════╝ ╚══════╝╚═╝   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+;
+;
+;   To learn more about how to configure Polybar
+;   go to https://github.com/polybar/polybar
+;
+;   The README contains a lot of information
+;
+;==========================================================
+
+[colors]
+dark_black = #21272a
+light_black = #2e3440
+
+red = #bf616a
+dark_red = #bf616a
+light_red = #bf616a
+
+green = #a3be8c
+dark_green = #a3be8c
+light_green = #a3be8c
+
+yellow = #ebcb8b
+dark_yellow = #ebcb8b
+light_yellow = #ebcb8b
+
+dark_blue = #81a1c1
+light_blue = #8fbcbb
+
+magenta = #b48ead
+dark_magenta = #b48ead
+light_magenta = #b48ead
+
+cyan = #88c0d0
+dark_cyan = #88c0d0
+light_cyan = #88c0d0
+
+dark_white = #e5e9f0
+light_white = #eceff4
+
+gray = #d8dee9
+dark_gray = #d8dee9
+light_gray = #d8dee9
+
+background = ${self.dark_black}
+background-alt = ${self.light_black}
+foreground = ${self.gray}
+foreground-alt = ${self.dark_white}
+primary = ${self.green}
+secondary = ${self.cyan}
+alert = ${self.red}
+
+[bar/bottom]
+width = 100%
+height = 22
+bottom = true
+
+background = ${colors.background}
+foreground = ${colors.foreground}
+
+line-size = 1
+line-color = ${colors.dark_black}
+
+border-size = 1
+border-color = ${colors.light_black}
+
+padding-left = 0
+padding-right = 3
+
+module-margin-left = 2
+module-margin-right = 3
+
+font-0 = Ubuntu:style=Regular:size=9;2
+font-1 = Siji:pixelsize=14:antialias=true;2
+
+modules-left = i3
+modules-right = pulseaudio wlan eth battery date
+
+locale = en_US.UTF-8
+
+tray-position = right
+tray-detached = true
+
+[module/i3]
+type = internal/i3
+format = <label-state> <label-mode>
+index-sort = true
+wrapping-scroll = false
+
+label-mode-padding = 3
+label-mode-foreground = ${colors.foreground}
+label-mode-background = ${colors.background}
+
+label-focused = %index%
+label-focused-background = ${colors.background-alt}
+label-focused-underline= ${colors.primary}
+label-focused-padding = 3
+
+label-unfocused = %index%
+label-unfocused-padding = 3
+
+label-visible = %index%
+label-visible-background = ${self.label-focused-background}
+label-visible-underline = ${self.label-focused-underline}
+label-visible-padding = ${self.label-focused-padding}
+
+label-urgent = %index%
+label-urgent-background = ${colors.alert}
+label-urgent-padding = 3
+
+[module/wlan]
+type = internal/network
+interface = wlp61s0
+interval = 3.0
+
+format-connected = <label-connected>
+label-connected =  %essid%
+
+format-disconnected =  disconnected from WiFi
+
+[module/eth]
+type = internal/network
+interface = enp0s25
+interval = 3.0
+
+format-connected = <label-connected>
+label-connected =  %local_ip%
+
+format-disconnected =  disconnected from wired network
+
+[module/date]
+type = internal/date
+interval = 15
+
+date =
+date-alt = " %m/%d/%Y"
+
+time = %I:%M %p
+time-alt =
+
+format-prefix = 
+
+label = %date% %time%
+
+[module/pulseaudio]
+type = internal/pulseaudio
+
+format-volume = <label-volume>
+label-volume =  %percentage%%
+
+label-muted =  muted
+
+[module/battery]
+type = internal/battery
+battery = BAT0
+adapter = AC
+full-at = 96
+
+format-charging =  <label-charging>
+format-discharging =  <label-discharging>
+format-full-prefix = " "
+
+[settings]
+screenchange-reload = true
+
+[global/wm]
+margin-top = 5
+margin-bottom = 5
+
+; vim:ft=dosini

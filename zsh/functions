@@ -26,8 +26,8 @@ gcm() {
 }
 
 root_directory() {
-  project_root_dir="$(git rev-parse --show-toplevel)"
-  not_found="No \`.git\` directory could be located."
+  local project_root_dir="$(git rev-parse --show-toplevel)"
+  local not_found="No \`.git\` directory could be located."
 
   if [ ! -d "$project_root_dir" ]; then
     echo "$not_found"
@@ -38,7 +38,13 @@ root_directory() {
 }
 
 modx() {
-  chmod +x "$@"
+  local filename="$1"
+
+  if [ ! -f "$filename" ]; then
+    echo -e "#!/bin/bash\n" > "$filename"
+  fi
+
+  chmod +x "$filename"
 }
 
 v() {
@@ -49,3 +55,6 @@ v() {
   fi
 }
 
+cpc() {
+  echo -e "$1" | xclip
+}

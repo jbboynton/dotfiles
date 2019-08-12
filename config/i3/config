@@ -30,10 +30,10 @@ set $white        #e5e9f0
 set $bright_white #eceff4
 
 # Class                 Border Background Text   Indicator     Child Border
-client.focused          $blue  $blue      $black $bright_white $blue
-client.unfocused        $blue  $blue      $black $bright_white $blue
-client.focused_inactive $blue  $blue      $black $bright_white $blue
-client.urgent           $blue  $blue      $black $bright_white $blue
+client.focused          $blue  $blue      $black $bright_white $black
+client.unfocused        $blue  $blue      $black $bright_white $black
+client.focused_inactive $blue  $blue      $black $bright_white $black
+client.urgent           $blue  $blue      $black $bright_white $black
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
@@ -191,10 +191,10 @@ mode "resize" {
 bindsym $mod+r mode "resize"
 
 # Start i3bar to display a workspace bar (plus the system information i3status
-# finds out, if available)
-bar {
-        status_command i3status
-}
+# finds out, if available) (Currently using Polybar for this purpose)
+# bar {
+#         status_command i3status
+# }
 
 # Brightness keys
 bindsym XF86MonBrightnessDown	exec --no-startup-id /bin/bash ~/bin/change_brightness down
@@ -205,8 +205,11 @@ bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT
 bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +2%
 bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
 
-exec --no-startup-id nm-applet
-exec --no-startup-id pasystray
-exec --no-startup-id feh --bg-fill --no-fehbg ~/.config/i3/background.jpg
-exec --no-startup-id only_one_monitor -q
+# Status bar
+exec_always --no-startup-id launch_polybar
 
+# Set a background image
+exec --no-startup-id feh --bg-fill --no-fehbg ~/.config/i3/background.jpg
+
+# Turn off laptop display if connected to an external monitor
+exec_always --no-startup-id only_one_monitor -q

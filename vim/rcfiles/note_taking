@@ -20,12 +20,11 @@ function! s:SaveNotesAsync()
     echom 'Saved.'
   endif
 endfunction
-command! SaveNotesAsync call s:SaveNotesAsync()
 
 augroup notesGroup
   autocmd!
 
-  autocmd BufWritePost $HOME/notes/*.md :SaveNotesAsync
+  autocmd BufWritePost $HOME/notes/*.md call s:SaveNotesAsync()
 augroup end
 
 " vim:ft=vim
