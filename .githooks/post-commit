@@ -1,0 +1,19 @@
+#!/bin/bash
+# Commits Vim's spell file.
+
+spell_file="vim/spell/en.utf-8.add"
+
+spell_file_has_changes() {
+  git ls-files -mo --exclude-standard | grep -q "$spell_file"
+}
+
+commit_spell_file() {
+  git add "$spell_file"
+  git commit -m "Update Vim's spell file" >/dev/null
+}
+
+print_success() {
+  echo -e "Committed changes to spell file.\n"
+}
+
+spell_file_has_changes && commit_spell_file && print_success

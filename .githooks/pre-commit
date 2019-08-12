@@ -1,0 +1,39 @@
+#!/bin/bash
+# Ensures that Vim's spell file is always modified in a separate commit.
+
+spell_file="vim/spell/en.utf-8.add"
+
+spell_file_is_staged() {
+  git diff --cached --name-only | grep -q "$spell_file"
+}
+
+other_changes_present() {
+  # Initialize a flag with a default value of 1. If other changes are present,
+  # reset the flag to 0. The function should return the value of changes_present
+  # as the exit code.
+  changes_present=1
+  changed_files_count="$(git diff --cached --name-only | wc -l )"
+
+  if [ "$changed_files_count" -gt 1 ]; then
+    changes_present=0
+  fi
+
+  return $changes_present
+}
+
+should_unstage() {
+  spell_file_is_staged && other_changes_present
+}
+
+unstage_spell_file() {
+  echo "Temporarily unstaging changes to Vim's spell file."
+  echo "  (the spell file will be automatically committed after this one)"
+
+  git reset HEAD "$spell_file" >/dev/null
+}
+
+commit_spell_file_by_itself() {
+  should_unstage && unstage_spell_file; true
+}
+
+commit_spell_file_by_itself

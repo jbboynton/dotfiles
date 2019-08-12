@@ -54,7 +54,3 @@ v() {
     vim .
   fi
 }
-
-cpc() {
-  echo -e "$1" | xclip
-}
