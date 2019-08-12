@@ -15,7 +15,6 @@ source ~/.zsh/functions
 source ~/.zplug/init.zsh
 
 zplug "mafredri/zsh-async"
-zplug "plugins/colored-man-pages", from:oh-my-zsh
 zplug "zsh-users/zsh-completions"
 zplug "zsh-users/zsh-syntax-highlighting"
 zplug "zsh-users/zsh-history-substring-search"
