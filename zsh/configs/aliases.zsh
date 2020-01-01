@@ -1,6 +1,7 @@
-alias aliases="vim ~/.dotfiles/zsh/aliases"
+alias aliases="vim ~/.dotfiles/zsh/configs/aliases.zsh"
+alias be="bundle exec"
 alias dotfiles="cd ~/.dotfiles"
-alias functions="vim ~/.dotfiles/zsh/functions"
+alias functions="vim ~/.dotfiles/zsh/configs/functions.zsh"
 alias hrc="heroku run rails console"
 alias alacrittyconfig="vim ~/.dotfiles/config/alacritty/alacritty.yml"
 alias ll="exa -abghlm --sort name --group-directories-first --git"
@@ -14,5 +15,3 @@ alias tree="tree -aC"
 alias vimconfig="vim ~/.dotfiles/vimrc"
 alias zshconfig="vim ~/.dotfiles/zshrc"
 alias zshhist="vim ~/.zsh_history"
-
-# vim:ft=sh

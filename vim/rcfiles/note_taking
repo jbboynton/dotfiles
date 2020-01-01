@@ -2,7 +2,7 @@
 " Configuration specific to taking notes in Vim.
 
 " Uses vim-dispatch to asynchronously push saved notes to GitHub
-function! s:SaveNotesAsync()
+function! s:SaveNotesAsync(file)
   let save_script = expand('~/notes/bin/save.sh')
 
   if !exists(":Dispatch")
@@ -15,8 +15,7 @@ function! s:SaveNotesAsync()
     echohl None
   else
     echom 'Saving notes...'
-    let b:dispatch = save_script
-    :Dispatch!
+    :Dispatch! save_script a:file
     echom 'Saved.'
   endif
 endfunction
@@ -24,7 +23,8 @@ endfunction
 augroup notesGroup
   autocmd!
 
-  autocmd BufWritePost $HOME/notes/*.md call s:SaveNotesAsync()
+  " autocmd BufWritePost */notes/*.md call s:SaveNotesAsync()
+  autocmd BufWritePost */notes/*.md :Dispatch! ~/notes/bin/save.sh <afile>
 augroup end
 
 " vim:ft=vim

@@ -7,6 +7,7 @@ augroup filetypeGroup
   autocmd!
 
   autocmd BufRead,BufNewFile *.env set filetype=config
+  autocmd FileType qf highlight ExtraWhitespace ctermfg=none ctermbg=none
   autocmd FileType gitcommit setlocal spell spelllang=en_us textwidth=72
   autocmd FileType make setlocal noexpandtab
   autocmd FileType markdown,txt setlocal spell spelllang=en_us textwidth=80

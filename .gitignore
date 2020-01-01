@@ -2,3 +2,4 @@ vim/bundle/
 ssh/*
 !ssh/config
 *.spl
+token

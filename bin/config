@@ -1,0 +1,119 @@
+#!/bin/bash
+
+# TODO: provide both a 'config' command for dotfiles, and a 'hist' command for
+# history files (.zsh_hsitory, .vim_history, etc.). Commands defined by this
+# package could be:
+#
+#   Command  | Shell equivalent
+#   ---------|-----------------
+#   rc zsh   | vim ~/.zshrc
+#   hist zsh | vim ~/.zsh_history
+
+# Variables
+manifest="$HOME/.config/manifest.json"
+name=""
+path=""
+quiet=""
+
+print_usage() {
+cat <<EOM
+Usage: config [OPTION] -n NAME
+Options:
+  -a <path>   add file located at the given path to the manifest
+  -h          display this help message
+  -m <path>   path to the manifest file
+  -n <name>   (required) the name of the config file
+  -q          minimal output
+
+A shortcut for editing config files without having to type out the full path to
+the config file.
+EOM
+}
+
+get_options() {
+  while getopts "a:hn:q" flag; do
+    case "${flag}" in
+      a) path="${OPTARG}" ;;
+      h) print_usage exit ;;
+      m) manifest="${OPTARG}" ;;
+      n) name="${OPTARG}" ;;
+      q) quiet="true" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+create_manifest() {
+read -r -d '' manifest_boilerplate <<EOM
+{
+  "configs": []
+}
+EOM
+
+echo "$manifest_boilerplate" > "$manifest"
+}
+
+find_or_create_manifest() {
+  [ -e "$manifest" ] || create_manifest
+}
+
+name_exists() {
+  [ -n "$name" ]
+}
+
+config_exists() {
+  local config="$(jq ".configs[] | select(.name == \""$name"\")" "$manifest")"
+
+  [ -n "$config" ]
+}
+
+path_option_set() {
+  [ -n "$path" ]
+}
+
+path_is_unique() {
+  local path="$(jq ".configs[] | select(.path == \""$path"\")" "$manifest")"
+}
+
+valid_path() {
+  [ -e "$path" ] || error "config file not found: $path"
+  path_is_unique || error "path must be unique: $path"
+}
+
+validate_input() {
+  name_exists || error "no config file given (expected the -n flag to be set)"
+  config_exists || error "no config file found for: $name"
+
+  if path_option_set; then
+    valid_path || error "config file not found: $path"
+  fi
+}
+
+add_new_path() {
+  local script=".configs[.configs | length] |= . + "
+  script+="{\"name\": \""$name"\", \"path\": \""$path"\"}"
+
+  jq "$script" "$manifest"
+}
+
+open_config() {
+  local script=".configs[] | select(.name == \""$name"\") | .path"
+  local file="$(jq "$script" "$manifest")"
+
+  vim "$file"
+}
+
+get_options "$@"
+find_or_create_manifest
+validate_input
+path_option_set && add_new_path
+open_config

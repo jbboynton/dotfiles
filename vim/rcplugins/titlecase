@@ -1,0 +1,15 @@
+" titlecase
+" Teach Vim about titlecase, with support for motions and text objects
+
+Plug 'christoomey/vim-titlecase'
+
+" Disable default mappings. This prevents vim-titlecase from overriding Vim's
+" default mappings for moving from one tab to another (via `gt` and `gT`).
+let g:titlecase_map_keys = 0
+
+" Remap titlecase keys
+nmap <leader>gt <Plug>Titlecase
+vmap <leader>gt <Plug>Titlecase
+nmap <leader>gT <Plug>TitlecaseLine
+
+" vim:ft=vim

@@ -58,10 +58,16 @@ primary = ${self.green}
 secondary = ${self.cyan}
 alert = ${self.red}
 
-[bar/bottom]
+[glyphs]
+; this character looks like '<', but renders as '!'
+bang = 
+; this character looks like '<', but renders as a little house
+home = 
+
+[section/base]
 width = 100%
 height = 22
-bottom = true
+bottom = false
 
 background = ${colors.background}
 foreground = ${colors.foreground}
@@ -88,6 +94,22 @@ locale = en_US.UTF-8
 
 tray-position = right
 tray-detached = true
+
+[bar/thick]
+inherit = section/base
+
+height = 28
+
+font-0 = Ubuntu:style=Regular:size=10;2
+font-1 = Siji:pixelsize=14:antialias=true;2
+
+[bar/thin]
+inherit = section/base
+
+height = 22
+
+font-0 = Ubuntu:style=Regular:size=9;2
+font-1 = Siji:pixelsize=14:antialias=true;2
 
 [module/i3]
 type = internal/i3
@@ -121,10 +143,21 @@ type = internal/network
 interface = wlp61s0
 interval = 3.0
 
-format-connected = <label-connected>
-label-connected =  %essid%
+format-connected = <ramp-signal> <label-connected>
+label-connected =  %essid%
 
-format-disconnected =  disconnected from WiFi
+signal_low = 
+signal_medium = 
+signal_high = 
+
+ramp-signal-0 = ${self.signal_low}
+ramp-signal-1 = ${self.signal_medium}
+ramp-signal-2 = ${self.signal_medium}
+ramp-signal-3 = ${self.signal_high}
+ramp-signal-4 = ${self.signal_high}
+ramp-signal-5 = ${self.signal_high}
+
+format-disconnected =
 
 [module/eth]
 type = internal/network
@@ -132,21 +165,19 @@ interface = enp0s25
 interval = 3.0
 
 format-connected = <label-connected>
-label-connected =  %local_ip%
-
-format-disconnected =  disconnected from wired network
+lan_connected =  %local_ip%
+label-connected = ${self.lan_connected}
+format-disconnected =
 
 [module/date]
 type = internal/date
 interval = 15
 
-date =
-date-alt = " %m/%d/%Y"
+date =   %m/%d
+date-alt =   %m/%d
 
-time = %I:%M %p
-time-alt =
-
-format-prefix = 
+time = "   %I:%M %p"
+time-alt = "   %I:%M %p"
 
 label = %date% %time%
 
@@ -154,7 +185,7 @@ label = %date% %time%
 type = internal/pulseaudio
 
 format-volume = <label-volume>
-label-volume =  %percentage%%
+label-volume =  %percentage%%
 
 label-muted =  muted
 

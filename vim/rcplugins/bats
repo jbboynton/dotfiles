@@ -1,0 +1,11 @@
+" bats
+
+Plug 'jbboynton/vim-bats', { 'branch': 'preview' }
+
+map <Leader>ba :call RunBatsTests()<CR>
+map <Leader>bc :call RunCurrentBatsTest()<CR>
+map <Leader>bl :call RunLastBatsTest()<CR>
+
+let g:bats_command = ':Dispatch bats --tap {test}'
+
+" vim:ft=vim

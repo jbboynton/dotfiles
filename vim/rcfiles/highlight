@@ -1,6 +1,8 @@
 " Vim - highlight
 " Color customizations.
 
+highlight QuickFixLine cterm=bold,underline ctermfg=cyan ctermbg=black
+
 highlight CursorParen cterm=bold ctermfg=green ctermbg=black
 highlight MatchParen cterm=bold ctermfg=green ctermbg=black
 

@@ -18,5 +18,3 @@ zstyle ':vcs_info:*' enable git
 
 precmd () { vcs_info }
 PROMPT='%F{3}%3~ ${vcs_info_msg_0_}%f$ '
-
-# vim:ft=zsh

@@ -1,0 +1,37 @@
+#!/bin/bash
+# Takes a screenshot and saves it in ~/screenshots.
+
+screenshots_dir="$HOME/screenshots"
+
+screenshots_dir_exists() {
+  [ -d "$screenshots_dir" ]
+}
+
+create_screenshots_dir() {
+  mkdir "$screenshots_dir"
+}
+
+filename() {
+  local file="screenshot_$(date +%s).png"
+
+  echo "$screenshots_dir/$file"
+}
+
+take_screenshot() {
+  local screenshot_cmd="/usr/bin/maim"
+  local file="$(filename)"
+
+  "$screenshot_cmd" "$file"
+
+  open_file "$file"
+}
+
+open_file() {
+  local feh_cmd="/usr/bin/feh"
+  local file="$1"
+
+  "$feh_cmd" "$file"
+}
+
+screenshots_dir_exists || create_screenshots_dir
+take_screenshot

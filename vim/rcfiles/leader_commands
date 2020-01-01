@@ -3,3 +3,5 @@
 
 " Copy contents of the current buffer
 nnoremap <Leader>y :silent w !xsel -i -b<CR>
+
+" vim:ft=vim

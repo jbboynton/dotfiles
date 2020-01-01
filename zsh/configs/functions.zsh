@@ -61,7 +61,7 @@ vagrant_directory() {
 
   if [ ! -d "$vagrant_dir" ]; then
     echo "Error: couldn't locate the ops directory -- checked: $vagrant_dir"
-    exit 1
+    return 1
   fi
 
   echo "$vagrant_dir"
@@ -75,7 +75,15 @@ vh() {
 
 vrest() {
   pushd "$(vagrant_directory)" &> /dev/null || exit
-  vagrant reload
+
+  vagrant halt
+  echo "VM halted..."
+
+  sleep 3
+
+  echo "Restarting VM..."
+  vagrant up
+
   popd &> /dev/null || exit
 }
 
@@ -96,3 +104,5 @@ vu() {
   vagrant up
   popd &> /dev/null || exit
 }
+
+# vim:ft=bash

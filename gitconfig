@@ -3,7 +3,7 @@
   name = James Boynton
 [core]
   editor = vim
-  excludesfile = ~/.gitignore_global
+  excludesfile = ~/.gitignore
 [alias]
   c = commit
   co = checkout
