@@ -1,0 +1,19 @@
+rcup \
+  -v \
+  -x bin/change_brightness \
+  -x bin/config \
+  -x bin/daw \
+  -x bin/ksp \
+  -x bin/last_screenshot \
+  -x bin/launch_polybar \
+  -x bin/note \
+  -x bin/only_one_monitor \
+  -x bin/open_terminal \
+  -x bin/screenshot \
+  -x config/alacritty \
+  -x config/dunst \
+  -x config/i3 \
+  -x config/polybar \
+  -x rcrc \
+  -x ssh \
+  -x xinitrc
