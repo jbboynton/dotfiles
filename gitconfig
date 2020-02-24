@@ -1,6 +1,7 @@
 [user]
   email = james.boynton0@gmail.com
   name = James Boynton
+	signingkey = 19F28D7F208FE80B
 [core]
   editor = vim
   excludesfile = ~/.gitignore
