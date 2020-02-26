@@ -1,32 +1,23 @@
 # Zsh configuration
 
-# Mac: use GNU sed instead of the system sed. Run brew info gnu-sed for info.
-PATH="/usr/local/opt/gnu-sed/libexec/gnubin:$PATH"
+# completion
+fpath=(~/.zsh/completion $fpath)
 
 autoload -Uz compinit promptinit
 compinit
 promptinit
 
-# completion
-fpath=(~/.zsh/completion $fpath)
-
 # history
-HISTSIZE=1000000000
+HISTSIZE=100000000000000
 HISTFILE=~/.zsh_history
-SAVEHIST=1000000000
+SAVEHIST=100000000000000
 
-# plugins
-# Mac:
-export ZPLUG_HOME=/usr/local/opt/zplug
-source $ZPLUG_HOME/init.zsh
-
-# Linux:
-# source ~/.zplug/init.zsh
+source ~/.zplug/init.zsh
 
 zplug "mafredri/zsh-async"
 zplug "zsh-users/zsh-completions"
-zplug "zsh-users/zsh-syntax-highlighting"
-zplug "zsh-users/zsh-history-substring-search"
+zplug "zsh-users/zsh-syntax-highlighting", defer:2
+zplug "zsh-users/zsh-history-substring-search", defer:3
 
 zplug load
 
@@ -36,15 +27,6 @@ for zsh_source in $HOME/.zsh/configs/*.zsh; do
 done
 
 case "$OSTYPE" in
-  darwin*)
-  ;;
-  linux*)
-    # X display server
-    if [ "$(tty)" = "/dev/tty1" ]; then
-      pgrep i3 || startx
-    fi
-
-    # tmux
-    tat
-  ;;
+  darwin*) source $HOME/.zsh/darwin.zsh ;;
+  linux*) source $HOME/.zsh/linux.zsh ;;
 esac

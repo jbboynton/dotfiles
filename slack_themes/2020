@@ -1,0 +1,9 @@
+// Theme
+#1D2229,#0B161E,#4A5664,#FFFFFF,#313843,#FFFFFF,#94E864,#BF616A
+
+// Custom colors for individual users
+// To set, enter: `/color @username ff0000`
+#4c556a // other users
+#88c0d0 // me
+
+// vim:ft=scss

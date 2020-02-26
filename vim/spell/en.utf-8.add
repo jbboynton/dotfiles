@@ -17,3 +17,7 @@ rspec
 matchers
 profiler
 sanitization
+pre
+JWT
+cardinality
+APIs
