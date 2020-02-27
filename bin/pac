@@ -1,0 +1,11 @@
+#!/bin/bash
+# Invokes pacman without sudo. If unsuccessful, prepend sudo and retry.
+
+cmd="$*"
+unprivileged_cmd="$(pacman $cmd 2>/dev/null)"
+
+if [ $? -eq 0 ]; then
+  echo "$unprivileged_cmd"
+else
+  sudo pacman $cmd
+fi

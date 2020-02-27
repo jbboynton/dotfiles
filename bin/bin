@@ -1,0 +1,54 @@
+#!/bin/sh
+# Opens or creates a bin script in ~/.bin.
+
+file="$HOME/.bin/$1"
+
+info() {
+  echo -e "$1"
+}
+
+error() {
+  local message="$1"
+
+  echo >&2 "Error: $message"
+  exit 1
+}
+
+create_or_edit_script() {
+  script_exists || create_script
+}
+
+script_exists() {
+  [ -f "$file" ]
+}
+
+create_script() {
+  script_template > "$file"
+  chmod +x "$file"
+}
+
+script_template() {
+read -r -d '' template <<'EOM'
+#!/bin/bash
+
+info() {
+  echo -e "$1"
+}
+
+error() {
+  local message="$1"
+
+  echo >&2 "Error: $message"
+  exit 1
+}
+EOM
+
+echo "$template"
+}
+
+open_script() {
+  vim "$file"
+}
+
+create_or_edit_script
+open_script

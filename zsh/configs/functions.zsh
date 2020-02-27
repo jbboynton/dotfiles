@@ -10,7 +10,13 @@ cdv() {
 }
 
 cdg() {
-  cd "$(root_directory)" || exit
+  [ -d "$(root_directory)" ] && cd "$(root_directory)"
+}
+
+cdt() {
+  theme_dir="$(root_directory)/app/content/themes"
+
+  [ -d "$theme_dir" ] && cd "$theme_dir"
 }
 
 g() {
@@ -23,6 +29,14 @@ g() {
 
 gcm() {
   git commit -m "$*"
+}
+
+pu() {
+  if [[ "$#" -gt 0 ]]; then
+    sudo pacman -Syu
+  else
+    sudo pacman -Syu "$@"
+  fi
 }
 
 root_directory() {
