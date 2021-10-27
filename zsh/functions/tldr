@@ -1,0 +1,8 @@
+#!/bin/bash
+
+tldr() {
+  command tldr "$@"
+  # wrapping this in a sub-shell makes it unable to write to the terminal, but
+  # the job is totally lost
+  ( nohup tldr -u </dev/null &>/dev/null & )
+}

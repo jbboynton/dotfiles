@@ -1,0 +1,63 @@
+#!/bin/bash
+# Syncs Alacritty's terminfo to the remote host, and installs it
+
+set -e
+
+# Required
+ssh_host="$1"
+terminfo="$HOME/.config/alacritty/alacritty.info"
+
+# Options
+quiet=""
+
+print_usage() {
+cat <<EOM
+Usage: sync_terminfo [SSH HOST]
+
+Required:
+  [SSH HOST]     a valid hostname that exists in ~/.ssh/config
+
+EOM
+}
+
+get_options() {
+  while getopts 'h' flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+remote_exec() {
+  cmd="\"$1"\"
+
+  TERM=xterm ssh -t "$ssh_host" bash -c "$cmd"
+}
+
+sync_info() {
+local info=$(<"$terminfo")
+
+read -r -d '' cmd <<EOBASH
+infocmp alacritty || \
+  ( \
+    echo \"$info\" >> alacritty.info; \
+    tic -xe alacritty,alacritty-direct alacritty.info; \
+    rm alacritty.info \
+  )
+EOBASH
+
+echo "$cmd"
+}
+
+get_options "$@"
+remote_exec "$(sync_info)"

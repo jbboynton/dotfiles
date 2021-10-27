@@ -1,116 +1,21 @@
 #!/bin/bash
-# Opens the given note if it exists in the notes directory. Otherwise, creates
-# a new note, and attempts to automatically insert an appropriate heading.
 
-# Arguments
 note="$1"
+notes_path="$HOME/Notes"
+note_path="$notes_path/$note.md"
 
-# Variables
-notes_directory="$HOME/notes"
-filetype="md"
-note_path=''
+if [ ! -f "$note_path" ]; then
+  title="${note//_/ }"
 
-# Options
-quiet=''
+  echo -e "<div id=\"page-top\"></div>\n" >> "$note_path"
+  echo -e "# $title\n\n---\n\n\n" >> "$note_path"
+  echo -e "<!--" >> "$note_path"
+  echo -e "<small><a href=\"#page-top\">Back to top ⇪</a></small>" >> "$note_path"
+  echo -e "<div class=\"banner\">Alert!</div>" >> "$note_path"
+  echo -e "<div class=\"page-break\"></div>" >> "$note_path"
+  echo -e "-->" >> "$note_path"
 
-print_usage() {
-cat <<EOM
-Usage: note NAME [OPTION]
-Options:
-  -d    the path to the notes directory (default: $notes_directory)
-  -f    file extension (default: md)
-  -h    display this help message
-  -q    minimal output
-EOM
-}
-
-get_options() {
-  while getopts 'd:hq' flag; do
-    case "${flag}" in
-      d) notes_directory="${OPTARG}" ;;
-      f) filetype="${OPTARG}" ;;
-      h) print_usage; exit ;;
-      q) quiet="true" ;;
-      :) error "${OPTARG} requires an argument"; exit 1 ;;
-      *) print_usage; exit 1 ;;
-    esac
-  done
-}
-
-info() {
-  [ -n "$quiet" ] || echo -e "$1"
-}
-
-error() {
-  echo -e >&2 "Error: $1"
-  exit 1
-}
-
-note_path() {
-  echo "$notes_directory/$note.$filetype"
-}
-
-note_is_present() {
-  [ -n "$note" ]
-}
-
-does_not_conflict_with_options() {
-  [[ ! "$note" =~ -(d|h|q) ]]
-}
-
-validate_note() {
-  note_is_present || error "note name must be specified"
-  does_not_conflict_with_options || error "note name must come before options"
-}
-
-validate_options() {
-  [ -d "$notes_directory" ] || error "notes directory not found"
-}
-
-validations() {
-  validate_note
-  validate_options
-}
-
-set_note_path() {
-  note_path="$notes_directory/$note.$filetype"
-}
-
-existing_note() {
-  [ -f "$note_path" ]
-}
-
-edit_note() {
-  vim "$note_path"
-}
-
-insert_heading() {
-  local title="${note//_/ }"
-
-  echo -e "# $title\n\n" > "$note_path"
-}
-
-prepare_to_edit() {
-  local startup_command=':execute "normal \<Plug>TitlecaseLine" | '
-  startup_command+=':execute "normal G"'
-
-  vim -c "$startup_command" "$note_path"
-}
-
-create_note() {
-  insert_heading
-  prepare_to_edit
-}
-
-open_note() {
-  if existing_note; then
-    edit_note
-  else
-    create_note
-  fi
-}
-
-get_options "$@"
-validations
-set_note_path
-open_note
+  vim -c ':execute "normal gg2j" | :execute "normal \<Plug>TitlecaseLine" | :execute "normal G6k"' "$note_path"
+else
+  vim "$notes_path/$note.md"
+fi

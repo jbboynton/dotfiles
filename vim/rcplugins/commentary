@@ -1,0 +1,8 @@
+" commentary
+" Comment stuff out
+
+Plug 'tpope/vim-commentary'
+
+autocmd FileType brewfile setlocal commentstring=#\ %s
+
+" vim:ft=vim

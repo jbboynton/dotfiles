@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+echo
+echo 'Submits a test ticket with the email address:'
+echo '  --> james+duplicate-test__YYYY-MM-DD_HH.MM.SS@xzito.com'
+echo
+echo 'Then, the tickets dashboard is opened in the browser.'
+echo
+
+claim_data_file="$HOME/.bin/dup_ticket_test.json"
+claims_url="https://claims.apexhose.xzitostaging.com/api/v1/claims"
+
+date_time="$(date +%Y-%m-%d_%H.%M.%S)"
+email_address="james+duplicate-test__$date_time@xzito.com"
+
+tickets_dashboard_url="https://app.hubspot.com/contacts/367344/tickets"
+tickets_dashboard_url+="/board/view/all/"
+
+update_claim_data_email() {
+  jq '.form_response.answers[1].email |= $email_address' \
+    --arg email_address \
+    "$email_address" \
+    "$claim_data_file" \
+  > tmp.$$.json && mv tmp.$$.json "$claim_data_file"
+}
+
+create_claim() {
+  http "$claims_url" < "$claim_data_file"
+}
+
+open_tickets_dashboard() {
+  open -a "Safari.app" "$tickets_dashboard_url"
+}
+
+update_claim_data_email
+create_claim
+open_tickets_dashboard

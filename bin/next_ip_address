@@ -1,0 +1,26 @@
+#!/bin/bash
+
+next_ip_address() {
+  local ip_address
+  local third_octet; third_octet=50
+  local fourth_octet; fourth_octet=1
+
+  ip_address="192.168.$third_octet.$fourth_octet"
+
+  while grep -q "$ip_address" /etc/hosts* > /dev/null; do
+    if [ "$fourth_octet" -eq 255 ]; then
+      fourth_octet=1
+      ((third_octet++))
+    elif [ "$third_octet" -eq 255 ]; then
+      exit_with_message "Out of private IP addresses - check /etc/hosts." 1
+    else
+      ((fourth_octet++))
+    fi
+
+    ip_address="192.168.$third_octet.$fourth_octet"
+  done
+
+  echo "$ip_address"
+}
+
+next_ip_address

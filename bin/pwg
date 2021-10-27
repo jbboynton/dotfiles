@@ -1,0 +1,57 @@
+#!/bin/bash
+# Uses `/dev/urandom` to generate an alphanumeric string of N characters.
+
+set -e
+
+yank=''
+length=32
+
+get_options() {
+  while getopts 'hl:y' flag; do
+    case "${flag}" in
+      h) print_usage; exit ;;
+      l) length="${OPTARG}" ;;
+      y) yank='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+print_usage() {
+cat <<EOM
+Usage: pwg [OPTION]
+
+Options:
+  -h          display this help message
+  -l [ARG]    length of the generated password (default: 32)
+  -y          copy the generated password to the clipboard
+
+EOM
+}
+
+generate_password() {
+  if [ -n "$yank" ]; then
+    pwg | pbcopy
+  else
+    pwg
+  fi
+}
+
+pwg() {
+  local valid_length_test='^[0-9]+$'
+
+  if ! [[ $length =~ $valid_length_test ]]; then
+    length=32
+  fi
+
+  local string="$( \
+    head /dev/urandom \
+      | LC_CTYPE=C tr -dc "[:alnum:]" \
+      | head -c "$length" \
+    )"
+
+  echo "$string"
+}
+
+get_options "$@"
+generate_password

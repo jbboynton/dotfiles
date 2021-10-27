@@ -1,6 +1,0 @@
-" rfactory
-" ...
-
-Plug 'christoomey/vim-rfactory'
-
-" vim:ft=vim

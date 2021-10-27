@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vrest() {
+  pushd "$(vroot)" &>/dev/null
+  vagrant reload
+  popd &>/dev/null
+}

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+v() {
+  if [[ "$#" -gt 0 ]]; then
+    vim "$@"
+  else
+    vim .
+  fi
+}

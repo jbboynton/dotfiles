@@ -1,6 +1,9 @@
 " ripgrep
-" ...
+" Search with RipGrep and show results in a quickfix list
 
-Plug 'jremmen/vim-ripgrep'
+" Plug 'jremmen/vim-ripgrep'
+
+" Waiting for https://github.com/jremmen/vim-ripgrep/pull/58 to close
+Plug 'lamchau/vim-ripgrep', { 'branch': 'patch-1' }
 
 " vim:ft=vim

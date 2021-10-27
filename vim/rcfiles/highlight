@@ -1,6 +1,3 @@
-" Vim - highlight
-" Color customizations.
-
 highlight QuickFixLine cterm=bold,underline ctermfg=cyan ctermbg=black
 
 highlight CursorParen cterm=bold ctermfg=green ctermbg=black
@@ -23,6 +20,9 @@ highlight SpellBad cterm=bold,underline ctermfg=red ctermbg=black
 highlight SpellCap cterm=bold,underline ctermfg=yellow ctermbg=black
 highlight SpellRare cterm=bold,underline ctermfg=yellow ctermbg=black
 
+highlight Comment cterm=italic
+highlight Define cterm=none ctermfg=blue
+
 highlight Todo cterm=underline ctermfg=yellow ctermbg=black
 highlight Error cterm=bold,underline ctermfg=red ctermbg=black
 highlight ErrorMsg cterm=bold,underline ctermfg=red ctermbg=black
@@ -35,7 +35,7 @@ highlight PmenuSbar ctermfg=black ctermbg=black
 highlight WildMenu cterm=underline ctermfg=yellow ctermbg=black
 highlight StatusLine cterm=none ctermfg=cyan ctermbg=black
 
-highlight VertSplit ctermfg=black ctermbg=cyan
+highlight VertSplit ctermfg=black ctermbg=darkgray
 
 highlight Visual ctermfg=none ctermbg=darkgray
 

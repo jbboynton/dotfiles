@@ -1,6 +1,7 @@
 [user]
   email = james.boynton0@gmail.com
   name = James Boynton
+  signingkey = 740335266E82574F
 [core]
   editor = vim
   excludesfile = ~/.gitignore
@@ -9,12 +10,28 @@
   co = checkout
   r = rebase
   rc = rebase --continue
-  sla = log --oneline --decorate --graph --all
+  sla = log --oneline --decorate --graph \
+    --exclude=refs/remotes/origin/dependabot/* \
+    --exclude=refs/remotes/heroku/* \
+    --exclude=refs/remotes/james/* \
+    --exclude=refs/remotes/production/* \
+    --exclude=refs/remotes/staging/* \
+    --decorate-refs-exclude=refs/remotes/origin/dependabot/* \
+    --decorate-refs-exclude=refs/remotes/heroku/* \
+    --decorate-refs-exclude=refs/remotes/james/* \
+    --decorate-refs-exclude=refs/remotes/production/* \
+    --decorate-refs-exclude=refs/remotes/staging/* \
+    --all
+  slaa = log --oneline --decorate --graph --all
   a = add
   p = push
 [fetch]
   prune = true
 [merge]
   ff = only
-
-# vim:ft=gitconfig
+[commit]
+  gpgsign = true
+[pull]
+  ff = only
+[init]
+  defaultBranch = main

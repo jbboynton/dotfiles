@@ -1,5 +1,5 @@
 " supertab
-" ...
+" Allows you to use <Tab> for all your insert completion needs
 
 Plug 'ervandew/supertab'
 

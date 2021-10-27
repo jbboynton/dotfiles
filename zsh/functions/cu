@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cu() {
+  if [[ "$#" -gt 0 ]]; then
+    composer update "$@"
+  else
+    composer update
+  fi
+}

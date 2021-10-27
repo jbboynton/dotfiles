@@ -1,18 +1,20 @@
 " rails
-" ...
+" Editor awareness of Ruby on Rails applications
 
 Plug 'tpope/vim-rails'
 
-" fix ':A opens related request spec' issue
+" Associate request specs with controllers
 let g:rails_projections = {
   \  "app/controllers/*_controller.rb": {
   \      "test": [
   \        "spec/requests/{}_spec.rb",
+  \        "spec/requests/{}",
   \        "spec/controllers/{}_controller_spec.rb",
   \        "test/controllers/{}_controller_test.rb"
   \      ],
   \      "alternate": [
   \        "spec/requests/{}_spec.rb",
+  \        "spec/requests/{}",
   \        "spec/controllers/{}_controller_spec.rb",
   \        "test/controllers/{}_controller_test.rb"
   \      ],

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Define an array of DigitalOcean Image IDs.
+# snapshot_ids=( 123, 456, 789 )
+
+# By default, treat all arguments an array of DigitalOcean Image IDs.
+snapshot_ids=( "$@" )
+
+for i in "${snapshot_ids[@]}"; do
+  doctl compute image delete -f "$i"
+done

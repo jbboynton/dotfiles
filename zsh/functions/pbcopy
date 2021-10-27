@@ -1,0 +1,6 @@
+#!/bin/bash
+
+pbcopy() {
+  command pbcopy "$@"
+  echo "Copy with command \`copy <filename>\`"
+}

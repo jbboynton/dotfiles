@@ -1,5 +1,5 @@
 " eunuch
-" ...
+" Vim sugar for common UNIX shell commands
 
 Plug 'tpope/vim-eunuch'
 

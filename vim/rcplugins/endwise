@@ -1,5 +1,5 @@
 " endwise
-" ...
+" Wisely add "end" in Ruby, endfunction/endif/etc. in Vimscript, etc.
 
 Plug 'tpope/vim-endwise'
 

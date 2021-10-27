@@ -1,6 +1,0 @@
-" ruby
-" ...
-
-Plug 'vim-ruby/vim-ruby'
-
-" vim:ft=vim

@@ -16,14 +16,6 @@ let g:ale_pattern_options = {
   \   '.*\.env$': { 'ale_enabled': 0 }
   \ }
 
-" let g:ale_fixers = {
-"   \   "php": ["php_cs_fixer"]
-"   \ }
-" let g:ale_fix_on_save = 1
-
-let g:ale_php_phpcs_standard = "/Users/computer14/.style_ruleset.xml"
-" let g:ale_php_cs_fixer_options = "--config=/Users/computer14/.php_cs.php"
-
 highlight SignColumn ctermbg=236
 highlight ALEErrorSign ctermfg=red ctermbg=236
 highlight ALEWarningSign ctermfg=yellow ctermbg=236
@@ -42,16 +34,11 @@ let g:lightline#ale#indicator_ok = "linted"
 augroup vimrcEx
   autocmd!
 
-  " Set correct filetype
-  autocmd BufRead,BufNewFile *.env set filetype=config
-
   highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
   match ExtraWhitespace /\s\+\%#\@<!$/
   autocmd BufWinEnter * match ExtraWhitespace /\s\+\%#\@<!$/
   autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
   autocmd InsertLeave * match ExtraWhitespace /\s\+$/
-  autocmd Filetype gitcommit setlocal spell textwidth=72
-  autocmd Filetype markdown setlocal spell textwidth=80
 
   " ALE linting events
   set updatetime=1000
@@ -59,6 +46,5 @@ augroup vimrcEx
   nnoremap ]r :ALENextWrap<CR>
   nnoremap [r :ALEPreviousWrap<CR>
 augroup end
-
 
 " vim:ft=vim

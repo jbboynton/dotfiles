@@ -1,0 +1,30 @@
+#!/bin/bash
+# Run this script after installing or updating Homebrew packages
+
+set -eo pipefail
+
+print_start() {
+  echo
+  echo "Running Homebrew post-installation:"
+}
+
+clean_quicklook_plugin_atts() {
+  echo "- Cleaning QuickLook plugin extended attributes"
+
+  shopt -s nullglob
+
+  if [ -d "$HOME/Library/QuickLook" ]; then
+    for file in $HOME/Library/QuickLook/*; do
+      xattr -c "$file"
+    done
+  fi
+
+  shopt -u nullglob
+}
+
+post_installation() {
+  print_start
+  clean_quicklook_plugin_atts
+}
+
+post_installation

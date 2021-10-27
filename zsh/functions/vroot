@@ -1,0 +1,13 @@
+#!/bin/bash
+# Vagrant root directory
+
+vroot() {
+  local vagrant_dir="$(groot)/ops"
+
+  if [ ! -d "$vagrant_dir" ]; then
+    echo >&2 "could not find Vagrant directory: $vagrant_dir"
+    exit 1
+  else
+    echo "$vagrant_dir"
+  fi
+}

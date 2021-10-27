@@ -1,6 +1,0 @@
-" tcomment
-" ...
-
-Plug 'tomtom/tcomment_vim'
-
-" vim:ft=vim

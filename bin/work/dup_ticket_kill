@@ -1,0 +1,25 @@
+#!/bin/bash
+
+echo
+echo 'Finds the claim with the given ID, destroys its refund (if it exists), '
+echo 'and then destroys itself. This process is repeated for every claim in '
+echo 'the system created after the original claim.'
+echo
+
+claim_id="$1"
+
+read -r -d '' script <<EORUBY
+original_claim = Claim.find('$claim_id')
+claims = Claim.where('created_at >= ?', original_claim.created_at)
+
+claims.each do |claim|
+  claim.refund.try(:destroy)
+  claim.destroy
+end
+EORUBY
+
+echo "$script" | heroku run -a apex-warranty-service rails console --no-tty
+
+echo
+echo 'Next: `dup_ticket_test`'
+echo

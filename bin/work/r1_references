@@ -1,0 +1,69 @@
+#!/bin/bash
+
+read -r -d '' script <<EORUBY
+ran_at =
+  Time.use_zone(Time.find_zone("America/New_York")) do
+    Time.zone.now.strftime("%A, %B %d, %Y at %I:%M %p")
+	end
+all_content = Content.
+  preload(:contentable).
+  where("content like ? ", "%" + 'producers.metlife.com' + "%").
+  order(:contentable_type)
+
+separator = "----------------------------------------------------------------" \
+  "----------------"
+output = ""
+
+output += "\# R2 Content Migration\n\n"
+output += "---\n\n"
+output += "\## References to \`producers.metlife.com\`\n\n"
+
+output += "*Time of report: #{ran_at}*\n\n"
+output += "*Total posts found: \`#{all_content.count}\`*\n\n"
+
+output += "| \\# | Admin link | Front end link | Occurrences | Type |\n"
+output += "|---:|:---|:---|---:|:---|\n"
+
+no_model_name = []
+
+all_content.each_with_index do |content, index|
+  line_number = index + 1
+  html = content.content
+  occurrences = html.scan(/(?=producers\.metlife\.com)/).count
+  contentable = content.contentable
+
+  unless contentable.respond_to?(:model_name)
+    no_model_name << content.id
+  end
+
+  if contentable.respond_to?(:model_name)
+    type = contentable.model_name.human
+    base_path = contentable.model_name.plural
+    admin_link =
+      "https://admin.producers.xzitostaging.com/#{base_path}/#{content.id}"
+    front_end_link = CreatePath.for(contentable, relative: false)
+    row =
+      "| \`#{line_number}\` " \
+      "| [link](#{admin_link}) " \
+      "| [link](#{front_end_link}) " \
+      "| \`#{occurrences}\` " \
+      "| #{type} |\n"
+
+    output += row
+  end
+end
+
+output += "\n"
+output += "#{separator}\n\n"
+output += "Content without a \`contentable\`:\n"
+output += "[#{no_model_name.join(", ")}]\n"
+
+puts output
+EORUBY
+
+echo "$script" | heroku run -a metlife-r2 rails console --no-tty > /tmp/r1_references.md
+sed -i '0,/^puts output$/d' /tmp/r1_references.md
+tac /tmp/r1_references.md | sed '1,2d' | tac > /tmp/r1_references.md.tmp
+mv /tmp/r1_references.md.tmp ~/Notes/r1_references.md
+save_note ~/Notes/r1_references.md
+

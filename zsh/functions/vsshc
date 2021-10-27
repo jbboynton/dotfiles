@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vsshc() {
+  pushd "$(vroot)" &>/dev/null
+  vagrant ssh -c "cd /ops || exit; $*"
+  popd &>/dev/null
+}

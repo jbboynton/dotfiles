@@ -1,0 +1,11 @@
+#!/bin/bash
+
+find() {
+  command find "$@"
+  echo
+  echo "Use fd next time"
+  echo
+  if command -v tldr >/dev/null; then
+    tldr fd
+  fi
+}

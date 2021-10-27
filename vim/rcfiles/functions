@@ -1,6 +1,3 @@
-" Vim - functions
-" Custom functions.
-
 " Execute a command silently
 function! g:RunSilentCommand(cmd)
   :execute ':silent !' . a:cmd

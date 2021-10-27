@@ -1,5 +1,5 @@
 " rspec
-" ...
+" A lightweight RSpec runner
 
 Plug 'thoughtbot/vim-rspec'
 

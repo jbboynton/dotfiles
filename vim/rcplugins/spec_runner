@@ -1,17 +1,14 @@
 " spec_runner
-" ...
+" An efficient and intelligent spec runner
 
-Plug 'gabebw/vim-spec-runner'
+Plug 'gabebw/vim-spec-runner', { 'branch': 'main' }
 
-" Vim Spec Runner
-" Use <Leader>f to run the current spec file.
+" Mappings for running the current file, current line, and most recent spec
 map <Leader>f <Plug>RunCurrentSpecFile
-" Use <Leader>l to run the current line in a spec.
-map <Leader>l <Plug>RunFocusedSpec
-" Use <Leader>r to explicitly run the most recent spec.
+map <Leader>i <Plug>RunFocusedSpec
 map <Leader>r <Plug>RunMostRecentSpec
 
-" Delegate to VTR
+" Run specs using Vim Tmux Runner (loaded in ./tmux_runner)
 let g:spec_runner_dispatcher = 'call VtrSendCommand("{command}")'
 
 " vim:ft=vim

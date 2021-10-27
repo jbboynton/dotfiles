@@ -1,9 +1,19 @@
 " conflicted
-" ...
+" Aids in resolving git merge and rebase conflicts
 
+" Fugitive is required by this plugin (loaded in ./fugitive)
 Plug 'christoomey/vim-conflicted'
 
-" Mark file as resolved of merge conflicts
-nnoremap <leader>n :GitNextConflict<CR>
+augroup conflictedGroup
+  autocmd!
+
+  " Conflicted calls the user autocmd VimConflicted after initializing
+  autocmd User VimConflicted call s:initializeConflicted()
+augroup end
+
+function! s:initializeConflicted()
+  " Resolve current file and move to next conflicted file
+  nnoremap <leader>n :GitNextConflict<CR>
+endfunction
 
 " vim:ft=vim

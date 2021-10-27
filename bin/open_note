@@ -1,0 +1,25 @@
+#!/bin/bash
+
+note="$1"
+notes_dir="$HOME/Notes"
+
+save_note_script="$HOME/.bin/save_note"
+
+file="$(basename -- "$note")"
+file_without_ext="${file%.*}"
+html_output="$notes_dir/$file_without_ext.html"
+
+save_note() {
+  "$save_note_script" "$note"
+}
+
+open_html() {
+  open -a Safari.app "$html_output"
+}
+
+# open_pdf() {
+#   open -g -a Preview.app "$pdf_output"
+# }
+
+save_note
+open_html

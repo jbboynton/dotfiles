@@ -1,0 +1,74 @@
+#!/bin/bash
+
+ticket_id="$1"
+
+read -r -d '' script <<EORUBY
+claims = Claim.where(ticket_id: '$ticket_id')
+
+puts
+puts "-----"
+puts
+
+claims.each do |claim|
+  alerts = []
+
+  if claim.invalid?
+    alerts << "  * Claim isn't valid"
+  end
+
+  if claim.fulfillment_attempted?
+    alerts << "  * Fulfillment attempted flag is set"
+  end
+
+  if claim.failed_fraud_guard?
+    alerts << "  * Did not pass fraud guard"
+  end
+
+  unless claim.refund.status == 'COMPLETE'
+    alerts << "  * Refund hasn't been issued (may have failed during " \
+              "fulfillment, check the refund status)"
+  end
+
+  if claim.refund.reference_order_id.present?
+    unless claim.refund.reference_order_id.starts_with?('RA')
+      alerts << "  * Refund reference ID doesn't start with 'RA'"
+    end
+  end
+
+  if claim.refund.currency.blank?
+    alerts << "  * Refund currency is blank"
+  end
+
+  if claim.refund.amount.blank?
+    alerts << "  * Refund amount is blank"
+  end
+
+  if claim.customer_id.blank?
+    alerts << "  * No customer associated to the claim"
+  end
+
+  puts
+  puts
+  puts "Claim ##{claim.id}:"
+
+  unless alerts.empty?
+    puts
+    alerts.each { |alert| puts alert }
+    puts
+  end
+
+  puts "  Ticket ID:                 #{claim.ticket_id}"
+  puts "  Customer ID:               #{claim.customer_id}"
+  puts "  Valid?:                    #{claim.valid?}"
+  puts "  Fulfillment Attempted?:    #{claim.fulfillment_attempted?}"
+  puts "  Failed Fraud Guard?:       #{claim.failed_fraud_guard?}"
+  puts "  Refund Amount:             #{claim.refund.amount}"
+  puts "  Refund Currency:           #{claim.refund.currency}"
+  puts "  Refund Status:             #{claim.refund.status}"
+  puts "  Refund Reference ID:       #{claim.refund.reference_order_id}"
+  puts "  Refund External ID:        #{claim.refund.external_ref_id}"
+  puts
+end
+EORUBY
+
+echo "$script" | heroku run -a apex-warranty-service rails console --no-tty

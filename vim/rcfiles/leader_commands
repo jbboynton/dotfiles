@@ -1,7 +1,13 @@
-" Vim - leader_commands
-" Commands invoked with the leader key.
+" Source Vim config file
+nnoremap <leader>v :source ~/.vimrc<CR>
 
 " Copy contents of the current buffer
-nnoremap <Leader>y :silent w !xsel -i -b<CR>
+nnoremap <Leader>y :silent w !pbcopy<CR>
+
+" Remove trailing whitespace
+nnoremap <Leader><Space> :%s/\s\+$//e<CR>
+
+" Clear the screen
+nnoremap <Leader>c :!clear<CR><CR>
 
 " vim:ft=vim

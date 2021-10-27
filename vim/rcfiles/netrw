@@ -1,0 +1,7 @@
+" Save netrw history in /var/tmp
+let g:netrw_home = "/var/tmp"
+
+" Shorten :Explore to :E
+command! -nargs=* -bar -bang -count=0 -complete=dir E Explore <args>
+
+" vim:ft=vim

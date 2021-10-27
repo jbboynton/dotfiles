@@ -1,0 +1,10 @@
+#!/bin/bash
+# Runs git or shows the status if no args are passed
+
+g() {
+  if [[ "$#" -gt 0 ]]; then
+    git "$@"
+  else
+    git status --short --branch
+  fi
+}

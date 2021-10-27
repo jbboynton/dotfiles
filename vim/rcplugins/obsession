@@ -1,0 +1,6 @@
+" obsession
+" Simple, no-hassle Vim sessions
+
+Plug 'tpope/vim-obsession'
+
+" vim:ft=vim

@@ -1,0 +1,97 @@
+#!/bin/bash
+# Creates user accounts on DigitalOcean droplets.
+
+set -e
+
+# Required
+ssh_host=""
+username=""
+
+# Options
+password="teamvalue99"
+private_key="$HOME/.ssh/id_rsa"
+public_key="$HOME/.ssh/id_rsa.pub"
+quiet=""
+
+print_usage() {
+cat <<EOM
+Usage: create_user -s [SSH HOST] -u [USERNAME] [OPTIONS]
+
+Required:
+  -s <host>      SSH host, defined in .ssh/config
+  -u <username>  desired username
+
+Options:
+  -h             display this help message
+  -k <path>      local path to public key (default: .ssh/id_rsa.pub)
+  -K <path>      local path to private key (default: .ssh/id_rsa)
+  -p <password>  desired password (default: teamvalue99)
+  -q             minimal output
+
+EOM
+}
+
+get_options() {
+  while getopts 's:u:hk:K:p:q' flag; do
+    case "${flag}" in
+      s) ssh_host="${OPTARG}" ;;
+      u) username="${OPTARG}" ;;
+      h) print_usage exit ;;
+      k) public_key="${OPTARG}" ;;
+      K) private_key="${OPTARG}" ;;
+      p) password="${OPTARG}" ;;
+      q) quiet='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+remote_exec() {
+  cmd="\"$1"\"
+
+  ssh -i "$private_key" root@$ssh_host "bash -c $cmd"
+}
+
+add_user() {
+local perl_script="print crypt(\$ARGV[0], \"$password\")"
+local encrypted_password="$(perl -e "$perl_script" "$password")"
+
+read -r -d '' cmd <<EOBASH
+useradd -m -p "$encrypted_password" $username
+usermod -aG sudo,users,docker $username
+EOBASH
+
+echo "$cmd"
+}
+
+configure_ssh() {
+local key=$(<"$public_key")
+
+read -r -d '' cmd <<EOBASH
+mkdir /home/$username/.ssh
+chmod 700 /home/$username/.ssh
+
+echo \"$key\" >> /home/$username/.ssh/authorized_keys
+chmod 600 /home/$username/.ssh/authorized_keys
+EOBASH
+
+echo "$cmd"
+}
+
+update_ownership() {
+  echo "chown -R $username:$username /home/$username"
+}
+
+get_options "$@"
+remote_exec "$(add_user)"
+remote_exec "$(configure_ssh)"
+remote_exec "$(update_ownership)"

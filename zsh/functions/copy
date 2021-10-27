@@ -1,0 +1,5 @@
+#!/bin/bash
+
+copy() {
+  command cat "$1" | command pbcopy
+}

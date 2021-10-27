@@ -1,5 +1,5 @@
 " blade
-" ...
+" Syntax highlighting for Blade templates
 
 Plug 'jwalton512/vim-blade'
 

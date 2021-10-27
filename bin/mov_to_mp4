@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -e
+
+input_file_path="$1"
+dir="$(dirname "$input_file_path")"
+base="$(basename "$input_file_path")"
+base_without_ext="${base%.*}"
+ext="${base##*.}"
+input_file="$dir/$base_without_ext.mov"
+output_file="$dir/$base_without_ext.mp4"
+output_25_file="$dir/$base_without_ext-1.25x.mp4"
+output_50_file="$dir/$base_without_ext-1.5x.mp4"
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+check_if_mov() {
+  [ "$ext" == "mov" ] || error "input file must be a .mov (QuickTime video)"
+}
+
+convert_file() {
+  ffmpeg \
+    -i "$input_file" \
+    -vcodec h264 \
+    -map_channel 0.1.0 -c:v copy \
+    "$output_file"
+}
+
+prompt_for_25_faster() {
+  read -p "Create 1.25x version? [y|n] " -n 1 -r; echo
+
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # This creates an out-of-sync issue between the video and audio
+    ffmpeg \
+      -i "$output_file" \
+      -filter_complex "[0:v]setpts=(0.875*PTS)[v];[0:a]atempo=1.25[a]" \
+      -map "[v]" \
+      -map "[a]" \
+      "$output_25_file"
+  fi
+}
+
+prompt_for_50_faster() {
+  read -p "Create 1.5x version? [y|n] " -n 1 -r; echo
+
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # This creates an out-of-sync issue between the video and audio
+    ffmpeg \
+      -i "$output_file" \
+      -filter_complex "[0:v]setpts=(0.75*PTS)[v];[0:a]atempo=1.5[a]" \
+      -map "[v]" \
+      -map "[a]" \
+      "$output_50_file"
+  fi
+}
+
+check_if_mov
+convert_file
+# prompt_for_25_faster
+# prompt_for_50_faster

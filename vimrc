@@ -1,5 +1,5 @@
 " Vim configuration
-" Loads plugins and sources configurations in rcplugins and rcfiles.
+" Loads plugins and sources configurations in rcplugins and rcfiles
 
 set nocompatible
 

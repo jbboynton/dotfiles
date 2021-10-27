@@ -1,0 +1,94 @@
+#!/bin/bash
+
+md_file="$1"
+previews_dir="/tmp/markdown_previews"
+
+file="$(basename -- "$md_file")"
+file_without_ext="${file%.*}"
+pdf_output="$previews_dir/$file_without_ext.pdf"
+html_output="$previews_dir/$file_without_ext.html"
+tmp_output="$previews_dir/$file_without_ext.html.tmp"
+
+error() {
+  local message="$1"
+
+  echo >&2 "$message"
+  exit 1
+}
+
+previews_dir_exists() {
+  [ -d "$previews_dir" ]
+}
+
+create_previews_dir() {
+  mkdir "$previews_dir"
+}
+
+verify_md_file_is_markdown() {
+  local extension="${file##*.}"
+  local error_message="Error: note is not a markdown file ($file)"
+
+  [ "$extension" == "md" ] || error "$error_message"
+}
+
+clear_html() {
+  rm "$html_output"
+}
+
+add_head() {
+read -r -d '' html_head <<\EOHTML
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Markdown Preview</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/light.min.css">
+  </head>
+  <body>
+EOHTML
+
+echo "$html_head" >> "$html_output"
+}
+
+generate_html() {
+  marked -o "$tmp_output" < "$md_file"
+}
+
+add_generated_html() {
+  generate_html
+
+  cat "$tmp_output" >> "$html_output"
+
+  rm "$tmp_output"
+}
+
+add_tail() {
+  local html_tail="</body></html>"
+
+  echo "$html_tail" >> "$html_output"
+}
+
+build_html() {
+  add_head
+  add_generated_html
+  add_tail
+}
+
+build_pdf() {
+  wkhtmltopdf "$html_output" "$pdf_output"
+}
+
+open_html() {
+  local preview_url="file://$html_output"
+
+  /Applications/Firefox\ Developer\ Edition.app/Contents/MacOS/firefox \
+    -new-tab "$preview_url"
+}
+
+previews_dir_exists || create_previews_dir
+verify_md_file_is_markdown
+clear_html
+build_html
+build_pdf
+open_html

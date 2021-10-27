@@ -1,5 +1,5 @@
 " vinegar
-" ...
+" Enhancements for netrw
 
 Plug 'tpope/vim-vinegar'
 

@@ -1,5 +1,5 @@
 " repeat
-" ...
+" Plugin support for the `.` command
 
 Plug 'tpope/vim-repeat'
 

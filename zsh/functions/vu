@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vu() {
+  pushd "$(vroot)" &>/dev/null
+  vagrant up
+  popd &>/dev/null
+}

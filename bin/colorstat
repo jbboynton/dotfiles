@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# #<---------------------------->
+# # You must include this section when:
+# # Distributing, Using and/or Modifying this code.
+# # Please read and abide by the terms of the included LICENSE.
+# # Copyright 2020, Deepankar Chakroborty, All rights reserved.
+# #
+# #  Version : 0.1
+# #  Author : Deepankar Chakroborty (https://github.com/dchakro)
+# #  Report issues: https://github.com/dchakro/alacritty_colors/issues
+# #  License: https://github.com/dchakro/alacritty_colors/blob/master/LICENSE
+# #<---------------------------->
+
+# # Syntax of colors from https://misc.flogisoft.com/bash/tip_colors_and_formatting
+
+NC='\033[0m'
+
+# Colors
+echo -e ""
+echo -e "\033[4;39mDefaults${NC}"
+echo -e ""
+echo -e "  39:   Default Foreground   \033[39mNormal${NC}   \033[1;39mBold/Bright${NC}   \033[2;39mDim${NC}"
+echo -e "  49:   Default Background   \033[49mNormal${NC}"
+echo -e ""
+echo -e "\033[4;39mForeground Colors${NC}"
+echo -e ""
+echo -e "        \033[4;39mNormal${NC}         \033[4;39mBright${NC}         \033[4;39mDim${NC}"
+echo -e "  39:   \033[39mDefault${NC}        \033[1;39mDefault${NC}        \033[2;39mDefault${NC}"
+echo -e "  30:   \033[30mBlack${NC}          \033[1;30mBlack${NC}          \033[2;30mBlack${NC}"
+echo -e "  31:   \033[31mRed${NC}            \033[1;31mRed${NC}            \033[2;31mRed${NC}"
+echo -e "  32:   \033[32mGreen${NC}          \033[1;32mGreen${NC}          \033[2;32mGreen${NC}"
+echo -e "  33:   \033[33mYellow${NC}         \033[1;33mYellow${NC}         \033[2;33mYellow${NC}"
+echo -e "  34:   \033[34mBlue${NC}           \033[1;34mBlue${NC}           \033[2;34mBlue${NC}"
+echo -e "  35:   \033[35mMagenta${NC}        \033[1;35mMagenta${NC}        \033[2;35mMagenta${NC}"
+echo -e "  36:   \033[36mCyan${NC}           \033[1;36mCyan${NC}           \033[2;36mCyan${NC}"
+echo -e "  37:   \033[37mLight Gray${NC}     \033[1;37mLight Gray${NC}     \033[2;37mLight Gray${NC}"
+echo -e "  90:   \033[90mDark Gray${NC}      \033[1;90mDark Gray${NC}      \033[2;90mDark Gray${NC}"
+echo -e "  91:   \033[91mLight Red${NC}      \033[1;91mLight Red${NC}      \033[2;91mLight Red${NC}"
+echo -e "  92:   \033[92mLight Green${NC}    \033[1;92mLight Green${NC}    \033[2;92mLight Green${NC}"
+echo -e "  93:   \033[93mLight Yellow${NC}   \033[1;93mLight Yellow${NC}   \033[2;93mLight Yellow${NC}"
+echo -e "  94:   \033[94mLight Blue${NC}     \033[1;94mLight Blue${NC}     \033[2;94mLight Blue${NC}"
+echo -e "  95:   \033[95mLight Magenta${NC}  \033[1;95mLight Magenta${NC}  \033[2;95mLight Magenta${NC}"
+echo -e "  96:   \033[96mLight Cyan${NC}     \033[1;96mLight Cyan${NC}     \033[2;96mLight Cyan${NC}"
+echo -e "  97:   \033[97mWhite${NC}          \033[1;97mWhite${NC}          \033[2;97mWhite${NC}"
+echo -e ""
+echo -e "\033[4;39mBackground Colors${NC}"
+echo -e ""
+echo -e "\033[97;49m  49:${NC}   Default"
+echo -e "\033[97;40m  40:${NC}   Black"
+echo -e "\033[97;100m 100:${NC}   Dark Gray"
+echo -e "\033[30;41m  41:${NC}   Red"
+echo -e "\033[30;101m 101:${NC}   Light Red"
+echo -e "\033[30;42m  42:${NC}   Green"
+echo -e "\033[30;102m 102:${NC}   Light Green"
+echo -e "\033[30;43m  43:${NC}   Yellow"
+echo -e "\033[30;103m 103:${NC}   Light Yellow"
+echo -e "\033[97;44m  44:${NC}   Blue"
+echo -e "\033[97;104m 104:${NC}   Light Blue"
+echo -e "\033[97;45m  45:${NC}   Magenta"
+echo -e "\033[97;105m 105:${NC}   Light Magenta"
+echo -e "\033[30;46m  46:${NC}   Cyan"
+echo -e "\033[30;106m 106:${NC}   Light Cyan"
+echo -e "\033[30;47m  47:${NC}   Light Gray"
+echo -e "\033[30;107m 107:${NC}   White"
+echo -e ""
+
+# vim:tw=0

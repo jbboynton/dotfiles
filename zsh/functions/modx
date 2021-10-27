@@ -1,0 +1,10 @@
+#!/bin/bash
+# Creates a file if it doesn't exist, then flips the +x bit
+
+modx() {
+  if [ ! -f "$1" ]; then
+    echo -e "#!/bin/bash\n" > "$1"
+  fi
+
+  chmod +x "$1"
+}

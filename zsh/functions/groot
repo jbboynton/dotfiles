@@ -1,0 +1,6 @@
+#!/bin/bash
+# Git root directory
+
+groot() {
+  git rev-parse --show-toplevel
+}

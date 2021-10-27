@@ -1,0 +1,9 @@
+#!/bin/bash
+
+bu() {
+  if [[ "$#" -gt 0 ]]; then
+    bundle update "$@"
+  else
+    bundle update
+  fi
+}

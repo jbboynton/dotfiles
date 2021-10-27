@@ -1,25 +1,31 @@
 " lightline
-" ...
+" A light and configurable statusline/tabline
 
 Plug 'itchyny/lightline.vim'
 
+" Adds ALE indicator to lightline
+Plug 'maximbaz/lightline-ale'
+
 " Lightline config
-" ----------------
 let g:lightline = {
   \ 'colorscheme': 'seoul256',
   \ 'active': {
   \   'left': [ [ 'mode', 'paste' ],
-  \             [ 'fugitive', 'filename', 'modified', 'readonly' ],
+  \             [ 'fugitive', 'filename', 'conflicted', 'modified', 'readonly' ],
   \             [ 'ctrlp' ],
   \             [ 'linter_errors', 'linter_warnings' ] ],
   \   'right': [ [ 'lineinfo' ],
   \              [ 'filetype', 'fileencoding' ] ]
+  \ },
+  \ 'inactive': {
+  \    'left': [ [ 'filename', 'conflicted' ] ]
   \ },
   \ 'component': {
   \   'readonly': '%{&readonly?"×":""}',
   \ },
   \ 'component_function': {
   \   'fugitive': 'LightlineFugitive',
+  \   'conflicted': 'LightlineConflicted',
   \   'filename': 'LightlineFilename',
   \   'ctrlp': 'CtrlPMark',
   \ },
@@ -43,6 +49,13 @@ endfunction
 function! LightlineFugitive()
   if &ft !~? 'vimfiler' && exists('*fugitive#head')
     return fugitive#head()
+  endif
+  return ''
+endfunction
+
+function! LightlineConflicted()
+  if &ft !~? 'vimfiler' && !empty(ConflictedVersion())
+    return ConflictedVersion()
   endif
   return ''
 endfunction
@@ -73,6 +86,5 @@ endfunction
 function! CtrlPStatusFunc_2(str)
   return lightline#statusline(0)
 endfunction
-
 
 " vim:ft=vim

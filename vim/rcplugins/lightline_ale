@@ -1,6 +1,0 @@
-" lightline_ale
-" ...
-
-Plug 'maximbaz/lightline-ale'
-
-" vim:ft=vim

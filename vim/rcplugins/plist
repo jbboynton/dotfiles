@@ -1,0 +1,6 @@
+" plist
+" Adds complete support for property lists (plist) files
+
+Plug 'darfink/vim-plist'
+
+" vim:ft=vim

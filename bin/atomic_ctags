@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+root="$(git rev-parse --show-toplevel)"
+git="$root/.git"
+tags="$git/tags"
+
+if [ -d "$git" ]; then
+  temp_tags=$(mktemp "$git/tags.XXXXX")
+
+  ctags -R -f "$temp_tags" && mv "$temp_tags" "$tags"
+fi

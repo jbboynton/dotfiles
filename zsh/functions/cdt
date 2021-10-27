@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cdt() {
+  cd "$(groot)/app/content/themes"
+}

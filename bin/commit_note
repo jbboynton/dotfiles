@@ -1,0 +1,27 @@
+#!/bin/bash
+
+note="$1"
+notes_dir="$HOME/Notes"
+
+save_note_script="$HOME/.bin/save_note"
+github_url="https://github.com/jbboynton/test-md"
+
+file="$(basename -- "$note")"
+file_without_ext="${file%.*}"
+html_output="$notes_dir/$file_without_ext.html"
+
+save_note() {
+  "$save_note_script" "$note"
+}
+
+copy_html() {
+  cat "$html_output" | pbcopy
+}
+
+open_github() {
+  open -a "Firefox Developer Edition.app" "$github_url"
+}
+
+save_note
+copy_html
+open_github

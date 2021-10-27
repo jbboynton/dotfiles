@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vh() {
+  pushd "$(vdir)" &>/dev/null
+  vagrant halt
+  popd &>/dev/null
+}

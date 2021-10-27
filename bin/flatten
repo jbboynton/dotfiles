@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Required
+directory="$(readlink -f "$1")"
+
+print_usage() {
+cat <<EOM
+Usage: flatten [OPTIONS] [DIRECTORY]
+
+Options:
+  -h             display this help message
+  -q             minimal output
+
+EOM
+}
+
+get_options() {
+  while getopts 'hq' flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      q) quiet='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+verify_directory() {
+  [ -d "$directory" ]
+}
+
+flatten_directory() {
+  find "$directory" -mindepth 2 -type f -exec mv -t "$directory" -i '{}' +
+}
+
+get_options "$@"
+verify_directory
+flatten_directory

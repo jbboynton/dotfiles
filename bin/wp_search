@@ -1,0 +1,136 @@
+#!/bin/bash
+# Searches post content on a WP site using the WP JSON API.
+
+set -ex
+
+# Arguments
+term="$1"
+url="$2"
+
+# Options
+# Neither work because args overrule flags
+save_to_file=""
+verbose=""
+
+# Globals
+output_dir="$(mktemp -d)"
+headers="$output_dir/headers"
+full_response="$output_dir/full-response.json"
+filtered_response="$output_dir/filtered-response.json"
+page=1
+
+print_usage() {
+cat <<EOM
+Usage: wp_search SEARCH_TERM SITE_URL [OPTION]
+
+Arguments:
+  SEARCH_TERM    the string to find (required)
+  SITE_URL       the request URL (must hit hit a WP JSON API) (required)
+
+Options:
+  -f    save result to a temp file (path will print to STDOUT)
+  -h    display this help message
+  -v    verbose output
+
+EOM
+}
+
+get_options() {
+  while getopts "fhv" flag; do
+    case "${flag}" in
+      f) save_to_file="true"; ;;
+      h) print_usage; exit ;;
+      v) verbose="true" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$verbose" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+validate_arguments() {
+  validate_search_term
+  validate_site_url
+}
+
+validate_search_term() {
+  [ -n "$term" ] || error "expected first argument to be the search term"
+}
+
+validate_site_url() {
+  [ -n "$url" ] || error "expected second argument to be the URL"
+
+  echo "$url" | grep -q "http" \
+    || error "expected URL to include the protocol"
+
+  echo "$url" | grep -q "wp-json" \
+    || error "expected a URL that hits the WP JSON API"
+}
+
+download_page() {
+  local current_page="$1"
+  local save_location="$2"
+
+  info "Downloading $current_page to $save_location"
+
+  /usr/local/bin/http --headers --download --verify=no "$current_page" \
+    > "$save_location" \
+    2> "$headers"
+}
+
+get_next_link() {
+  cat "$headers" \
+    | grep ^Link \
+    | tr "," "\n" \
+    | grep \"next\" \
+    | sed "s/.*<\(.*\)>.*/\1/"
+}
+
+download_all() {
+  while [ -n "$url" ]; do
+    download_page "$url" "$output_dir/page-$page.json"
+
+    url="$(get_next_link)"
+    page=$(( $page + 1 ))
+  done
+
+  info "Downloaded all pages in the response"
+}
+
+recombine() {
+  jq -s "[.[][]]" $output_dir/*.json > "$full_response"
+
+  info "Full response saved to $full_response"
+}
+
+filter_response() {
+  local tmp_filtered_response="$output_dir/tmp_filtered_response.json"
+
+  jq "[.[] | { id: .id, link: .link, content: .content.rendered }]" \
+    "$full_response" > "$tmp_filtered_response"
+
+  jq '.[] | select(.content | contains($search_term))' \
+    --arg search_term \
+    "$term" \
+    "$tmp_filtered_response" \
+  > "$filtered_response"
+
+  info "Filtered response saved to $filtered_response"
+  # jq "[.[] | select(.content | contains('vc_tabs')) | { link: .link, content: .content }]" "$full_response" \
+  #   > "$filtered_response"
+  #
+  # info "Filtered response saved to $filtered_response"
+}
+
+get_options "$@"
+validate_arguments
+download_all
+recombine
+filter_response

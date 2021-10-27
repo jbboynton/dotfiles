@@ -1,0 +1,108 @@
+#!/bin/bash
+# Displays terminal color in a pleasing swatch-like fashion.
+
+set -e pipefail
+
+echo
+echo -e '    \033[30m█\033[30m█\033[30m█\033[30m█\033[30m█\033[0m     \033[31m█\033[31m█\033[31m█\033[31m█\033[31m█\033[0m     \033[32m█\033[32m█\033[32m█\033[32m█\033[32m█\033[0m     \033[33m█\033[33m█\033[33m█\033[33m█\033[33m█\033[0m     \033[34m█\033[34m█\033[34m█\033[34m█\033[34m█\033[0m     \033[35m█\033[35m█\033[35m█\033[35m█\033[35m█\033[0m     \033[36m█\033[36m█\033[36m█\033[36m█\033[36m█\033[0m     \033[37m█\033[37m█\033[37m█\033[37m█\033[37m█\033[0m'
+echo -e '    \033[30m█\033[30m█\033[30m█\033[30m█\033[30m█\033[30;1m█\033[0m    \033[31m█\033[31m█\033[31m█\033[31m█\033[31m█\033[31;1m█\033[0m    \033[32m█\033[32m█\033[32m█\033[32m█\033[32m█\033[32;1m█\033[0m    \033[33m█\033[33m█\033[33m█\033[33m█\033[33m█\033[33;1m█\033[0m    \033[34m█\033[34m█\033[34m█\033[34m█\033[34m█\033[34;1m█\033[0m    \033[35m█\033[35m█\033[35m█\033[35m█\033[35m█\033[35;1m█\033[0m    \033[36m█\033[36m█\033[36m█\033[36m█\033[36m█\033[36;1m█\033[0m    \033[37m█\033[37m█\033[37m█\033[37m█\033[37m█\033[37;1m█\033[0m'
+echo -e '    \033[30m█\033[30m█\033[30m█\033[30m█\033[30m█\033[30;1m█\033[0m    \033[31m█\033[31m█\033[31m█\033[31m█\033[31m█\033[31;1m█\033[0m    \033[32m█\033[32m█\033[32m█\033[32m█\033[32m█\033[32;1m█\033[0m    \033[33m█\033[33m█\033[33m█\033[33m█\033[33m█\033[33;1m█\033[0m    \033[34m█\033[34m█\033[34m█\033[34m█\033[34m█\033[34;1m█\033[0m    \033[35m█\033[35m█\033[35m█\033[35m█\033[35m█\033[35;1m█\033[0m    \033[36m█\033[36m█\033[36m█\033[36m█\033[36m█\033[36;1m█\033[0m    \033[37m█\033[37m█\033[37m█\033[37m█\033[37m█\033[37;1m█\033[0m'
+echo -e '     \033[30;1m█\033[30;1m█\033[30;1m█\033[30;1m█\033[30;1m█\033[0m     \033[31;1m█\033[31;1m█\033[31;1m█\033[31;1m█\033[31;1m█\033[0m     \033[32;1m█\033[32;1m█\033[32;1m█\033[32;1m█\033[32;1m█\033[0m     \033[33;1m█\033[33;1m█\033[33;1m█\033[33;1m█\033[33;1m█\033[0m     \033[34;1m█\033[34;1m█\033[34;1m█\033[34;1m█\033[34;1m█\033[0m     \033[35;1m█\033[35;1m█\033[35;1m█\033[35;1m█\033[35;1m█\033[0m     \033[36;1m█\033[36;1m█\033[36;1m█\033[36;1m█\033[36;1m█\033[0m     \033[37;1m█\033[37;1m█\033[37;1m█\033[37;1m█\033[37;1m█\033[0m'
+echo
+
+## This is much, much slower, but it does work
+# end='\033[0m'
+# space='    '
+# block='█'
+
+# black='\033[30m'
+# red='\033[31m'
+# green='\033[32m'
+# yellow='\033[33m'
+# blue='\033[34m'
+# magenta='\033[35m'
+# cyan='\033[36m'
+# light_gray='\033[37m'
+# dark_gray='\033[30;1m'
+# light_red='\033[31;1m'
+# light_green='\033[32;1m'
+# light_yellow='\033[33;1m'
+# light_blue='\033[34;1m'
+# light_magenta='\033[35;1m'
+# light_cyan='\033[36;1m'
+# white='\033[37;1m'
+
+# draw() {
+#   main_sequence="$1"
+#   trailing_sequence="$2"
+
+#   drawn_block=""
+#   drawn_block+="$main_sequence$block"
+#   drawn_block+="$main_sequence$block"
+#   drawn_block+="$main_sequence$block"
+#   drawn_block+="$main_sequence$block"
+#   drawn_block+="$main_sequence$block"
+
+#   if [ -n "$trailing_sequence" ]; then
+#     drawn_block+="$trailing_sequence$block"
+#   else
+#     drawn_block+=" "
+#   fi
+
+#   drawn_block+="$end"
+
+#   echo "$drawn_block"
+# }
+
+
+# line_1() {
+#   ln_1="$space"
+#   ln_1+="$(draw "$black")$space"
+#   ln_1+="$(draw "$red")$space"
+#   ln_1+="$(draw "$green")$space"
+#   ln_1+="$(draw "$yellow")$space"
+#   ln_1+="$(draw "$blue")$space"
+#   ln_1+="$(draw "$magenta")$space"
+#   ln_1+="$(draw "$cyan")$space"
+#   ln_1+="$(draw "$light_gray")"
+
+#   echo "$ln_1"
+# }
+
+# line_2() {
+#   ln_2="$space"
+#   ln_2+="$(draw "$black" "$dark_gray")$space"
+#   ln_2+="$(draw "$red" "$light_red")$space"
+#   ln_2+="$(draw "$green" "$light_green")$space"
+#   ln_2+="$(draw "$yellow" "$light_yellow")$space"
+#   ln_2+="$(draw "$blue" "$light_blue")$space"
+#   ln_2+="$(draw "$magenta" "$light_magenta")$space"
+#   ln_2+="$(draw "$cyan" "$light_cyan")$space"
+#   ln_2+="$(draw "$light_gray" "$white")"
+
+#   echo "$ln_2"
+# }
+
+# line_3() {
+#   echo "$(line_2)"
+# }
+
+# line_4() {
+#   ln_4="$space "
+#   ln_4+="$(draw "$dark_gray")$space"
+#   ln_4+="$(draw "$light_red")$space"
+#   ln_4+="$(draw "$light_green")$space"
+#   ln_4+="$(draw "$light_yellow")$space"
+#   ln_4+="$(draw "$light_blue")$space"
+#   ln_4+="$(draw "$light_magenta")$space"
+#   ln_4+="$(draw "$light_cyan")$space"
+#   ln_4+="$(draw "$white")"
+
+#   echo "$ln_4"
+# }
+
+# echo
+# echo -e "$(line_1)"
+# echo -e "$(line_2)"
+# echo -e "$(line_3)"
+# echo -e "$(line_4)"

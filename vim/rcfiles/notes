@@ -1,0 +1,38 @@
+augroup notesGroup
+  autocmd!
+
+  autocmd BufWritePost */Notes/*.md :Dispatch! ~/.bin/save_note <afile>
+augroup end
+
+" Opens the note in Safari
+function! s:NoteOpen()
+  :Dispatch! ~/.bin/open_note %
+endfunction
+nnoremap <silent><leader>o :NoteOpen<CR>
+
+command! -nargs=0 NoteOpen call s:NoteOpen()
+
+" Copies the note HTML and opens GitHub
+function! s:NoteCommit()
+  :Dispatch! ~/.bin/commit_note %
+endfunction
+nnoremap <silent><leader>s :NoteCommit<CR>
+
+command! -nargs=0 NoteCommit call s:NoteCommit()
+
+" Copies the note URL and opens it in Firefox
+function! s:NoteShow()
+  :Dispatch! ~/.bin/show_note %
+endfunction
+nnoremap <silent><leader>u :NoteShow<CR>
+
+command! -nargs=0 NoteShow call s:NoteShow()
+
+" Creates PDF version of the note
+function! s:NotePDF()
+  :Dispatch! ~/.bin/pdf_note %
+endfunction
+
+command! -nargs=0 NotePDF call s:NotePDF()
+
+" vim:ft=vim

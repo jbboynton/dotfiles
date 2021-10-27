@@ -1,106 +1,52 @@
-" Vim - general
-
-" Movement
-" --------
-
-" Move between splits with Ctrl + H/J/K/L
-nnoremap <C-J> <C-W><C-J>
-nnoremap <C-K> <C-W><C-K>
-nnoremap <C-L> <C-W><C-L>
-nnoremap <C-H> <C-W><C-H>
-
-set splitbelow    " open horizontal splits to the bottom
-set splitright    " open vertical splits to the right
-
-" Don't wait for the next keypress, particularly in ambigious leader
-" key situations.
-set timeoutlen=500
-
-" disable ex mode
-map Q <Nop>
-
-" Appearence
-" ----------
-set t_Co=16          " use 16 colors
-set number           " show line numbers
-set ruler            " show cursor position
-
+set autoindent                  " preserve indentation when starting a new line
+set autoread                    " reload files modified outside vim
+set backspace=2                 " enable this handy key
+set colorcolumn=80              " show column 80
+set diffopt+=vertical           " diff options
 set directory=/var/tmp          " create swap files in /var/tmp
-let g:netrw_home = "/var/tmp"   " save netrw history in /var/tmp
+set encoding=utf-8              " self explanatory
+set expandtab                   " prefer spaces to tabs
+set fillchars=vert:⎢            " character used to separate vertical splits
+set hidden                      " allow buffers to exist in the background
+set history=10000               " number of commands vim remembers
+set ignorecase                  " case-insensitive search
+set laststatus=2                " always show the status line
+set lazyredraw                  " avoid redrawing when possible
+set maxmempattern=2000000       " max memory available for pattern matching
+set maxmemtot=2000000           " max memory available to all buffers
+set modeline                    " enable modelines
+set nojoinspaces                " only insert one space after a period
+set noshowmode                  " don't show the mode of operation
+set nowrap                      " don't wrap long lines
+set number                      " show line numbers
+set numberwidth=6               " min columns to use for line numbers
+set relativenumber              " show relative line numbers
+set ruler                       " show cursor position
+set shiftwidth=2                " tab width of 2 spaces
+set showcmd                     " show incomplete commands at the bottom
+set sidescroll=7                " horizontally scroll 7 columns at a time
+set smartcase                   " override 'ignorecase' smartly
+set smartindent                 " indent smartly
+set smarttab                    " tab smartly
+set softtabstop=2               " tab width of 2 spaces
+set splitbelow                  " open horizontal splits to the bottom
+set splitright                  " open vertical splits to the right
+set t_Co=16                     " use 16 colors
+set tabstop=2                   " tab width of 2 spaces
+set textwidth=80                " show 80 characters
+set timeoutlen=500              " key press timeout at 500 ms
+set viminfo+=n/var/tmp/.viminfo " create .viminfo file in /var/tmp
+set wildignore+=*/tmp/*         " don't complete or expand
+set wildignore+=*.swp           " don't complete or expand
+set wildignore+=*.zip           " don't complete or expand
+set wildmenu                    " enhanced commandline completion
+set wildmode=longest,full       " completion mode
 
-" Shorten :Explore to :E
-command! -nargs=* -bar -bang -count=0 -complete=dir E Explore <args>
+" Enforce italics
+let &t_ZH="\e[3m"
+let &t_ZR="\e[23m"
 
-" Source Vim config file
-nnoremap <leader>v :source ~/.vimrc<CR>
-
-" Text Editing
-" ------------
-set history=10000         " number of commands vim remembers
-set hidden                " allow buffers to exist in the background
-set encoding=utf-8        " self explanatory
-set autoread              " reload files modified outside vim
-set showcmd               " show incomplete commands at the bottom
-set noshowmode            " don't show the mode of operation
-set laststatus=2          " always show the status line
-set nojoinspaces          " only insert one space after a period
-set maxmempattern=2000000 " max memory available for pattern matching
-set maxmemtot=2000000     " max memory available to all buffers
-
-" Tabs and Whitespace
-" -------------------
-set autoindent            " preserve indentation when starting a new line
-set smartindent           " indent smartly
-set smarttab              " tab smartly
-set shiftwidth=2          " tab width of 2 spaces
-set softtabstop=2         " tab width of 2 spaces
-set tabstop=2             " tab width of 2 spaces
-set expandtab             " prefer spaces to tabs
-set nowrap                " don't wrap long lines
-set sidescroll=7          " horizontally scroll 7 columns at a time
-
-" Editor Config
-" -------------
-set textwidth=80          " show 80 characters
-set number                " show line numbers
-set numberwidth=6         " min columns to use for line numbers
-set relativenumber        " show relative line numbers
-set modeline              " enable modelines
-set fillchars=vert:∥      " character used to separate vertical splits
-
-" Wild
-" ----
-set wildmenu              " enhanced commandline completion
-set wildmode=longest,full " completion mode
-set wildignore+=*/tmp/*,*.swp,*.zip    " don't complete or expand
-set diffopt+=vertical     " diff options
-
-" Search
-" ------
-set ignorecase    " case-insensitive search
-set smartcase     " override 'ignorecase' if the search has upper case letters
-set lazyredraw    " avoid redrawing when possible
-
-" fix ':A opens related request spec' issue
-let g:rails_projections = {
-  \  "app/controllers/*_controller.rb": {
-  \      "test": [
-  \        "spec/requests/{}_spec.rb",
-  \        "spec/controllers/{}_controller_spec.rb",
-  \        "test/controllers/{}_controller_test.rb"
-  \      ],
-  \      "alternate": [
-  \        "spec/requests/{}_spec.rb",
-  \        "spec/controllers/{}_controller_spec.rb",
-  \        "test/controllers/{}_controller_test.rb"
-  \      ],
-  \   },
-  \   "spec/requests/*_spec.rb": {
-  \      "command": "request",
-  \      "alternate": "app/controllers/{}_controller.rb",
-  \      "template": "require 'rails_helper'\n\n" .
-  \        "RSpec.describe '{}' do\nend",
-  \   },
-  \ }
+" Disable ex mode
+map Q <Nop>
 
 " vim:ft=vim

@@ -1,5 +1,13 @@
 #!/bin/bash
 
+bak() {
+  cp "$1" "$1.bak"
+}
+
+# brew() {
+#   arch -arm64 /opt/homebrew/bin/brew "$@"
+# }
+
 cd() {
   builtin cd "$@" \
     && exa -abghlm --sort name --group-directories-first --git
@@ -11,6 +19,16 @@ cdv() {
 
 cdg() {
   cd "$(root_directory)" || exit
+}
+
+copy() {
+  cat "$1" | /usr/bin/pbcopy
+}
+
+pbcopy() {
+  /usr/bin/pbcopy "$@"
+
+  echo "Copy with command \`copy <filename>\`"
 }
 
 g() {
@@ -53,56 +71,6 @@ v() {
   else
     vim .
   fi
-}
-
-vagrant_directory() {
-  local project_root_dir="$(git rev-parse --show-toplevel)"
-  local vagrant_dir="$project_root_dir/ops"
-
-  if [ ! -d "$vagrant_dir" ]; then
-    echo "Error: couldn't locate the ops directory -- checked: $vagrant_dir"
-    return 1
-  fi
-
-  echo "$vagrant_dir"
-}
-
-vh() {
-  pushd "$(vagrant_directory)" &> /dev/null || exit
-  vagrant halt
-  popd &> /dev/null || exit
-}
-
-vrest() {
-  pushd "$(vagrant_directory)" &> /dev/null || exit
-
-  vagrant halt
-  echo "VM halted..."
-
-  sleep 3
-
-  echo "Restarting VM..."
-  vagrant up
-
-  popd &> /dev/null || exit
-}
-
-vssh() {
-  pushd "$(vagrant_directory)" &> /dev/null || exit
-  vagrant ssh "$@"
-  popd  &> /dev/null || exit
-}
-
-vsshc() {
-  pushd "$(vagrant_directory)" &> /dev/null || exit
-  vagrant ssh -c "cd /ops || exit; $*"
-  popd  &> /dev/null || exit
-}
-
-vu() {
-  pushd "$(vagrant_directory)" &> /dev/null || exit
-  vagrant up
-  popd &> /dev/null || exit
 }
 
 # vim:ft=bash

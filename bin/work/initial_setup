@@ -1,0 +1,48 @@
+#!/bin/bash
+# Initial setup needed for new DigitalOcean droplets.
+
+# Required
+ssh_host=""
+
+# Options
+quiet=""
+
+print_usage() {
+cat <<EOM
+Usage: initial_setup -s [SSH HOST] [OPTIONS]
+
+Required:
+  -s <host>      SSH host, defined in .ssh/config
+
+Options:
+  -h             display this help message
+  -k <path>      local path to private key (default: .ssh/id_rsa)
+  -q             minimal output
+
+EOM
+}
+
+get_options() {
+  while getopts 's:hk:q' flag; do
+    case "${flag}" in
+      s) ssh_host="${OPTARG}" ;;
+      h) print_usage exit ;;
+      k) private_key="${OPTARG}" ;;
+      q) quiet='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+remote_exec() {
+  cmd="\"$1"\"
+
+  ssh -i "$private_key" "$ssh_host" "bash -c $cmd"
+}
+
+droplet_setup_cmd() {
+  echo "groupadd deploy"
+}
+
+get_options "$@"
+remote_exec "$(droplet_setup_cmd)"

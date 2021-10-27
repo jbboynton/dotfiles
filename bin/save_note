@@ -1,0 +1,253 @@
+#!/bin/bash
+
+note="$1"
+notes_dir="$HOME/Notes"
+
+file="$(basename -- "$note")"
+file_without_ext="${file%.*}"
+md_file="$notes_dir/$file_without_ext.md"
+pdf_output="$notes_dir/$file_without_ext.pdf"
+html_output="$notes_dir/$file_without_ext.html"
+tmp_output="$notes_dir/$file_without_ext.html.tmp"
+
+error() {
+  local message="$1"
+
+  echo >&2 "$message"
+  exit 1
+}
+
+verify_note_is_markdown() {
+  local extension="${file##*.}"
+  local error_message="Error: note is not a markdown file ($file)"
+
+  [ "$extension" == "md" ] || error "$error_message"
+}
+
+clear_html() {
+  rm "$html_output"
+}
+
+add_head() {
+read -r -d '' head <<-EOHTML
+<html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+      <title>$(title)</title>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/dark.min.css">
+      <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png?v=1">
+      <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png?v=1">
+      <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png?v=1">
+      <link rel="manifest" href="/favicons/site.webmanifest?v=1">
+      <link rel="mask-icon" href="/favicons/safari-pinned-tab.svg?v=1" color="#5bbad5">
+      <link rel="shortcut icon" href="/favicons/favicon.ico?v=1">
+      <meta name="msapplication-TileColor" content="#da532c">
+      <meta name="msapplication-config" content="/favicons/browserconfig.xml?v=1">
+      <meta name="theme-color" content="#ffffff">
+      <style>
+        body {
+          font-size: 22px;
+          line-height: 30px;
+          max-width: 740px;
+        }
+
+        h1 {
+          line-height: 1.15;
+        }
+
+        h2 {
+          padding-top: 8px;
+        }
+
+        a > code {
+          color: inherit;
+        }
+
+        a[href^="mailto"]::before {
+          content: '';
+        }
+
+        a[href^="mailto"] {
+          white-space: nowrap;
+        }
+
+        pre {
+          background-color: rgba(0, 0, 0, 0.2);
+          line-height: 1.2;
+          padding: 15px 25px;
+          font-size: 20px;
+        }
+
+        code {
+          background-color: transparent;
+          padding: 0;
+          font-family: 'Ubuntu Mono', monospace;
+        }
+
+        h1 code,
+        h2 code,
+        h3 code,
+        h4 code,
+        h5 code,
+        h6 code {
+          color: inherit;
+          font-size: inherit;
+        }
+
+        ul {
+          margin-left: -15px;
+        }
+
+        li {
+          padding-left: 7px;
+          margin-top: 6px;
+          margin-bottom: 6px;
+        }
+
+        table {
+          font-size: 22px;
+          margin-top: 26px;
+          margin-bottom: 26px;
+        }
+
+        th {
+          white-space: nowrap;
+          font-weight: bold;
+        }
+
+        th,
+        td {
+          border-right: 1px solid #dbdbdb;
+          padding: 6px 16px;
+        }
+
+        th:last-child,
+        td:last-child {
+          border-right: none;
+        }
+
+        .caption th,
+        .caption td,
+        .caption th:last-child,
+        .caption td:last-child {
+           text-align: center;
+           border: 1px solid #dbdbdb;
+           padding: 16px;
+         }
+
+        dl {
+          overflow: hidden;
+        }
+
+        dt {
+          float: left;
+          clear: left;
+          width: 25%;
+          padding-top: 3px;
+          padding-bottom: 3px;
+          line-height: 1.25;
+          font-weight: bold;
+        }
+
+        dd {
+          float: left;
+          width: 75%;
+          padding-top: 3px;
+          padding-bottom: 3px;
+          line-height: 1.25;
+          margin-left: 0;
+        }
+
+        input[type="checkbox"],
+        input[type="radio"] {
+          height: 1em;
+          width: 1em;
+        }
+
+        .page-break {
+          page-break-after: always;
+        }
+
+        .banner {
+          padding: 6px 20px;
+          margin: 30px auto;
+          border: 1px solid rgba(191, 96, 105, 0.7);
+          box-shadow: inset 0 0 2px rgb(191, 96, 105);
+        }
+
+        .letter {
+          padding: 0 85px;
+          margin: 66px auto;
+          font-size: 18px;
+          line-height: 1.5;
+        }
+
+        .letter ul {
+          list-style-position: outside;
+          padding-left: 32px;
+        }
+
+        .letter li {
+          margin-bottom: 10px;
+        }
+      </style>
+    </head>
+    <body>
+EOHTML
+
+  echo "$head" >> "$html_output"
+}
+
+title() {
+  head -3 "$md_file" | tail -1 | cut -c 3-
+}
+
+generate_html() {
+  marked > "$tmp_output" < "$note"
+}
+
+add_generated_html() {
+  generate_html
+
+  cat "$tmp_output" >> "$html_output"
+
+  rm "$tmp_output"
+}
+
+add_tail() {
+read -r -d '' html_tail <<-EOHTML
+  </body>
+</html>
+EOHTML
+
+  echo "$html_tail" >> "$html_output"
+}
+
+build_html() {
+  add_head
+  add_generated_html
+  add_tail
+}
+
+open_html() {
+  open -a Safari.app "$html_output"
+}
+
+build_pdf() {
+  wkhtmltopdf --enable-local-file-access "$html_output" "$pdf_output"
+  # if command -v note_pdf; then
+  #   note_pdf "$note"
+  # fi
+}
+
+open_pdf() {
+  open -g -a Preview.app "$pdf_output"
+}
+
+verify_note_is_markdown
+clear_html
+build_html
+# open_html
+# build_pdf
+# open_pdf

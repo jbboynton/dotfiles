@@ -1,0 +1,57 @@
+#!/bin/bash
+# Checks for a user ID in the most recent VUE files.
+
+set -e
+
+# Required
+user_id="$1"
+
+print_usage() {
+cat <<EOM
+Usage: check_id [ID]
+
+Options:
+  -h             display this help message
+
+EOM
+}
+
+get_options() {
+  while getopts 'h' flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+verify_id() {
+  [ -n "$user_id" ] || error "No user ID provided"
+}
+
+in_bio_file() {
+read -r -d '' cmd <<EOBASH
+cat \"/home/api/vue_data/\$(ls -Art /home/api/vue_data | grep bio | tail -n 1)\" | grep -i \"$user_id\" || echo \"$user_id not found in \$(ls -Art /home/api/vue_data | grep bio | tail -n 1)\"
+EOBASH
+
+echo "$cmd"
+}
+
+remote_exec() {
+  cmd="\"$1"\"
+
+  ssh r2decrypt "bash -c $cmd"
+}
+
+get_options "$@"
+verify_id
+remote_exec "$(in_bio_file)"

@@ -15,7 +15,9 @@
 ######################
 *.log
 *.sql
+!db/views/*.sql
 *.sqlite
+*.dump
 
 # OS generated files #
 ######################
@@ -32,3 +34,9 @@
 # Environment #
 ###############
 .env*
+
+# Utility scripts #
+###################
+yarn_build.sh
+
+master.key

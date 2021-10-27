@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo
+echo "Searching..."
+
+list="$(doctl compute snapshot list --format ID,Name,CreatedAt,Size)"
+header="$(echo "$list" | head -n 1)"
+results="$(echo "$list" | grep "$1")"
+ids="$(echo "$results" | grep "$1" | awk '{ print $1 }')"
+
+echo
+echo "$header"
+echo "$results"
+echo
+echo "$ids" | pbcopy
+echo "IDs copied to clipboard"

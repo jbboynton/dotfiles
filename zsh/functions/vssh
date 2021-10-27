@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vssh() {
+  pushd "$(vroot)" &>/dev/null
+  vagrant ssh "$@"
+  popd &>/dev/null
+}

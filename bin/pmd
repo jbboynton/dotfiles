@@ -1,0 +1,4 @@
+#!/bin/bash
+
+pbpaste > "$HOME/Notes/scratch.md"
+save_note "$HOME/Notes/scratch.md"

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+echo
+echo 'Prints the ID and created_at date of the last 100 "brand verification" '
+echo 'claims. Find the claim ID that coincides with the time that the ticket '
+echo 'duplication began, and then run `./bin/dup_ticket_kill <ID>`."'
+echo
+
+read -r -d '' script <<EORUBY
+claims = Claim.
+  where(customer_brand_verification: false).
+  last(100).
+  sort_by(&:created_at).
+  pluck(:id, :created_at)
+
+pp claims
+EORUBY
+
+echo "$script" | heroku run -a apex-warranty-service rails console --no-tty
+
+echo
+echo 'Next: `dup_ticket_kill <ID>`'
+echo

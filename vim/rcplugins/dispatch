@@ -1,5 +1,5 @@
-" Vim plugin - dispatch
-" https://github.com/tpope/vim-dispatch
+" dispatch
+" Asynchronous build and test dispatcher
 
 Plug 'tpope/vim-dispatch'
 

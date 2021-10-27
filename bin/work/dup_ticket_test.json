@@ -1,0 +1,414 @@
+{
+  "event_id": "01D9QGTHT9YYM2DYTCJZTY5PRX",
+  "event_type": "form_response",
+  "form_response": {
+    "form_id": "XoPG27",
+    "token": "858dee24c5ccfe84fe7f3feeefe3610b",
+    "landed_at": "2019-04-30T16:15:24Z",
+    "submitted_at": "2019-04-30T16:21:42Z",
+    "hidden": {
+      "ticket_id": ""
+    },
+    "calculated": {
+      "score": 0
+    },
+    "definition": {
+      "id": "XoPG27",
+      "title": "(DEV) Teknor Apex Warranty Claim",
+      "fields": [
+        {
+          "id": "sv11NVqJxBUX",
+          "title": "Did you purchase this hose in the last 90 days?",
+          "type": "yes_no",
+          "ref": "purchased_within_last_90_days",
+          "properties": {}
+        },
+        {
+          "id": "oXvsbHhKkomJ",
+          "title": "Please enter an email address where we can send you updates about your claim:",
+          "type": "email",
+          "ref": "email",
+          "properties": {}
+        },
+        {
+          "id": "l0myQH0vJgyj",
+          "title": "Please confirm that your hose is a Teknor Apex brand hose.",
+          "type": "multiple_choice",
+          "ref": "customer_brand_verification",
+          "properties": {},
+          "choices": [
+            {
+              "id": "kjOhHNTa9VNm",
+              "label": "Yes, it is a Teknor Apex brand hose"
+            },
+            {
+              "id": "I1LT7u3rxVmi",
+              "label": "I am unsure"
+            }
+          ]
+        },
+        {
+          "id": "zLJlWYs9bzKL",
+          "title": "In a moment we will ask you to confirm that your hose has been taken out of commission. This is done by uploading a photo of the fittings (ends) cut clearly off your hose. \\n\\nIf your hose is verified <strong>NOT</strong> to be a Teknor Apex brand hose, please note that we are not liable for this claim.\\n\\nSelect \"I accept\" below to indicate that you understand these are the terms of liability for your claim.",
+          "type": "legal",
+          "ref": "terms_of_liability",
+          "properties": {}
+        },
+        {
+          "id": "CF6bhI38lp6c",
+          "title": "All approved warranty claims are reimbursed by a <strong>digital Visa reimbursement card</strong>. This card can be used online the same way you would use any credit card. Once activated, you'll have <strong>7 months</strong> to use your card. \\n\\nYou will also be given the option to request a physical card.\\n\\nSelect \"I accept\" below to indicate that you understand these are the terms of reimbursement for your claim.",
+          "type": "legal",
+          "ref": "terms_of_reimbursement",
+          "properties": {}
+        },
+        {
+          "id": "cWSjDYY7yDCw",
+          "title": "What is the name of the product?",
+          "type": "dropdown",
+          "ref": "standard_product_name",
+          "properties": {}
+        },
+        {
+          "id": "qPZd1UgR2n5z",
+          "title": "Where was this product purchased?",
+          "type": "dropdown",
+          "ref": "standard_retailer",
+          "properties": {}
+        },
+        {
+          "id": "NnKmTzNvHYOs",
+          "title": "Approximately when was this product purchased?",
+          "type": "date",
+          "ref": "purchased_on",
+          "properties": {}
+        },
+        {
+          "id": "TbJT0prUjyqo",
+          "title": "What best describes the reason for your claim?",
+          "type": "dropdown",
+          "ref": "standard_claim_description",
+          "properties": {}
+        },
+        {
+          "id": "NIldZVNs2l3V",
+          "title": "What is the length of your hose?",
+          "type": "multiple_choice",
+          "ref": "standard_hose_length",
+          "properties": {},
+          "choices": [
+            {
+              "id": "lzm8IFMkM0nD",
+              "label": "25 feet"
+            },
+            {
+              "id": "ryjog6fOmf0O",
+              "label": "50 feet"
+            },
+            {
+              "id": "u8eVC4QcfRYO",
+              "label": "75 feet"
+            },
+            {
+              "id": "dnh4Ox2FTNiK",
+              "label": "100 feet"
+            },
+            {
+              "id": "LeGXJWTuuaIN",
+              "label": "120 feet"
+            },
+            {
+              "id": "IsxMmaUSrm5F",
+              "label": "Other length"
+            }
+          ]
+        },
+        {
+          "id": "XHAKBVIO6VyY",
+          "title": "What is the diameter of your hose? ",
+          "type": "multiple_choice",
+          "ref": "standard_hose_diameter",
+          "properties": {},
+          "choices": [
+            {
+              "id": "R0hHTYy6irkI",
+              "label": "1/2\""
+            },
+            {
+              "id": "O5RtEHGvUsZV",
+              "label": "5/8\""
+            },
+            {
+              "id": "K5gJ1a7l8cdq",
+              "label": "3/4\""
+            },
+            {
+              "id": "fClipOgmJMMj",
+              "label": "Other diameter"
+            }
+          ]
+        },
+        {
+          "id": "jCLAKicCtlI9",
+          "title": "Please upload a photo of your removed fittings (end) below:",
+          "type": "file_upload",
+          "ref": "removed_fittings_photo_url",
+          "properties": {}
+        },
+        {
+          "id": "PB6zen5KDYlo",
+          "title": "First Name:",
+          "type": "short_text",
+          "ref": "first_name",
+          "properties": {}
+        },
+        {
+          "id": "FMPN2L2WQPnk",
+          "title": "Last Name:",
+          "type": "short_text",
+          "ref": "last_name",
+          "properties": {}
+        },
+        {
+          "id": "tLP9WjY3AeIp",
+          "title": "Phone Number:",
+          "type": "short_text",
+          "ref": "phone",
+          "properties": {}
+        },
+        {
+          "id": "DaGwln5wA3Nr",
+          "title": "Street Address:",
+          "type": "short_text",
+          "ref": "address",
+          "properties": {}
+        },
+        {
+          "id": "eTQNZvk8al2c",
+          "title": "City:",
+          "type": "short_text",
+          "ref": "city",
+          "properties": {}
+        },
+        {
+          "id": "zHMaKdyUbAQh",
+          "title": "State/Province:",
+          "type": "dropdown",
+          "ref": "state",
+          "properties": {}
+        },
+        {
+          "id": "v2CfciipCrTT",
+          "title": "Zip/Postal Code:",
+          "type": "short_text",
+          "ref": "zip_code",
+          "properties": {}
+        },
+        {
+          "id": "zMirpMwIEo7C",
+          "title": "Country:",
+          "type": "dropdown",
+          "ref": "country",
+          "properties": {}
+        }
+      ]
+    },
+    "answers": [
+      {
+        "type": "boolean",
+        "boolean": false,
+        "field": {
+          "id": "sv11NVqJxBUX",
+          "type": "yes_no",
+          "ref": "purchased_within_last_90_days"
+        }
+      },
+      {
+        "type": "email",
+        "email": "james+duplicate-test__2021-08-10_10.17.32@xzito.com",
+        "field": {
+          "id": "oXvsbHhKkomJ",
+          "type": "email",
+          "ref": "email"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "Yes, it is a Teknor Apex brand hose"
+        },
+        "field": {
+          "id": "l0myQH0vJgyj",
+          "type": "multiple_choice",
+          "ref": "customer_brand_verification"
+        }
+      },
+      {
+        "type": "boolean",
+        "boolean": true,
+        "field": {
+          "id": "zLJlWYs9bzKL",
+          "type": "legal",
+          "ref": "terms_of_liability"
+        }
+      },
+      {
+        "type": "boolean",
+        "boolean": true,
+        "field": {
+          "id": "CF6bhI38lp6c",
+          "type": "legal",
+          "ref": "terms_of_reimbursement"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "Apex Heavy Duty Ultra Flexible"
+        },
+        "field": {
+          "id": "cWSjDYY7yDCw",
+          "type": "dropdown",
+          "ref": "standard_product_name"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "Home Depot"
+        },
+        "field": {
+          "id": "qPZd1UgR2n5z",
+          "type": "dropdown",
+          "ref": "standard_retailer"
+        }
+      },
+      {
+        "type": "date",
+        "date": "2018-01-01",
+        "field": {
+          "id": "NnKmTzNvHYOs",
+          "type": "date",
+          "ref": "purchased_on"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "Leak Fitting"
+        },
+        "field": {
+          "id": "TbJT0prUjyqo",
+          "type": "dropdown",
+          "ref": "standard_claim_description"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "25 feet"
+        },
+        "field": {
+          "id": "NIldZVNs2l3V",
+          "type": "multiple_choice",
+          "ref": "standard_hose_length"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "5/8\""
+        },
+        "field": {
+          "id": "XHAKBVIO6VyY",
+          "type": "multiple_choice",
+          "ref": "standard_hose_diameter"
+        }
+      },
+      {
+        "type": "file_url",
+        "file_url": "https://api.typeform.com/responses/files/6b5cceb1aa46749675b49a158e89572383dfbe532b5e803b3201615d63bd4985/jbLogoRound1024x1024.png",
+        "field": {
+          "id": "jCLAKicCtlI9",
+          "type": "file_upload",
+          "ref": "removed_fittings_photo_url"
+        }
+      },
+      {
+        "type": "text",
+        "text": "James",
+        "field": {
+          "id": "PB6zen5KDYlo",
+          "type": "short_text",
+          "ref": "first_name"
+        }
+      },
+      {
+        "type": "text",
+        "text": "Boynton",
+        "field": {
+          "id": "FMPN2L2WQPnk",
+          "type": "short_text",
+          "ref": "last_name"
+        }
+      },
+      {
+        "type": "text",
+        "text": "4017094342",
+        "field": {
+          "id": "tLP9WjY3AeIp",
+          "type": "short_text",
+          "ref": "phone"
+        }
+      },
+      {
+        "type": "text",
+        "text": "2820 Hartford Avenue",
+        "field": {
+          "id": "DaGwln5wA3Nr",
+          "type": "short_text",
+          "ref": "address"
+        }
+      },
+      {
+        "type": "text",
+        "text": "Johnston",
+        "field": {
+          "id": "eTQNZvk8al2c",
+          "type": "short_text",
+          "ref": "city"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "Rhode Island"
+        },
+        "field": {
+          "id": "zHMaKdyUbAQh",
+          "type": "dropdown",
+          "ref": "state"
+        }
+      },
+      {
+        "type": "text",
+        "text": "02919",
+        "field": {
+          "id": "v2CfciipCrTT",
+          "type": "short_text",
+          "ref": "zip_code"
+        }
+      },
+      {
+        "type": "choice",
+        "choice": {
+          "label": "United States"
+        },
+        "field": {
+          "id": "zMirpMwIEo7C",
+          "type": "dropdown",
+          "ref": "country"
+        }
+      }
+    ]
+  }
+}

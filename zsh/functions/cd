@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cd() {
+  builtin cd "$@" && exa -abghlm --sort name --group-directories-first --git
+}
