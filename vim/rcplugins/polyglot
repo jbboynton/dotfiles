@@ -1,0 +1,9 @@
+" polyglot
+" A collection of language packs for Vim
+
+Plug 'sheerun/vim-polyglot'
+
+" Disable 'sensible' yet invasive defaults
+let g:polyglot_disabled = ['autoindent', 'sensible']
+
+" vim:ft=vim
