@@ -265,3 +265,5 @@ configs
 zshrc
 SHA
 checksum
+zshrc
+HOMEBREW

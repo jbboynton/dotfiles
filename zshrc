@@ -15,13 +15,14 @@ HISTFILE=~/.history/zsh_history
 SAVEHIST=10000000
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=magenta,bold,underline'
+MAC_APP_IDS='1333542190 993487541 1099120373 1289583905 803453959'
 
 # Check if using the work laptop
-if [ -f "$HOME/.dotfiles/.work" ]; then
+if [ -f "$HOME/.work" ]; then
   export WORK=1
 
   # Skip any Mac App Store packages when using Homebrew on the work laptop
-  export HOMEBREW_BUNDLE_MAS_SKIP=1
+  export HOMEBREW_BUNDLE_MAS_SKIP="$MAC_APP_IDS"
 fi
 
 # Create history directory if it doesn't exist
