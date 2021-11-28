@@ -1,11 +1,9 @@
 # # Uncomment to enable profiling
 # zmodload zsh/zprof
 
-export HOMEBREW_BUNDLE_CASK_SKIP=1
 export HOMEBREW_BUNDLE_FILE="$HOME/Brewfile"
-export HOMEBREW_BUNDLE_MAS_SKIP=1
 export HOMEBREW_BUNDLE_NO_LOCK=1
-export HOMEBREW_CASK_OPTS="--no-quarantine --require-sha"
+export HOMEBREW_CASK_OPTS="--no-quarantine"
 export LESSHISTFILE="-"
 export NODE_REPL_HISTORY_FILE="$HOME/.history/node_history"
 export NVM_COMPLETION=1
@@ -19,7 +17,12 @@ HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=magenta,bold,underline'
 
 # Check if using the work laptop
-[ -f "$HOME/.dotfiles/.work" ] && export WORK=1
+if [ -f "$HOME/.dotfiles/.work" ]; then
+  export WORK=1
+
+  # Skip any Mac App Store packages when using Homebrew on the work laptop
+  export HOMEBREW_BUNDLE_MAS_SKIP=1
+fi
 
 # Create history directory if it doesn't exist
 [ ! -d "$HOME/.history" ] && mkdir "$HOME/.history"

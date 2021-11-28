@@ -56,7 +56,6 @@ brew 'yarn'
 brew 'zsh'
 
 # Applications and utilities
-cask '1password'
 # Alacritty must be built from source until the next release (v0.10 or later)
 # https://github.com/alacritty/alacritty/issues/5584
 # cask 'alacritty'
@@ -64,7 +63,6 @@ cask 'bartender'
 cask 'bluejeans'
 cask 'chromium'
 cask 'docker'
-cask 'docker-compose'
 cask 'firefox-developer-edition'
 cask 'inkscape'
 cask 'istat-menus'
@@ -75,9 +73,7 @@ cask 'mailmate'
 cask 'michaelvillar-timer'
 cask 'recordit'
 cask 'rectangle'
-cask 'slack'
 cask 'vagrant'
-cask 'virtualbox'
 cask 'vlc'
 cask 'wkhtmltopdf'
 cask 'zoom'
@@ -104,5 +100,8 @@ cask 'font-ubuntu'
 cask 'font-ubuntu-mono'
 
 # App store
-mas 'CARROT Weather', id: 961390574
+mas '1Password 7 - Password Manager', id: 1333542190
+mas 'CARROT Weather', id: 993487541
+mas 'Exporter', id: 1099120373
 mas 'Pixelmator Pro', id: 1289583905
+mas 'Slack for Desktop', id: 803453959
