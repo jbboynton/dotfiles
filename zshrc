@@ -52,43 +52,40 @@ autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
 # Zinit is weird...
-zinit wait'0a' lucid light-mode for \
-  atinit" \
-      ZINIT[ZCOMPDUMP_PATH]=/tmp/zcompdump; \
-      zicompinit; \
-      zicdreplay" \
-    zdharma-continuum/fast-syntax-highlighting \
-    OMZP::colored-man-pages \
-    OMZ::plugins/nvm/nvm.plugin.zsh \
-    htlsne/zinit-rbenv \
-  blockf atpull'zinit creinstall -q .' \
-    zsh-users/zsh-completions
-
-zinit wait'0b' lucid light-mode for \
-  atload"_history_substring_search_config" \
-    zsh-users/zsh-history-substring-search
-
-function _history_substring_search_config() {
-  bindkey '^[[A' history-substring-search-up
-  bindkey '^[[B' history-substring-search-down
-}
-
 # Load annexes
-zinit lucid light-mode for \
+zinit lucid for \
   zdharma-continuum/z-a-rust \
   zdharma-continuum/zinit-annex-bin-gem-node
 
 # Installation of Rust compiler environment via the z-a-rust annex
 zinit id-as"rust" as=null sbin="bin/*" lucid rustup for \
   atload=" \
-      [[ ! -f ${ZINIT[COMPLETIONS_DIR]}/_cargo ]] && zinit creinstall -q rust; \
-      export CARGO_HOME=\$PWD; \
-      export RUSTUP_HOME=\$PWD/rustup" \
+    [[ ! -f ${ZINIT[COMPLETIONS_DIR]}/_cargo ]] && zinit creinstall -q rust; \
+    export CARGO_HOME=\$PWD; \
+    export RUSTUP_HOME=\$PWD/rustup" \
     zdharma-continuum/null
 
+# Main Zinit invocation
+zinit wait'0' lucid for \
+  atinit" \
+    ZINIT[ZCOMPDUMP_PATH]=/tmp/zcompdump; \
+    zicompinit; \
+    zicdreplay" \
+    zdharma-continuum/fast-syntax-highlighting \
+  atload"_history_substring_search_config" \
+    zsh-users/zsh-history-substring-search \
+  blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
+  OMZP::colored-man-pages \
+  OMZ::plugins/nvm/nvm.plugin.zsh \
+  htlsne/zinit-rbenv
+
+function _history_substring_search_config() {
+  bindkey '^[[A' history-substring-search-up
+  bindkey '^[[B' history-substring-search-down
+}
+
 # Custom completions
-zinit wait'0c' lucid light-mode for \
-  atinit'compdef g=git' as'null' zdharma-continuum/null
+zinit wait'0' lucid for atinit'compdef g=git' as'null' zdharma-continuum/null
 
 # Load configs
 for zsh_source in $HOME/.zsh/**/*; do
