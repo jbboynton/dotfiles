@@ -1,29 +1,11 @@
 # # Uncomment to enable profiling
 # zmodload zsh/zprof
 
-export HOMEBREW_BUNDLE_FILE="$HOME/Brewfile"
-export HOMEBREW_BUNDLE_NO_LOCK=1
-export HOMEBREW_CASK_OPTS="--no-quarantine"
-export LESSHISTFILE="-"
-export NODE_REPL_HISTORY_FILE="$HOME/.history/node_history"
-export NVM_COMPLETION=1
-export NVM_DIR="$HOME/.nvm"
-export PSQL_HISTORY="$HOME/.history/psql_history"
-
 HISTSIZE=10000000
 HISTFILE=~/.history/zsh_history
 SAVEHIST=10000000
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=magenta,bold,underline'
-MAC_APP_IDS='1333542190 993487541 1099120373 1289583905 803453959'
-
-# Check if using the work laptop
-if [ -f "$HOME/.work" ]; then
-  export WORK=1
-
-  # Skip any Mac App Store packages when using Homebrew on the work laptop
-  export HOMEBREW_BUNDLE_MAS_SKIP="$MAC_APP_IDS"
-fi
 
 # Create history directory if it doesn't exist
 [ ! -d "$HOME/.history" ] && mkdir "$HOME/.history"
@@ -34,25 +16,15 @@ fi
 # Create zcompdump directory if it doesn't exist
 [ ! -d "/tmp/zcompdump" ] && mkdir "/tmp/zcompdump"
 
-# Add GNU `gnubin` directories to PATH
-if type brew &>/dev/null; then
-  for directory in $(brew --prefix)/opt/*/libexec/gnubin; do
-    export PATH="$directory:$PATH"
-  done
-fi
-
-# Add ~/.bin commands to path
-export PATH="$HOME/.bin:$PATH"
-
 # Use emacs keybindings
 bindkey -e
 
-# Initialize zinit
+# Zinit is weird...
+# Initialize Zinit
 source ~/.zinit/bin/zinit.zsh
 autoload -Uz _zinit
 (( ${+_comps} )) && _comps[zinit]=_zinit
 
-# Zinit is weird...
 # Load annexes
 zinit lucid for \
   zdharma-continuum/z-a-rust \
@@ -73,20 +45,25 @@ zinit wait'0' lucid for \
     zicompinit; \
     zicdreplay" \
     zdharma-continuum/fast-syntax-highlighting \
-  atload"_history_substring_search_config" \
+  atload"history_substring_search_config" \
     zsh-users/zsh-history-substring-search \
   blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
   OMZP::colored-man-pages \
   OMZ::plugins/nvm/nvm.plugin.zsh \
   htlsne/zinit-rbenv
 
-function _history_substring_search_config() {
+function history_substring_search_config() {
   bindkey '^[[A' history-substring-search-up
   bindkey '^[[B' history-substring-search-down
 }
 
 # Custom completions
-zinit wait'0' lucid for atinit'compdef g=git' as'null' zdharma-continuum/null
+zinit wait'0' lucid for \
+  atinit'custom_completions' as'null' zdharma-continuum/null
+
+function custom_completions() {
+  compdef g=git
+}
 
 # Load configs
 for zsh_source in $HOME/.zsh/**/*; do
