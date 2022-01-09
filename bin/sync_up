@@ -126,6 +126,7 @@ update_homebrew_packages() {
   info "Updating Homebrew packages"
 
   brew update
+  brew bundle
   brew upgrade
 }
 

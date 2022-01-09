@@ -1,0 +1,93 @@
+#!/bin/bash
+# Commits the spell file quickly.
+
+set -eo pipefail
+
+# Globals
+dotfiles_dir="/Users/james/.dotfiles"
+spell_file="$dotfiles_dir/vim/spell/en.utf-8.add"
+spell_pattern="en.utf-8.add"
+
+# Options
+quiet=""
+
+get_options() {
+  while getopts "hq" flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      q) quiet="true" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Usage: update_spell [OPTION]
+
+Options:
+  -h     display this help message
+  -q     minimal output
+
+EOM
+}
+
+cd_to_dotfiles() {
+  pushd "$dotfiles_dir" >/dev/null
+}
+
+check_for_changes() {
+  if changes_present; then
+    info "Spell file has been modified"
+  else
+    info "Spell file has no changes to commit"
+    info "Nothing to do"
+    exit
+  fi
+}
+
+changes_present() {
+  git status --porcelain | grep -q "$spell_pattern"
+}
+
+git_commit() {
+  info "Committing"
+
+  local current_branch="$(git symbolic-ref --short -q HEAD)"
+
+  git stash -u
+  git checkout main
+  git checkout -b main-bak
+  git checkout main
+  git pull
+  git stash pop
+  git add "$spell_file"
+  git commit -m "Update spell file"
+  git push
+  git stash -u
+  git checkout "$current_branch"
+  git rebase main
+  git stash pop
+  git branch -d main-bak
+}
+
+cd_to_previous() {
+  popd >/dev/null
+}
+
+info "Checking the spell file for changes"
+get_options "$@"
+cd_to_dotfiles
+check_for_changes
+git_commit
+cd_to_previous
+info "Finished"
