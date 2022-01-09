@@ -6,8 +6,13 @@
   editor = vim
   excludesfile = ~/.gitignore
 [alias]
+  a = add
   c = commit
   co = checkout
+  cob = checkout -b
+  m = merge
+  p = push
+  pl = pull
   r = rebase
   rc = rebase --continue
   sla = log --oneline --decorate --graph \
@@ -23,8 +28,7 @@
     --decorate-refs-exclude=refs/remotes/staging/* \
     --all
   slaa = log --oneline --decorate --graph --all
-  a = add
-  p = push
+  unstage = reset
 [fetch]
   prune = true
 [merge]
@@ -35,3 +39,5 @@
   ff = only
 [init]
   defaultBranch = main
+[push]
+  default = current
