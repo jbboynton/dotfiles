@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -eo pipefail
+
+brew update
+brew upgrade discord || brew install discord
+brew upgrade steam || brew install steam
