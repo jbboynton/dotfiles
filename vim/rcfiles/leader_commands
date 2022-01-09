@@ -10,4 +10,7 @@ nnoremap <Leader><Space> :%s/\s\+$//e<CR>
 " Clear the screen
 nnoremap <Leader>c :!clear<CR><CR>
 
+" Search for the word under the cursor
+nnoremap <Leader>? :Rg<CR>
+
 " vim:ft=vim

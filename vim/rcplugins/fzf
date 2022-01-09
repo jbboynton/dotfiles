@@ -1,6 +1,0 @@
-" fzf
-" A basic fzf wrapper function for Vim
-
-Plug 'junegunn/fzf.vim'
-
-" vim:ft=vim
