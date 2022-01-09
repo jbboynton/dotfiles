@@ -34,7 +34,7 @@ alias rmswp="fd --hidden --no-ignore --full-path '/var/tmp/.*\.sw.*' --type f --
 alias rs="bundle exec rspec"
 alias rsf="bundle exec rspec --only-failures"
 alias rtm="bin/rails db:migrate RAILS_ENV=test"
-alias scratch="vim ~/Desktop/scratch.md"
+alias scratch="vim /var/tmp/scratch.md"
 alias sd="shutdown now"
 alias show_files="defaults write com.apple.finder AppleShowAllFiles YES && killall Finder"
 alias sourcez="source ~/.zshrc"

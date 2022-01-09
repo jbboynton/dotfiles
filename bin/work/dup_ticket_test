@@ -9,7 +9,7 @@ echo
 echo 'Then, the tickets dashboard is opened in the browser.'
 echo
 
-claim_data_file="$HOME/.bin/dup_ticket_test.json"
+claim_data_file="$HOME/.bin/work/dup_ticket_test.json"
 claims_url="https://claims.apexhose.xzitostaging.com/api/v1/claims"
 
 date_time="$(date +%Y-%m-%d_%H.%M.%S)"
@@ -31,7 +31,7 @@ create_claim() {
 }
 
 open_tickets_dashboard() {
-  open -a "Safari.app" "$tickets_dashboard_url"
+  open -a "Firefox Developer Edition" "$tickets_dashboard_url"
 }
 
 update_claim_data_email
