@@ -1,0 +1,160 @@
+#!/bin/bash
+# Pulls the latest dotfiles. Then, updates Homebrew packages, Zinit plugins, Vim
+# plugins, and tmux plugins.
+
+set -eo pipefail
+
+# Globals
+home_dir="/Users/james"
+dotfiles_dir="/Users/james/.dotfiles"
+paths_to_check=()
+broken_symlinks=()
+
+# Options
+prune=""
+quiet=""
+
+get_options() {
+  while getopts "hpq" flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      p) prune="true" ;;
+      q) quiet="true" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Usage: sync_up [OPTION]
+
+Options:
+  -h     display this help message
+  -p     prune dangling symlinks
+  -q     minimal output
+
+EOM
+}
+
+cd_to_dotfiles() {
+  pushd "$dotfiles_dir" >/dev/null
+}
+
+working_dir_clean() {
+  [ -z "$(git status --porcelain)" ]
+}
+
+on_main() {
+  local branch="$(git symbolic-ref --short -q HEAD)"
+
+  [ "$branch" == "main" ] || git checkout main
+}
+
+pull_dotfiles() {
+  info "Pulling latest dotfiles"
+
+  git pull
+}
+
+cd_to_previous() {
+  popd >/dev/null
+}
+
+update_symlinks() {
+  info "Linking dotfiles into home directory"
+
+  rcup
+}
+
+validate_symlinks() {
+  info "Validating symlinks"
+
+  check_home_directory || error "home directory isn't $home_dir"
+
+  find_paths_to_check
+  find_broken_symlinks
+  process_broken_symlinks
+}
+
+check_home_directory() {
+  [ "$HOME" == "$home_dir" ]
+}
+
+find_paths_to_check() {
+  # First sed script: removes everything after 4th slash
+  # Second sed script: removes everything after 1st colon
+  for path in $( \
+    lsrc \
+    | sed "s/\(\([^/]*\/\)\{4\}\).*/\1/" \
+    | sed "s/\(\([^:]*\)\).*/\1/" \
+    | uniq \
+  ); do
+    paths_to_check+=("$path")
+  done
+}
+
+find_broken_symlinks() {
+  for path in "${paths_to_check[@]}"; do
+    for link in $(find -L "$path" -type l); do
+      broken_symlinks+=("$link")
+    done
+  done
+}
+
+process_broken_symlinks() {
+  for link in "${broken_symlinks[@]}"; do
+    if [ -n "$prune"]; then
+      info "Removing broken link: $link"
+      rm "$link"
+    else
+      info "Found broken link: $link"
+    fi
+  done
+}
+
+update_homebrew_packages() {
+  info "Updating Homebrew packages"
+
+  brew update
+  brew upgrade
+}
+
+update_vim_plugins() {
+  info "Updating Vim plugins"
+
+  vim -c ":PlugUpdate | :qall"
+}
+
+update_tmux_plugins() {
+  info "Updating tmux plugins"
+
+  local update_script="$HOME/.tmux/plugins/tpm/scripts/update_plugin.sh"
+
+  [ -f "$update_script" ] || error "couldn't find TPM update script"
+
+  "$update_script" all
+}
+
+info "Syncing up"
+get_options "$@"
+cd_to_dotfiles
+working_dir_clean || error "working directory unclean—commit/stash and retry"
+on_main
+pull_dotfiles
+cd_to_previous
+update_symlinks
+validate_symlinks
+update_homebrew_packages
+update_vim_plugins
+update_tmux_plugins
+info "Finished"
