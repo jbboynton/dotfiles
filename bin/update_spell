@@ -76,7 +76,7 @@ git_commit() {
   git stash -u
   git checkout "$current_branch"
   git rebase main
-  git stash pop
+  git stash show >/dev/null 2>&1 && git stash pop
   git branch -d main-bak
 }
 
