@@ -204,7 +204,7 @@ title() {
 }
 
 generate_html() {
-  marked > "$tmp_output" < "$note"
+  marked -i "$note" -o "$tmp_output"
 }
 
 add_generated_html() {
