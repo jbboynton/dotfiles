@@ -62,6 +62,9 @@ full_send() {
   git merge "$current_branch"
   git push
   git branch -d "$current_branch"
+
+  info "Waiting a second before attempting to pull"
+  sleep 2
   git pull
 }
 
