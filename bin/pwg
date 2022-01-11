@@ -1,17 +1,14 @@
 #!/bin/bash
-# Uses `/dev/urandom` to generate an alphanumeric string of N characters.
+# Uses OpenSSL to generate an alphanumeric string of N characters.
 
-set -e
+set -eo pipefail
 
-yank=''
-length=32
+length="$1"
 
 get_options() {
-  while getopts 'hl:y' flag; do
+  while getopts 'h' flag; do
     case "${flag}" in
       h) print_usage; exit ;;
-      l) length="${OPTARG}" ;;
-      y) yank='true' ;;
       *) print_usage; exit 1 ;;
     esac
   done
@@ -19,22 +16,28 @@ get_options() {
 
 print_usage() {
 cat <<EOM
-Usage: pwg [OPTION]
+Usage: pwg [LENGTH]
 
 Options:
   -h          display this help message
-  -l [ARG]    length of the generated password (default: 32)
-  -y          copy the generated password to the clipboard
 
 EOM
 }
 
+check_for_openssl() {
+  command -v openssl >/dev/null 2>&1
+}
+
+openssl_error() {
+  echo >&2 "OpenSSL not found (is it installed?)"
+  exit 1
+}
+
 generate_password() {
-  if [ -n "$yank" ]; then
-    pwg | pbcopy
-  else
-    pwg
-  fi
+  local password="$(pwg)"
+
+  echo -n "$password" | pbcopy
+  echo "$password"
 }
 
 pwg() {
@@ -44,14 +47,11 @@ pwg() {
     length=32
   fi
 
-  local string="$( \
-    head /dev/urandom \
-      | LC_CTYPE=C tr -dc "[:alnum:]" \
-      | head -c "$length" \
-    )"
+  local string="$(openssl rand -hex $length | head -c $length)"
 
   echo "$string"
 }
 
 get_options "$@"
+check_for_openssl || openssl_error
 generate_password

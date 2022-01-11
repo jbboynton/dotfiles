@@ -5,12 +5,12 @@ set -e
 
 cat <<EOM
 # Salts
-AUTH_KEY="$(pwg -l 64)"
-SECURE_AUTH_KEY="$(pwg -l 64)"
-LOGGED_IN_KEY="$(pwg -l 64)"
-NONCE_KEY="$(pwg -l 64)"
-AUTH_SALT="$(pwg -l 64)"
-SECURE_AUTH_SALT="$(pwg -l 64)"
-LOGGED_IN_SALT="$(pwg -l 64)"
-NONCE_SALT="$(pwg -l 64)"
+AUTH_KEY="$(pwg 64)"
+SECURE_AUTH_KEY="$(pwg 64)"
+LOGGED_IN_KEY="$(pwg 64)"
+NONCE_KEY="$(pwg 64)"
+AUTH_SALT="$(pwg 64)"
+SECURE_AUTH_SALT="$(pwg 64)"
+LOGGED_IN_SALT="$(pwg 64)"
+NONCE_SALT="$(pwg 64)"
 EOM
