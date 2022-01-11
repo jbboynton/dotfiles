@@ -48,6 +48,9 @@ if [ -f "$HOME/.work" ]; then
 
   # Skip any Mac App Store packages when using Homebrew on the work laptop
   export HOMEBREW_BUNDLE_MAS_SKIP="$(mac_app_ids)"
+
+  # Add ~/.bin/work commands to path
+  export PATH="$HOME/.bin/work:$PATH"
 fi
 
 # Add GNU `gnubin` directories to PATH
