@@ -1,6 +1,10 @@
 #!/bin/bash
+# Search for snapshots on DigitalOcean
 
-echo
+[ -n "$1" ] || \
+  echo "Error: first argument must be the search term (client name)"; \
+  exit 1
+
 echo "Searching..."
 
 list="$(doctl compute snapshot list --format ID,Name,CreatedAt,Size)"
@@ -12,5 +16,5 @@ echo
 echo "$header"
 echo "$results"
 echo
-echo "$ids" | pbcopy
+echo -n "$ids" | pbcopy
 echo "IDs copied to clipboard"
