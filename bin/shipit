@@ -1,0 +1,90 @@
+#!/bin/bash
+# Ships a branch and cleans up afterwards
+
+set -eo pipefail
+
+# Globals
+current_branch="$(git symbolic-ref --short -q HEAD)"
+
+# Options
+target_branch="main"
+quiet=""
+
+get_options() {
+  while getopts "hqt:" flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      q) quiet="true" ;;
+      t) target_branch="${OPTARG}" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Usage: shipit [OPTION]
+
+Options:
+  -h                  display this help message
+  -q                  minimal output
+  -t <target_branch>  target branch (default: main)
+
+EOM
+}
+
+working_dir_clean() {
+  [ -z "$(git status --porcelain)" ]
+}
+
+up_to_date() {
+  local branch="$1"
+
+  git fetch --all
+
+  local_sha="$(git rev-parse "$branch")"
+  remote_sha="$(git rev-parse "origin/$branch")"
+
+  [ "$local_sha" == "$remote_sha" ]
+}
+
+full_send() {
+  git checkout "$target_branch"
+  git merge "$current_branch"
+  git push
+  git branch -d "$current_branch"
+  git pull
+
+  delete_remote_branch
+}
+
+delete_remote_branch() {
+  if remote_branch_exists; then
+    git push --delete origin "$current_branch"
+  fi
+}
+
+remote_branch_exists() {
+  local repo="$(git config --get remote.origin.url)"
+
+  git ls-remote --heads "$repo" "$current_branch" | wc -l >/dev/null
+}
+
+info "Merging, pushing, and pruning the current branch"
+get_options "$@"
+working_dir_clean || error "working directory unclean"
+up_to_date "$current_branch" || \
+  error "$current_branch and origin/$current_branch have diverged"
+up_to_date "$target_branch" || \
+  error "$target_branch and origin/$target_branch have diverged"
+full_send
+info "Finished"

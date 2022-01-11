@@ -15,6 +15,7 @@
   p = push
   pl = pull
   r = rebase
+  rim = rebase -i main
   rc = rebase --continue
   sla = log --oneline --decorate --graph \
     --exclude=refs/remotes/origin/dependabot/* \
