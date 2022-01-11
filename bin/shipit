@@ -49,7 +49,7 @@ working_dir_clean() {
 up_to_date() {
   local branch="$1"
 
-  git fetch --all
+  git fetch "$branch"
 
   local_sha="$(git rev-parse "$branch")"
   remote_sha="$(git rev-parse "origin/$branch")"
@@ -63,7 +63,6 @@ full_send() {
   git push
   git branch -d "$current_branch"
   git pull
-  git fetch -a
 }
 
 info "Merging, pushing, and pruning the current branch"
