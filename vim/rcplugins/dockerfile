@@ -1,0 +1,6 @@
+" dockerfile
+" Syntax highlighting for Dockerfiles
+
+Plug 'ekalinin/Dockerfile.vim'
+
+" vim:ft=vim
