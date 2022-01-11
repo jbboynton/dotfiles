@@ -4,10 +4,10 @@ note="$1"
 
 file="$(basename -- "$note")"
 file_without_ext="${file%.*}"
-url="https://notes.boynton.cloud/$file_without_ext.html"
+url="https://notes.jamesboynton.org/$file_without_ext"
 
 copy_note_url() {
-  echo "$url" | pbcopy
+  echo -n "$url" | pbcopy
 }
 
 show_note() {
