@@ -63,6 +63,7 @@ full_send() {
   git push
   git branch -d "$current_branch"
   git pull
+  git fetch -a
 }
 
 info "Merging, pushing, and pruning the current branch"
