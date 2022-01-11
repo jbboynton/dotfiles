@@ -63,20 +63,6 @@ full_send() {
   git push
   git branch -d "$current_branch"
   git pull
-
-  delete_remote_branch
-}
-
-delete_remote_branch() {
-  if remote_branch_exists; then
-    git push --delete origin "$current_branch"
-  fi
-}
-
-remote_branch_exists() {
-  local repo="$(git config --get remote.origin.url)"
-
-  git ls-remote --heads "$repo" "$current_branch" | wc -l >/dev/null
 }
 
 info "Merging, pushing, and pruning the current branch"
