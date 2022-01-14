@@ -3,4 +3,11 @@
 
 Plug 'tpope/vim-fugitive'
 
+" Set the Fugitive window height to 10 lines
+augroup fugitiveGroup
+  autocmd!
+
+  autocmd FileType fugitive :10wincmd_
+augroup end
+
 " vim:ft=vim
