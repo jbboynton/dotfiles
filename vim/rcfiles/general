@@ -33,7 +33,7 @@ set splitbelow                  " open horizontal splits to the bottom
 set splitright                  " open vertical splits to the right
 set t_Co=16                     " use 16 colors
 set tabstop=2                   " tab width of 2 spaces
-set textwidth=80                " show 80 characters
+set textwidth=80                " max line length
 set timeoutlen=500              " key press timeout at 500 ms
 set viminfo+=n/var/tmp/.viminfo " create .viminfo file in /var/tmp
 set wildignore+=*/tmp/*         " don't complete or expand
