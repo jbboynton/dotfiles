@@ -4,6 +4,7 @@ augroup onSaveGroup
   autocmd!
 
   autocmd BufWritePost */Code/cai-custom-fields/* :Silent ~/Code/cai-custom-fields/bin/dev_sync.sh
+  autocmd BufWritePost */Code/case-studies-riib/* :Silent ~/Code/case-studies-riib/bin/dev_sync.sh
 augroup end
 
 " vim:ft=vim
