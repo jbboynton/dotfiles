@@ -1,6 +1,6 @@
 #!/bin/bash
-# Pulls the latest dotfiles. Then, updates Homebrew packages, Zinit plugins, Vim
-# plugins, and tmux plugins.
+# Pulls the latest dotfiles. Then, updates Homebrew packages, Vim plugins, and
+# tmux plugins.
 
 set -eo pipefail
 
