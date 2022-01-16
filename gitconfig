@@ -17,7 +17,9 @@
   r = rebase
   rim = rebase -i main
   rc = rebase --continue
-  s = stash -u
+  s = stash
+  sp = stash pop
+  su = stash -u
   sla = log --oneline --decorate --graph \
     --exclude=refs/remotes/origin/dependabot/* \
     --exclude=refs/remotes/heroku/* \
