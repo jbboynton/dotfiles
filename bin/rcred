@@ -1,0 +1,46 @@
+#!/bin/bash
+# Wrapper around editing Rails credentials files
+
+set -eo pipefail
+
+edit_rails_credentials() {
+  local root="$(git rev-parse --show-toplevel)"
+
+  if [ -n "$1" ]; then
+    # Argument passed (allowed values: either an environment name or "all")
+
+    if [ "$1" == "all" ]; then
+      # Argument "all" was passed
+
+      echo "☞ Editing all available credentials files"
+
+      [ -f "$root/config/credentials/production.yml.enc" ] && \
+        echo "☞ Editing production.yml.enc" && \
+        bin/rails credentials:edit --environment="production"
+
+      [ -f "$root/config/credentials/staging.yml.enc" ] && \
+        echo "☞ Editing staging.yml.enc" && \
+        bin/rails credentials:edit --environment="staging"
+
+      [ -f "$root/config/credentials/development.yml.enc" ] && \
+        echo "☞ Editing development.yml.enc" && \
+        bin/rails credentials:edit --environment="development"
+
+      [ -f "$root/config/credentials/test.yml.enc" ] && \
+        echo "☞ Editing test.yml.enc" && \
+        bin/rails credentials:edit --environment="test"
+
+      [ -f "$root/config/credentials.yml.enc" ] && \
+        echo "☞ Editing credentials.yml.enc" && \
+        bin/rails credentials:edit
+    else
+      # Argument other than "all" was passed (must be an environment name)
+      bin/rails credentials:edit --environment="$1"
+    fi
+  else
+    # No argument was passed, default to the global credentials file
+    bin/rails credentials:edit
+  fi
+}
+
+edit_rails_credentials "$@"
