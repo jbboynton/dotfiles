@@ -59,11 +59,8 @@ brew 'yarn'
 brew 'zsh'
 
 # Applications and utilities
-# Alacritty must be built from source until the next release (v0.10 or later)
-# https://github.com/alacritty/alacritty/issues/5584
-# cask 'alacritty'
+cask 'alacritty'
 cask 'bartender'
-cask 'bluejeans'
 cask 'chromium'
 cask 'docker'
 cask 'firefox-developer-edition'
@@ -106,5 +103,9 @@ cask 'font-ubuntu-mono'
 mas '1Password 7 - Password Manager', id: 1333542190
 mas 'CARROT Weather', id: 993487541
 mas 'Exporter', id: 1099120373
+mas 'Overcast', id: 888422857
 mas 'Pixelmator Pro', id: 1289583905
+mas 'ShapeScript', id: 1441135869
 mas 'Slack for Desktop', id: 803453959
+mas 'Text Compare', id: 1552247688
+mas 'Tonaly Pro', id: 1590135777

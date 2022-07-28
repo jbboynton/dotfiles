@@ -29,13 +29,15 @@ clear_html() {
 }
 
 add_head() {
+local theme="$1"
+
 read -r -d '' head <<-EOHTML
 <html lang="en">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
       <title>$(title)</title>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/dark.min.css">
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/kognise/water.css@latest/dist/$theme.min.css">
       <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png?v=1">
       <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png?v=1">
       <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png?v=1">
@@ -47,8 +49,8 @@ read -r -d '' head <<-EOHTML
       <meta name="theme-color" content="#ffffff">
       <style>
         body {
-          font-size: 22px;
-          line-height: 30px;
+          font-size: 20px;
+          line-height: 26px;
           max-width: 740px;
         }
 
@@ -76,7 +78,7 @@ read -r -d '' head <<-EOHTML
           background-color: rgba(0, 0, 0, 0.2);
           line-height: 1.2;
           padding: 15px 25px;
-          font-size: 20px;
+          font-size: 18px;
         }
 
         code {
@@ -106,7 +108,7 @@ read -r -d '' head <<-EOHTML
         }
 
         table {
-          font-size: 22px;
+          font-size: 20px;
           margin-top: 26px;
           margin-bottom: 26px;
         }
@@ -203,16 +205,8 @@ title() {
   head -3 "$md_file" | tail -1 | cut -c 3-
 }
 
-generate_html() {
-  marked -i "$note" -o "$tmp_output"
-}
-
 add_generated_html() {
-  generate_html
-
-  cat "$tmp_output" >> "$html_output"
-
-  rm "$tmp_output"
+  marked -i "$note" >> "$html_output"
 }
 
 add_tail() {
@@ -225,7 +219,9 @@ EOHTML
 }
 
 build_html() {
-  add_head
+  local theme="$1"
+
+  add_head "$theme"
   add_generated_html
   add_tail
 }
@@ -247,7 +243,9 @@ open_pdf() {
 
 verify_note_is_markdown
 clear_html
-build_html
-# open_html
-# build_pdf
+build_html "light"
+build_pdf
+clear_html
+build_html "dark"
+open_html
 # open_pdf

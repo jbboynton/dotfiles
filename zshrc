@@ -1,6 +1,9 @@
 # # Uncomment to enable profiling
 # zmodload zsh/zprof
 
+# # Benchmark shell startup time
+# time zsh -i -c exit
+
 HISTSIZE=10000000
 HISTFILE=~/.history/zsh_history
 SAVEHIST=10000000
@@ -49,7 +52,6 @@ zinit wait'0' lucid for \
     zsh-users/zsh-history-substring-search \
   blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
   OMZP::colored-man-pages \
-  OMZ::plugins/nvm/nvm.plugin.zsh \
   htlsne/zinit-rbenv
 
 function history_substring_search_config() {

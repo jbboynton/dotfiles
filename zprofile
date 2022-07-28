@@ -1,13 +1,13 @@
 # Set up the environment for the current platform and architecture
 # x86-specific setup
-x86_brew_env() {
+function x86_brew_env() {
   eval "$(/usr/local/bin/brew shellenv)"
 
   export PATH="/usr/local/bin:$PATH"
 }
 
 # ARM-specific setup
-arm_brew_env() {
+function arm_brew_env() {
   eval "$(/opt/homebrew/bin/brew shellenv)"
 
   export PATH="/opt/homebrew/bin:$PATH"
@@ -32,12 +32,11 @@ export HOMEBREW_BUNDLE_NO_LOCK=1
 export HOMEBREW_CASK_OPTS="--no-quarantine"
 export LESSHISTFILE="-"
 export NODE_REPL_HISTORY_FILE="$HOME/.history/node_history"
-export NVM_COMPLETION=1
-export NVM_DIR="$HOME/.nvm"
 export PSQL_HISTORY="$HOME/.history/psql_history"
 
 function mac_app_ids() {
-  ids="1333542190 993487541 1099120373 1289583905 803453959"
+  ids="1099120373 1289583905 1333542190 1441135869 1552247688 1590135777 "
+  ids+="803453959 803453959 888422857 993487541"
 
   echo "$ids"
 }

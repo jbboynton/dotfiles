@@ -34,7 +34,13 @@ error() {
 }
 
 verify_directory() {
+  set_directory
+
   [ -d "$directory" ]
+}
+
+set_directory() {
+  directory="$(readlink -f "$1")"
 }
 
 flatten_directory() {

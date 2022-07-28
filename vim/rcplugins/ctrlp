@@ -1,7 +1,7 @@
 " ctrlp
 " Full path fuzzy file, buffer, mru, tag, etc. finder for Vim
 
-Plug 'ctrlpvim/ctrlp.vim'
+Plug 'ctrlpvim/ctrlp.vim', { 'branch': 'master' }
 
 " Use RipGrep to perform the search
 let g:ctrlp_user_command = 'rg %s --files --color=never --glob ""'

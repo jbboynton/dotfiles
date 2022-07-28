@@ -5,7 +5,7 @@ nnoremap <leader>v :source ~/.vimrc<CR>
 nnoremap <Leader>y :silent w !pbcopy<CR>
 
 " Remove trailing whitespace
-nnoremap <Leader><Space> :%s/\s\+$//e<CR>
+nnoremap <Leader><Space> :%s/\s\+$//e<CR>:%s/\t/  /e<CR>
 
 " Clear the screen
 nnoremap <Leader>c :!clear<CR><CR>
