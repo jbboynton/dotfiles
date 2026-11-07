@@ -7,6 +7,8 @@
 HISTSIZE=100000
 HISTFILE=~/.history/zsh_history
 SAVEHIST=100000
+# Save each command's start time and duration
+setopt EXTENDED_HISTORY
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=magenta,bold,underline'
 
