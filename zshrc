@@ -4,9 +4,9 @@
 # # Benchmark shell startup time
 # time zsh -i -c exit
 
-HISTSIZE=10000000
+HISTSIZE=100000
 HISTFILE=~/.history/zsh_history
-SAVEHIST=10000000
+SAVEHIST=100000
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=magenta,bold,underline'
 
