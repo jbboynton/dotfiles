@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Apply the macOS settings that live in `defaults`, for setting up a new Mac
+# or putting things back. Safe to run again: each line just sets a value.
+
+set -euo pipefail
+
+# TextEdit: open a blank document on launch, not the file picker
+defaults write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false
