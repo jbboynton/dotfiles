@@ -1,0 +1,341 @@
+#!/usr/bin/env python3
+"""Live tmux style playground.
+
+Run it in a short split so you can watch the rest of the window change:
+
+    bind S split-window -v -l 14 tmux-style
+
+Keys:
+  tab / 1-4   switch group        up/down, j/k   pick an option
+  left/right  cycle presets       e   type a value
+  c           256-colour picker   r   revert this option
+  R           revert everything   s   save changes to ~/.tmux/style.conf
+  x           write a snapshot of every value to ~/.tmux/style-snapshots/
+  q           quit (changes stay live until reverted or tmux restarts)
+"""
+import curses
+import datetime
+import os
+import re
+import subprocess
+
+NAMED = ['default', 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
+         'cyan', 'white']
+COLORS = NAMED + ['colour8', 'colour236', 'colour240', 'colour245',
+                  'colour255', 'colour175', 'colour196', 'colour39',
+                  'colour114', 'colour214', '#89b4fa', '#f38ba8', '#a6e3a1']
+ATTRS = ['', ',bold', ',dim', ',italics', ',reverse', ',underscore']
+BGS = ('default', 'black', 'colour236')
+
+
+def styles(fgs=COLORS, bgs=BGS, attrs=('',)):
+    return [f'fg={f},bg={b}{a}' for a in attrs for b in bgs for f in fgs]
+
+
+LABEL = ('#{?pane_active,#[reverse bold],}'
+         ' #{pane_index}: #{pane_current_command} #[default]')
+
+# Groups of (option, scope, presets). Scope -g is global, -w this window.
+GROUPS = [
+    ('Status bar', [
+        ('status', '-g', ['on', 'off', '2']),
+        ('status-position', '-g', ['bottom', 'top']),
+        ('status-justify', '-g',
+         ['left', 'centre', 'right', 'absolute-centre']),
+        ('status-style', '-g', styles()),
+        ('status-left', '-g', ['[#{session_name}] ', ' #S ', ' #S:#I ', '']),
+        ('status-left-style', '-g', styles(attrs=ATTRS[:2])),
+        ('status-right', '-g', [' %a %d %b | %I:%M %p ', ' #H ', ' %H:%M ',
+                                ' #{pane_current_path} ', '']),
+        ('status-right-style', '-g', styles()),
+    ]),
+    ('Windows', [
+        ('window-status-format', '-g', [' #I:#W#F ', ' #I #W ', ' #W ']),
+        ('window-status-current-format', '-g',
+         [' #I:#W#F ', ' [#I #W] ', ' #I #W ', ' >#W< ']),
+        ('window-status-style', '-g', styles()),
+        ('window-status-current-style', '-g', styles(attrs=ATTRS)),
+        ('window-status-separator', '-g', [' ', '', ' | ', ' · ']),
+        ('window-style', '-w', ['default', 'fg=colour245', 'bg=colour235',
+                                'fg=colour245,bg=colour235']),
+        ('window-active-style', '-w',
+         ['default', 'bg=black', 'bg=colour234']),
+    ]),
+    ('Panes', [
+        ('pane-border-status', '-w', ['off', 'top', 'bottom']),
+        ('pane-border-lines', '-w',
+         ['single', 'double', 'heavy', 'simple', 'number', 'spaces']),
+        ('pane-border-indicators', '-w', ['colour', 'arrows', 'both', 'off']),
+        ('pane-border-style', '-w', styles()),
+        ('pane-active-border-style', '-w', styles(attrs=ATTRS[:2])),
+        ('pane-border-format', '-w', [LABEL, ' #{pane_title} ',
+                                      ' #{pane_current_path} ', ' #P ']),
+    ]),
+    ('Messages & modes', [
+        ('message-style', '-g', styles(bgs=NAMED[1:])),
+        ('mode-style', '-g', styles(bgs=NAMED[1:])),
+        ('popup-border-lines', '-g',
+         ['single', 'rounded', 'double', 'heavy']),
+        ('popup-border-style', '-g', styles()),
+        ('clock-mode-colour', '-w', COLORS),
+    ]),
+]
+ALL = [opt for _, opts in GROUPS for opt in opts]
+
+
+def tmux(*args):
+    r = subprocess.run(['tmux', *args], capture_output=True, text=True)
+    return r.stdout.rstrip('\n'), r.stderr.strip()
+
+
+class Options:
+    """Caches every value so redraws never shell out to tmux."""
+
+    def __init__(self):
+        self.window, _ = tmux('display', '-p', '#{window_id}')
+        self.values = {name: self.read(name, scope)
+                       for name, scope, _ in ALL}
+        self.original = dict(self.values)
+
+    def args(self, scope):
+        return [scope, '-t', self.window] if scope == '-w' else [scope]
+
+    def read(self, name, scope):
+        # -A includes values the window inherits from the global ones.
+        extra = ['-A'] if scope == '-w' else []
+        return tmux('show', *self.args(scope), *extra, '-v', name)[0]
+
+    def set(self, name, scope, value):
+        _, err = tmux('set', *self.args(scope), name, value)
+        if not err:
+            self.values[name] = value
+        return err
+
+    def changed(self):
+        return [(n, s) for n, s, _ in ALL
+                if self.values[n] != self.original[n]]
+
+
+def write_conf(path, entries, values, header):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        f.write(f'# {header}\n')
+        for name, scope in entries:
+            g = '-gw' if scope == '-w' else scope
+            q = values[name].replace("'", "'\\''")
+            f.write(f"set {g} {name} '{q}'\n")
+
+
+# --- colour, so presets preview in their own style -------------------------
+
+CUBE = [0, 95, 135, 175, 215, 255]
+
+
+def to_index(colour):
+    if colour in NAMED[1:]:
+        return NAMED.index(colour) - 1
+    m = re.fullmatch(r'colou?r(\d+)', colour)
+    if m:
+        return int(m.group(1))
+    m = re.fullmatch(r'#([0-9a-fA-F]{6})', colour)
+    if m:
+        rgb = [int(m.group(1)[i:i + 2], 16) for i in (0, 2, 4)]
+        idx = [min(range(6), key=lambda i: abs(CUBE[i] - c)) for c in rgb]
+        return 16 + 36 * idx[0] + 6 * idx[1] + idx[2]
+    return -1
+
+
+class Palette:
+    def __init__(self):
+        self.pairs = {}
+
+    def pair(self, fg, bg):
+        key = (fg, bg)
+        if key not in self.pairs:
+            n = len(self.pairs) + 1
+            if n >= curses.COLOR_PAIRS:
+                return 0
+            curses.init_pair(n, fg, bg)
+            self.pairs[key] = n
+        return curses.color_pair(self.pairs[key])
+
+    def style(self, value):
+        """Curses attribute for a tmux style string, else 0."""
+        if 'fg=' not in value and 'bg=' not in value:
+            return 0
+        fg = bg = -1
+        attr = 0
+        for part in value.split(','):
+            if part.startswith('fg='):
+                fg = to_index(part[3:])
+            elif part.startswith('bg='):
+                bg = to_index(part[3:])
+            elif part in ('bold', 'bright'):
+                attr |= curses.A_BOLD
+            elif part == 'dim':
+                attr |= curses.A_DIM
+            elif part == 'reverse':
+                attr |= curses.A_REVERSE
+            elif part in ('underscore', 'underline'):
+                attr |= curses.A_UNDERLINE
+            elif part == 'italics':
+                attr |= getattr(curses, 'A_ITALIC', 0)
+        if max(fg, bg) >= curses.COLORS:
+            return attr
+        return self.pair(fg, bg) | attr
+
+
+# --- screens ----------------------------------------------------------------
+
+
+def put(scr, y, x, text, attr=0):
+    h, w = scr.getmaxyx()
+    if 0 <= y < h and x < w - 1:
+        scr.addstr(y, x, text[:w - 1 - x], attr)
+
+
+def colour_picker(scr, pal):
+    """Grid of 256 swatches; returns 'colourN' or None."""
+    i = 0
+    moves = {curses.KEY_LEFT: -1, curses.KEY_RIGHT: 1,
+             curses.KEY_UP: -32, curses.KEY_DOWN: 32,
+             ord('h'): -1, ord('l'): 1, ord('k'): -32, ord('j'): 32}
+    while True:
+        scr.erase()
+        put(scr, 0, 0, f' colour{i} ', pal.pair(i, -1) | curses.A_REVERSE)
+        put(scr, 0, 14, 'arrows move · enter picks · esc cancels',
+            curses.A_DIM)
+        for n in range(256):
+            mark = '[]' if n == i else '  '
+            put(scr, 1 + n // 32, (n % 32) * 2, mark,
+                pal.pair(n, -1) | curses.A_REVERSE)
+        k = scr.getch()
+        if k in moves:
+            i = (i + moves[k]) % 256
+        elif k in (10, 13):
+            return f'colour{i}'
+        elif k in (27, ord('q')):
+            return None
+
+
+def prompt(scr, text, initial):
+    h, _ = scr.getmaxyx()
+    curses.curs_set(1)
+    curses.echo()
+    scr.move(h - 1, 0)
+    scr.clrtoeol()
+    put(scr, h - 1, 0, text, curses.A_BOLD)
+    val = scr.getstr(h - 1, len(text), 400).decode()
+    curses.noecho()
+    curses.curs_set(0)
+    return val or initial
+
+
+def apply_colour(name, cur, c, scr):
+    if name == 'clock-mode-colour':
+        return c
+    key = prompt(scr, 'apply to fg or bg? [fg] ', 'fg')
+    key = 'bg' if key.startswith('b') else 'fg'
+    keep = [p for p in cur.split(',')
+            if p and p != 'default' and not p.startswith(key + '=')]
+    return ','.join([f'{key}={c}'] + keep)
+
+
+def draw(scr, pal, opts, tab, sel, top, msg):
+    h, w = scr.getmaxyx()
+    accent = pal.pair(0, 6)
+    scr.erase()
+    put(scr, 0, 0, ' ' * w, accent)
+    put(scr, 0, 0, ' tmux-style ', accent | curses.A_BOLD)
+    n = len(opts.changed())
+    put(scr, 0, 13, f'{n} changed' if n else 'no changes', accent)
+    x = 0
+    for i, (title, _) in enumerate(GROUPS):
+        label = f' {i + 1} {title} '
+        attr = (pal.pair(0, 3) | curses.A_BOLD if i == tab
+                else curses.A_DIM)
+        put(scr, 1, x, label, attr)
+        x += len(label) + 1
+    rows = h - 4
+    items = GROUPS[tab][1]
+    for row, (name, _, _) in enumerate(items[top:top + rows]):
+        i = top + row
+        val = opts.values[name]
+        on = i == sel
+        dirty = val != opts.original[name]
+        y = row + 2
+        put(scr, y, 0, '▶' if on else ' ', pal.pair(6, -1))
+        put(scr, y, 2, '●' if dirty else ' ', pal.pair(3, -1))
+        put(scr, y, 4, f'{name:<29}',
+            curses.A_BOLD if on else curses.A_NORMAL)
+        put(scr, y, 34, f' {val} ' if val else ' (empty) ',
+            pal.style(val) or (curses.A_REVERSE if on else 0))
+    keys = ('←/→ cycle  e edit  c colour  r revert  R revert all  '
+            's save  x snapshot  q quit')
+    put(scr, h - 2, 0, keys, curses.A_DIM)
+    put(scr, h - 1, 0, msg, pal.pair(2, -1))
+
+
+def main(scr):
+    curses.use_default_colors()
+    curses.curs_set(0)
+    pal = Palette()
+    opts = Options()
+    tab = sel = top = 0
+    msg = ''
+    while True:
+        h, _ = scr.getmaxyx()
+        items = GROUPS[tab][1]
+        rows = max(1, h - 4)
+        top = min(max(top, sel - rows + 1), sel)
+        draw(scr, pal, opts, tab, sel, top, msg)
+        msg = ''
+        k = scr.getch()
+        name, scope, presets = items[sel]
+        cur = opts.values[name]
+        if k in (9, curses.KEY_BTAB) or ord('1') <= k <= ord('4'):
+            if k == 9:
+                tab = (tab + 1) % len(GROUPS)
+            elif k == curses.KEY_BTAB:
+                tab = (tab - 1) % len(GROUPS)
+            elif k - ord('1') < len(GROUPS):
+                tab = k - ord('1')
+            sel = top = 0
+        elif k in (curses.KEY_UP, ord('k')):
+            sel = (sel - 1) % len(items)
+        elif k in (curses.KEY_DOWN, ord('j')):
+            sel = (sel + 1) % len(items)
+        elif k in (curses.KEY_LEFT, curses.KEY_RIGHT, ord('h'), ord('l')):
+            step = 1 if k in (curses.KEY_RIGHT, ord('l')) else -1
+            idx = presets.index(cur) if cur in presets else -step
+            msg = opts.set(name, scope, presets[(idx + step) % len(presets)])
+        elif k == ord('e'):
+            msg = opts.set(name, scope, prompt(scr, f'{name} = ', cur))
+        elif k == ord('c'):
+            c = colour_picker(scr, pal)
+            if c:
+                msg = opts.set(name, scope, apply_colour(name, cur, c, scr))
+        elif k == ord('r'):
+            msg = opts.set(name, scope, opts.original[name]) or 'reverted'
+        elif k == ord('R'):
+            for n, s in opts.changed():
+                opts.set(n, s, opts.original[n])
+            msg = 'reverted everything'
+        elif k == ord('s'):
+            path = os.path.expanduser('~/.tmux/style.conf')
+            write_conf(path, opts.changed(), opts.values,
+                       'tmux-style changes; source-file this from tmux.conf')
+            msg = f'saved {len(opts.changed())} changes to {path}'
+        elif k == ord('x'):
+            stamp = datetime.datetime.now().strftime('%Y-%m-%d-%H%M%S')
+            path = os.path.expanduser(
+                f'~/.tmux/style-snapshots/{stamp}.conf')
+            write_conf(path, [(n, s) for n, s, _ in ALL], opts.values,
+                       f'tmux-style snapshot {stamp}')
+            msg = f'snapshot written to {path}'
+        elif k == ord('q'):
+            return
+
+
+if __name__ == '__main__':
+    curses.wrapper(main)
