@@ -7,5 +7,6 @@ zstyle ':completion:*' menu no
 # Preview folders when completing cd
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -a1 --color=always --group-directories-first $realpath'
 
-# Tab fills in the highlighted completion, like zsh's own menu
-zstyle ':fzf-tab:*' fzf-bindings 'tab:accept'
+# Tab and shift + tab move through the list, wrapping at the ends; enter picks
+zstyle ':fzf-tab:*' fzf-bindings 'tab:down' 'btab:up'
+zstyle ':fzf-tab:*' fzf-flags --cycle
