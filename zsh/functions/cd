@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 cd() {
-  builtin cd "$@" && exa -abghlm --sort name --group-directories-first --git
+  builtin cd "$@" && eza -abghlm --sort name --group-directories-first --git
 }
