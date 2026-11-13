@@ -62,4 +62,13 @@ fi
 # Add ~/.bin commands to path
 export PATH="$HOME/.bin:$PATH"
 
+# Add ~/.local/bin to path
+export PATH="$HOME/.local/bin:$PATH"
+
+# Add dart-sass-embedded to path
+export PATH="$HOME/.bin/sass_embedded:$PATH"
+
+# Add Python to path
+export PATH="/opt/homebrew/opt/python@3.14/libexec/bin:$PATH"
+
 # vim:ft=zsh
