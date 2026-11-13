@@ -52,6 +52,7 @@ zinit wait'0' lucid for \
     zicdreplay" \
     Aloxaf/fzf-tab \
     zdharma-continuum/fast-syntax-highlighting \
+  atload'bind_history_substring_search' \
     zsh-users/zsh-history-substring-search \
   blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
   htlsne/zinit-rbenv

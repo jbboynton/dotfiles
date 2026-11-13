@@ -2,8 +2,12 @@
 # Check a key's sequence with: ctrl + v, then press the key
 
 # Substring history search: ↑ and ↓
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
+# Called once the plugin has loaded (see zshrc), since binding its widgets
+# before they exist makes fast-syntax-highlighting complain
+function bind_history_substring_search() {
+  bindkey '^[[A' history-substring-search-up
+  bindkey '^[[B' history-substring-search-down
+}
 
 # Delete next character: fn + backspace or delete key
 bindkey '^[[3~' delete-char
