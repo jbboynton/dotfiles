@@ -1,0 +1,159 @@
+#!/usr/bin/env zsh
+# Start a bullpen: cd to a registered directory and run claude '/bullpen'.
+#
+#   bullpen           start one (see "How it picks" below)
+#   bullpen add [dir] register dir (default: the current directory)
+#   bullpen rm        pick a bullpen to remove from the list
+#   bullpen list      show the registered bullpens
+#
+# How it picks: inside a registered directory (or below one), that one
+# starts. With one bullpen registered, it starts. With none, it offers
+# to register the current directory. Otherwise it shows a menu.
+#
+# The list lives in ${XDG_CONFIG_HOME:-~/.config}/bullpen/dirs, one
+# absolute path per line. Removing an entry never touches the files.
+
+list_file="${XDG_CONFIG_HOME:-$HOME/.config}/bullpen/dirs"
+typeset -a dirs
+current=""
+
+usage() {
+  print -r -- "usage: bullpen [add [dir] | rm | list | help]"
+}
+
+short() {
+  local tilde='~'
+  print -r -- "${1/#$HOME/$tilde}"
+}
+
+load() {
+  local line
+  dirs=()
+  [[ -f $list_file ]] || return 0
+  while IFS= read -r line; do
+    [[ -n $line ]] && dirs+=("$line")
+  done < "$list_file"
+}
+
+save() {
+  mkdir -p "${list_file:h}"
+  if (( $#dirs )); then
+    print -rl -- "${dirs[@]}" > "$list_file"
+  else
+    : > "$list_file"
+  fi
+}
+
+# Sets $current to the deepest registered directory holding $PWD.
+find_current() {
+  local d here=${PWD:A}
+  current=""
+  for d in "${dirs[@]}"; do
+    if [[ $here == "$d" || $here == "$d"/* ]]; then
+      (( ${#d} > ${#current} )) && current=$d
+    fi
+  done
+}
+
+show_list() {
+  local i note
+  (( $#dirs )) || return 0
+  for i in {1..$#dirs}; do
+    note=""
+    [[ -d $dirs[$i] ]] || note=" (missing)"
+    printf '  %d) %s%s\n' $i "$(short $dirs[$i])" "$note"
+  done
+}
+
+add_dir() {
+  local dir=${1:-$PWD}
+  dir=${dir:A}
+  if [[ ! -d $dir ]]; then
+    print -u2 "bullpen: not a directory: $dir"
+    return 1
+  fi
+  if (( ${dirs[(Ie)$dir]} )); then
+    print "Already a bullpen: $(short $dir)"
+    return 0
+  fi
+  dirs+=("$dir")
+  save
+  print "Added bullpen: $(short $dir)"
+}
+
+remove_dir() {
+  local reply gone
+  if (( ! $#dirs )); then
+    print "No bullpens registered."
+    return 0
+  fi
+  print "Remove which bullpen from the list?"
+  show_list
+  read -r "reply?number, or Enter to cancel> " || return 0
+  [[ -z $reply ]] && return 0
+  if [[ $reply != <-> ]] || (( reply < 1 || reply > $#dirs )); then
+    print -u2 "Not a choice: $reply"
+    return 1
+  fi
+  gone=$dirs[$reply]
+  dirs[$reply]=()
+  save
+  print "Removed bullpen: $(short $gone) (files untouched)"
+}
+
+start() {
+  local dir=$1
+  if [[ ! -d $dir ]]; then
+    print -u2 "bullpen: directory is missing: $(short $dir)"
+    exit 1
+  fi
+  cd "$dir" || exit 1
+  exec claude '/bullpen'
+}
+
+run() {
+  local reply
+  find_current
+  [[ -n $current ]] && start "$current"
+
+  if (( $#dirs == 0 )); then
+    read -r "reply?No bullpens yet. Add $(short ${PWD:A})? [y/N] " || exit 0
+    [[ $reply == [yY]* ]] || exit 0
+    add_dir && start "${PWD:A}"
+    exit 1
+  fi
+
+  (( $#dirs == 1 )) && start "$dirs[1]"
+
+  while true; do
+    print "Pick a bullpen:"
+    show_list
+    print "  a) add $(short ${PWD:A})"
+    print "  d) delete a bullpen"
+    print "  q) quit"
+    read -r "reply?> " || exit 0
+    case $reply in
+      <->)
+        if (( reply >= 1 && reply <= $#dirs )); then
+          start "$dirs[$reply]"
+        fi
+        print -u2 "Not a choice: $reply"
+        ;;
+      a) add_dir && start "${PWD:A}" ;;
+      d) remove_dir ;;
+      q|"") exit 0 ;;
+      *) print -u2 "Not a choice: $reply" ;;
+    esac
+  done
+}
+
+load
+
+case ${1:-run} in
+  run|start) run ;;
+  add) add_dir "$2" ;;
+  rm|remove|delete) remove_dir ;;
+  list|ls) show_list ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 1 ;;
+esac
