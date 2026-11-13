@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+"""Show which `defaults` keys a change in System Settings touches.
+
+Usage:
+  defaults_diff                 snapshot, wait while you change a setting,
+                                snapshot again, and print what changed
+  defaults_diff snapshot DIR    save a full snapshot into DIR
+  defaults_diff compare A B     print what changed between two snapshots
+
+Options:
+  --all     also show changes where both values are dates (timestamps)
+
+Only reads. Snapshots cover every domain `defaults` lists, the same for
+-currentHost, and every app container's preferences this process can
+read. Containers macOS blocks are listed in DIR/coverage.txt; granting
+the terminal Full Disk Access unblocks them. The interactive run saves
+nothing but a log of its output, appended to ~/Notes/macos-settings/.
+"""
+
+import datetime
+import os
+import plistlib
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+NOTES = Path.home() / "Notes" / "macos-settings"
+LOG = NOTES / "diffs.log"
+HOME = Path.home()
+CONTAINER_ROOTS = [
+    HOME / "Library" / "Containers",
+    HOME / "Library" / "Group Containers",
+]
+WORKERS = 16
+
+
+def run(args):
+    result = subprocess.run(args, capture_output=True)
+    return result.returncode, result.stdout
+
+
+def domains(flags):
+    code, out = run(["defaults", *flags, "domains"])
+    names = out.decode().strip().split(", ") if code == 0 else []
+    return sorted(set(n for n in names if n) | {"NSGlobalDomain"})
+
+
+def export_domain(flags, domain, dest):
+    code, out = run(["defaults", *flags, "export", domain, "-"])
+    if code != 0:
+        return f"{domain}: export failed"
+    (dest / f"{domain}.plist").write_bytes(out)
+    return None
+
+
+def container_plists():
+    """Yield readable container plists; return blocked containers."""
+    found, blocked = [], []
+    for root in CONTAINER_ROOTS:
+        if not root.is_dir():
+            continue
+
+        for container in sorted(root.iterdir()):
+            prefs = container / "Library" / "Preferences"
+            if root.name == "Containers":
+                prefs = container / "Data" / "Library" / "Preferences"
+            try:
+                names = os.listdir(prefs)
+            except PermissionError:
+                blocked.append(str(container.relative_to(HOME)))
+                continue
+            except OSError:
+                continue
+            # Links point back at ~/Library/Preferences, already covered
+            found += [
+                prefs / n for n in sorted(names)
+                if n.endswith(".plist") and not (prefs / n).is_symlink()
+            ]
+
+    return found, blocked
+
+
+def snapshot(dest):
+    dest = Path(dest)
+    if dest.exists() and any(dest.iterdir()):
+        sys.exit(f"defaults_diff: {dest} is not empty")
+    failures = []
+    jobs = []
+    with ThreadPoolExecutor(WORKERS) as pool:
+        for scope, flags in (("user", []), ("currentHost", ["-currentHost"])):
+            (dest / scope).mkdir(parents=True, exist_ok=True)
+            for domain in domains(flags):
+                jobs.append(
+                    pool.submit(export_domain, flags, domain, dest / scope)
+                )
+        failures = [j.result() for j in jobs if j.result()]
+
+    plists, blocked = container_plists()
+    copied = 0
+    for src in plists:
+        target = dest / "containers" / src.relative_to(HOME)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copyfile(src, target)
+            copied += 1
+        except OSError:
+            failures.append(f"{src.relative_to(HOME)}: copy failed")
+
+    counts = {s: len(list((dest / s).glob("*.plist")))
+              for s in ("user", "currentHost")}
+    lines = [
+        f"user domains: {counts['user']}",
+        f"currentHost domains: {counts['currentHost']}",
+        f"container plists: {copied}",
+        f"blocked containers: {len(blocked)}",
+        f"failures: {len(failures)}",
+        "",
+        *[f"blocked: {b}" for b in blocked],
+        *[f"failed: {f}" for f in failures],
+    ]
+    (dest / "coverage.txt").write_text("\n".join(lines) + "\n")
+    return lines[:5]
+
+
+def load(path):
+    try:
+        with open(path, "rb") as f:
+            return plistlib.load(f)
+    except Exception:
+        return None
+
+
+def load_snapshot(root):
+    """Map (scope, domain) to its parsed dictionary."""
+    root = Path(root)
+    data = {}
+    for scope in ("user", "currentHost"):
+        for path in (root / scope).glob("*.plist"):
+            data[(scope, path.stem)] = load(path)
+    for path in (root / "containers").rglob("*.plist"):
+        rel = path.relative_to(root / "containers")
+        data[("container", str(rel.with_suffix("")))] = load(path)
+    return data
+
+
+UNSET = object()
+
+
+def changes(old, new, path=()):
+    """Yield (key path, old, new) for every leaf that differs."""
+    if isinstance(old, dict) and isinstance(new, dict):
+        for key in sorted(set(old) | set(new), key=str):
+            yield from changes(
+                old.get(key, UNSET), new.get(key, UNSET), path + (key,)
+            )
+    elif old != new or type(old) is not type(new):
+        yield path, old, new
+
+
+def show(value):
+    if value is UNSET:
+        return "(unset)"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, bytes):
+        return f"<{len(value)} bytes>"
+    if isinstance(value, (dict, list)):
+        text = repr(value)
+        return text if len(text) <= 200 else text[:197] + "..."
+    return repr(value)
+
+
+def write_value(value):
+    if isinstance(value, bool):
+        return ["-bool", "true" if value else "false"]
+    if isinstance(value, int):
+        return ["-int", str(value)]
+    if isinstance(value, float):
+        return ["-float", repr(value)]
+    if isinstance(value, str):
+        return ["-string", value]
+    if isinstance(value, datetime.datetime):
+        return ["-date", value.strftime("%Y-%m-%d %H:%M:%S +0000")]
+    if isinstance(value, bytes):
+        return ["-data", value.hex()]
+    xml = plistlib.dumps(value, fmt=plistlib.FMT_XML).decode()
+    body = xml.split("<plist version=\"1.0\">", 1)[1].rsplit("</plist>", 1)[0]
+    return ["".join(line.strip() for line in body.splitlines())]
+
+
+def command(scope, domain, key, value):
+    base = ["defaults"]
+    if scope == "currentHost":
+        base.append("-currentHost")
+    target = domain
+    if scope == "container":
+        target = "$HOME/" + domain
+    if value is UNSET:
+        args = ["delete", target, key]
+    else:
+        args = ["write", target, key, *write_value(value)]
+    words = [shlex.quote(a) for a in args]
+    if scope == "container":
+        words[1] = '"' + target + '"'
+    return " ".join(base + words)
+
+
+def compare(a, b, show_all=False):
+    before, after = load_snapshot(a), load_snapshot(b)
+    out, hidden = [], 0
+    for scope, domain in sorted(set(before) | set(after)):
+        old = before.get((scope, domain)) or {}
+        new = after.get((scope, domain)) or {}
+        if old == new:
+            continue
+
+        for path, was, now in changes(old, new):
+            if not show_all and all(
+                isinstance(v, datetime.datetime) for v in (was, now)
+            ):
+                hidden += 1
+                continue
+
+            key = path[0]
+            label = domain if scope == "user" else f"{domain} ({scope})"
+            value = new.get(key, UNSET)
+            cmd = command(scope, domain, key, value)
+            if isinstance(value, bytes) and len(cmd) > 200:
+                cmd = "(binary value, too long to show as a command)"
+            out += [
+                f"{label}  {':'.join(str(p) for p in path)}",
+                f"  old: {show(was)}",
+                f"  new: {show(now)}",
+                f"  {cmd}",
+                "",
+            ]
+
+    if not out:
+        out.append("No changes.")
+    if hidden:
+        out.append(f"{hidden} timestamp-only changes hidden (--all shows them)")
+    return out
+
+
+def interactive(show_all):
+    NOTES.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=".defaults_diff-", dir=NOTES))
+    try:
+        print("Taking the first snapshot...", file=sys.stderr)
+        blocked = snapshot(work / "before")[3]
+        if not blocked.endswith(": 0"):
+            print(f"Warning: {blocked}; changes in those apps won't show.",
+                  "Full Disk Access for the terminal unblocks them.",
+                  file=sys.stderr)
+        input("Change the setting now, then press Return. ")
+        print("Taking the second snapshot...", file=sys.stderr)
+        snapshot(work / "after")
+        lines = compare(work / "before", work / "after", show_all)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    print("\n".join(lines))
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG, "a") as log:
+        log.write(f"## {stamp}\n\n" + "\n".join(lines) + "\n\n")
+
+
+def main(argv):
+    show_all = "--all" in argv
+    args = [a for a in argv if a != "--all"]
+    if not args:
+        interactive(show_all)
+    elif args[0] == "snapshot" and len(args) == 2:
+        print("\n".join(snapshot(args[1])))
+    elif args[0] == "compare" and len(args) == 3:
+        print("\n".join(compare(args[1], args[2], show_all)))
+    else:
+        sys.exit(__doc__.strip())
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt:
+        sys.exit(130)
