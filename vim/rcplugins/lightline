@@ -13,7 +13,8 @@ let g:lightline = {
   \   'left': [ [ 'mode', 'paste' ],
   \             [ 'fugitive', 'filename', 'conflicted', 'modified', 'readonly' ],
   \             [ 'ctrlp' ],
-  \             [ 'linter_errors', 'linter_warnings' ] ],
+  \             [ 'linter_errors', 'linter_warnings' ],
+  \             [ 'spell_errors' ] ],
   \   'right': [ [ 'lineinfo' ],
   \              [ 'filetype', 'fileencoding' ] ]
   \ },
@@ -32,12 +33,43 @@ let g:lightline = {
   \ 'component_expand': {
   \   'linter_errors': 'lightline#ale#errors',
   \   'linter_warnings': 'lightline#ale#warnings',
+  \   'spell_errors': 'spellmenu#Lightline',
   \ },
   \ 'component_type': {
   \   'linter_warnings': 'warning',
   \   'linter_errors': 'error',
+  \   'spell_errors': 'spell',
   \ },
   \ }
+
+" Spell indicator: a character plus a count, like the ALE indicators.
+"
+" Change the character here:
+let g:spellmenu_indicator = "\u270e "
+
+" ...and the colours here, as [[guifg, guibg, ctermfg, ctermbg]]:
+let g:spellmenu_lightline_colour = [['#21272a', '#bf616a', 'black', 'red']]
+
+" 'spell' is a custom component_type, so lightline needs a palette entry
+" for it in every mode or it throws E716 while drawing the statusline.
+function! s:SpellPalette() abort
+  try
+    let l:palette = g:lightline#colorscheme#{g:lightline.colorscheme}#palette
+  catch
+    return
+  endtry
+  for l:mode in keys(l:palette)
+    if type(l:palette[l:mode]) == v:t_dict
+      let l:palette[l:mode].spell = g:spellmenu_lightline_colour
+    endif
+  endfor
+  call lightline#colorscheme()
+endfunction
+
+augroup lightlineSpell
+  autocmd!
+  autocmd VimEnter * call s:SpellPalette()
+augroup END
 
 function! LightlineFilename()
   return (&ft == 'vimfiler' ? vimfiler#get_status_string() :

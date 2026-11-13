@@ -1,4 +1,43 @@
 set spellfile=$HOME/.vim/spell/en.utf-8.add
 set complete+=kspell
+set spellsuggest=best,10
+
+" Capitalisation is checked in autoload/spellmenu.vim, not by Vim. See
+" the comment at the top of that file for why 'spellcapcheck' cannot do
+" what is wanted here.
+set spellcapcheck=
+
+augroup spellmenu
+  autocmd!
+  " Exempt URLs, paths, acronyms and abbreviations from spell checking.
+  " Must be Syntax, not FileType: loading a syntax file clears matches
+  " added earlier.
+  " BufWinEnter as well as Syntax: the Syntax event can fire before the
+  " ftplugin has switched 'spell' on, and spellmenu#Syntax() skips
+  " buffers that are not spell checked.
+  autocmd Syntax,BufWinEnter * call spellmenu#Syntax()
+
+  autocmd CursorMoved * call spellmenu#Hint()
+  autocmd BufWinEnter,TextChanged,InsertLeave,BufWritePost *
+        \ call spellmenu#Refresh()
+augroup END
+
+" Mapping <Esc> in normal mode makes Vim wait to see whether an incoming
+" <Esc> is a lone keypress or the start of a key code, because arrow keys
+" send ESC [ A. Without 'ttimeout' that wait is 'timeoutlen' (500ms) and
+" the arrow keys feel laggy. These give key codes a short timeout of
+" their own while leaving mappings at 'timeoutlen'.
+set ttimeout
+set ttimeoutlen=20
+
+" <Tab>      fix the error under the cursor, else jump to the nearest one
+" <S-Tab>    open the correction popup
+" <Esc>      ignore this error for the rest of the session
+"
+" All three do nothing when there is no error to act on, so <C-i> still
+" works for the jumplist everywhere else.
+nnoremap <silent> <Tab> :call spellmenu#Tab()<CR>
+nnoremap <silent> <S-Tab> :call spellmenu#Menu()<CR>
+nnoremap <silent> <Esc> :call spellmenu#Escape()<CR>
 
 " vim:ft=vim
