@@ -1,1 +1,3 @@
-UNDOTTED="Brewfile"
+UNDOTTED="Brewfile Library"
+COPY_ALWAYS="Library/LaunchAgents/*"
+EXCLUDES="CLAUDE.md"

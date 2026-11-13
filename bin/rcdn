@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Blocks rcm's rcdn, so nothing calls it by accident; rc (in ~/.bin) is the
+# safe way in, and calls the real one itself.
+
+echo "rcdn is blocked here. Use rc instead:" >&2
+echo "  rc unlink FILE...   remove links into ~/.dotfiles" >&2
+echo "  rc prune            remove broken links into ~/.dotfiles" >&2
+exit 1

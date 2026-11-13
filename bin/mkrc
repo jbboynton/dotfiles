@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Blocks rcm's mkrc, so nothing calls it by accident; rc (in ~/.bin) is the
+# safe way in, and calls the real one itself.
+
+echo "mkrc is blocked here. Use rc instead:" >&2
+echo "  rc add FILE...           dotted files, like ~/.vimrc" >&2
+echo "  rc add --undotted FILE   files without a dot, like ~/Brewfile" >&2
+echo "  rc add --copy FILE       install as a copy (LaunchAgents)" >&2
+exit 1

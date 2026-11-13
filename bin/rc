@@ -1,0 +1,535 @@
+#!/usr/bin/env bash
+# A safe front end to rcm. Nothing in your home folder is ever overwritten:
+# links are made with `ln -s` (no -f), copies with `cp -n` and moves with
+# `mv -n`, so an existing file or link makes the step fail rather than be
+# replaced, and every step is checked afterwards. Only --force goes further,
+# and even then whatever is in the way is moved to ~/.rc-displaced/ first,
+# never deleted.
+#
+# rcm itself is only used to read its file list (lsrc). Its own commands are
+# blocked by shims in ~/.bin; see `rc help`.
+
+set -euo pipefail
+
+repo="$HOME/.dotfiles"
+rcrc="$repo/rcrc"
+displaced="$HOME/.rc-displaced"
+rcm_bin="${HOMEBREW_PREFIX:-/opt/homebrew}/bin"
+
+# The real lsrc, ahead of the shim in ~/.bin
+export PATH="$rcm_bin:$PATH"
+
+help() {
+  cat << 'EOF'
+rc: manage ~/.dotfiles without ever overwriting a file.
+
+  rc add ~/.foo                  move ~/.foo into ~/.dotfiles, link it back
+  rc add --undotted ~/Brewfile   same, for a file with no leading dot
+  rc add --copy FILE             install as a copy instead of a link
+                                 (LaunchAgents: launchd won't load a link)
+  rc sync                        pull from GitHub (fast-forward only), then
+                                 link and prune: the way to pick up changes
+                                 made on another Mac
+  rc link                        link everything into ~; anything in the
+                                 way is skipped and listed. Copies that are
+                                 just out of date get updated (old one
+                                 moved to ~/.rc-displaced/)
+  rc link --force                also replace what's in the way, moving it
+                                 to ~/.rc-displaced/ first
+  rc unlink ~/.foo               remove a link into ~/.dotfiles
+                                 (never a real file; rc link puts it back)
+  rc prune                       remove broken links into ~/.dotfiles
+  rc ls                          list everything that's managed
+  rc help                        this
+
+Add --dry-run (or -n) to any command except ls to see what would happen
+without changing anything.
+
+rcm's own mkrc, rcup, rcdn and lsrc are blocked; use rc.
+EOF
+}
+
+die() {
+  echo "rc: $*" >&2
+  exit 1
+}
+
+# Show a path the way it would be typed, with ~ for the home folder
+shown() {
+  printf '%s' "${1/#"$HOME"/\~}"
+}
+
+# Absolute path of an argument, without following a final symlink
+absolute() {
+  printf '%s/%s' "$(cd "$(dirname "$1")" && pwd)" "$(basename "$1")"
+}
+
+# Whether anything at all is at a path, broken links included
+occupied() {
+  [ -e "$1" ] || [ -L "$1" ]
+}
+
+# Whether a file matches some committed version of a repo path, meaning git
+# has its contents and nothing is lost by replacing it
+committed_before() {
+  local rel="$1" file="$2" hash
+
+  hash="$(git -C "$repo" hash-object -- "$file" 2>/dev/null)" || return 1
+  git -C "$repo" log --all --format= --raw --no-abbrev -- "$rel" 2>/dev/null |
+    grep -q " $hash "
+}
+
+# What `rc link` would do with one rcm entry: ok, new, stale (an untouched
+# copy of an older committed version) or conflict. Kind is rcm's marker: @
+# for a link, X for a copy.
+link_state() {
+  local dest="$1" src="$2" kind="$3"
+
+  # Nothing there yet
+  if ! occupied "$dest"; then
+    echo new
+    return
+  fi
+
+  # Already the right link, or an identical copy
+  if [ "$kind" = "X" ]; then
+    if [ -f "$dest" ] && [ ! -L "$dest" ]; then
+      if cmp -s "$dest" "$src"; then
+        echo ok
+        return
+      fi
+
+      # Out of date, but never edited here: the repo moved on (a pull)
+      if committed_before "${src#"$repo"/}" "$dest"; then
+        echo stale
+        return
+      fi
+    fi
+  elif [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+    echo ok
+    return
+  fi
+
+  echo conflict
+}
+
+# How to reload a LaunchAgent copy after it changes, if that's what it is
+reload_hint() {
+  local dest="$1" label
+
+  if [[ $dest == "$HOME/Library/LaunchAgents/"*.plist ]]; then
+    label="$(basename "$dest" .plist)"
+    echo "  reload it: launchctl bootout gui/\$(id -u)/$label; launchctl bootstrap gui/\$(id -u) $(shown "$dest")"
+  fi
+}
+
+# Link or copy one file into an empty spot, refusing to replace anything
+install_one() {
+  local src="$1" dest="$2" kind="$3"
+
+  mkdir -p "$(dirname "$dest")" 2>/dev/null || return 1
+
+  if [ "$kind" = "X" ]; then
+    /bin/cp -pn "$src" "$dest" 2>/dev/null || return 1
+    [ ! -L "$dest" ] && cmp -s "$src" "$dest"
+  else
+    ln -s "$src" "$dest" 2>/dev/null || return 1
+    [ "$(readlink "$dest")" = "$src" ]
+  fi
+}
+
+# Move whatever is at a path into ~/.rc-displaced/<when>/, keeping its path
+displace() {
+  local dest="$1" stamp="$2" aside
+
+  aside="$displaced/$stamp/${dest#"$HOME"/}"
+  mkdir -p "$(dirname "$aside")"
+  /bin/mv -n "$dest" "$aside"
+
+  # Moved only if it's gone from where it was and arrived where it's going
+  ! occupied "$dest" && occupied "$aside"
+}
+
+# Add a value to a space-separated setting in rcrc, unless it, or a pattern
+# matching it, is already there. Rewrites the file in place, so ~/.rcrc keeps
+# pointing at it.
+rcrc_add() {
+  local key="$1" value="$2" line list pattern covered found=0 tmp
+  local -a patterns
+
+  tmp="$(mktemp)"
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ $line == "$key=\""*\" ]]; then
+      found=1
+      list="${line#"$key=\""}"
+      list="${list%\"}"
+      read -r -a patterns <<< "$list"
+      covered=0
+
+      for pattern in ${patterns[@]+"${patterns[@]}"}; do
+        # Unquoted on the right, so rcrc's own patterns match as patterns
+        if [[ $value == $pattern ]]; then
+          covered=1
+        fi
+      done
+
+      if [ "$covered" -eq 0 ]; then
+        list="${list:+$list }$value"
+      fi
+
+      line="$key=\"$list\""
+    fi
+
+    printf '%s\n' "$line"
+  done < "$rcrc" > "$tmp"
+
+  if [ "$found" -eq 0 ]; then
+    printf '%s="%s"\n' "$key" "$value" >> "$tmp"
+  fi
+
+  cat "$tmp" > "$rcrc"
+  rm -f "$tmp"
+}
+
+cmd_add() {
+  local undotted=0 copy=0 dry_run=0 file abs rel repo_rel stored kind
+  local -a files=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --undotted|-U) undotted=1 ;;
+      --copy|-C) copy=1 ;;
+      --dry-run|-n) dry_run=1 ;;
+      -h|--help) help; exit 0 ;;
+      -*) die "add: unknown option $1 (see rc help)" ;;
+      *) files+=("$1") ;;
+    esac
+    shift
+  done
+
+  if [ ${#files[@]} -eq 0 ]; then
+    die "add: name at least one file (see rc help)"
+  fi
+
+  # Check every file before changing anything
+  for file in "${files[@]}"; do
+    abs="$(absolute "$file")"
+    rel="${abs#"$HOME"/}"
+
+    if [ "$rel" = "$abs" ]; then
+      die "add: $file isn't inside your home folder"
+    elif [ -L "$abs" ]; then
+      die "add: $(shown "$abs") is a link already; nothing to add"
+    elif [ -d "$abs" ]; then
+      die "add: $(shown "$abs") is a folder; add the files in it instead"
+    elif [ ! -f "$abs" ]; then
+      die "add: $(shown "$abs") doesn't exist"
+    elif [[ $abs == "$repo"/* ]]; then
+      die "add: $(shown "$abs") is inside ~/.dotfiles already"
+    fi
+
+    # Dotted files go in the repo without their dot; undotted ones as-is
+    if [ "$undotted" -eq 1 ]; then
+      repo_rel="$rel"
+    elif [[ $rel == .* ]]; then
+      repo_rel="${rel#.}"
+    else
+      die "add: $(shown "$abs") has no leading dot; use --undotted"
+    fi
+
+    if occupied "$repo/$repo_rel"; then
+      die "add: ~/.dotfiles/$repo_rel exists already; not overwriting it"
+    fi
+  done
+
+  kind="@"
+
+  if [ "$copy" -eq 1 ]; then
+    kind="X"
+  fi
+
+  for file in "${files[@]}"; do
+    abs="$(absolute "$file")"
+    rel="${abs#"$HOME"/}"
+
+    if [ "$undotted" -eq 1 ]; then
+      repo_rel="$rel"
+    else
+      repo_rel="${rel#.}"
+    fi
+
+    stored="$repo/$repo_rel"
+
+    if [ "$dry_run" -eq 1 ]; then
+      echo "would move $(shown "$abs") to ~/.dotfiles/$repo_rel and $([ "$copy" -eq 1 ] && echo "copy" || echo "link") it back"
+    else
+      # Into the repo, without replacing anything
+      mkdir -p "$(dirname "$stored")"
+      /bin/mv -n "$abs" "$stored"
+
+      if occupied "$abs" || ! occupied "$stored"; then
+        die "add: couldn't move $(shown "$abs") into the repo; nothing changed for it"
+      fi
+
+      # Back into place; the spot is empty, since the file just left it
+      if ! install_one "$stored" "$abs" "$kind"; then
+        die "add: moved $(shown "$abs") to ~/.dotfiles/$repo_rel, but couldn't put it back; run rc link"
+      fi
+
+      echo "added $(shown "$abs") as ~/.dotfiles/$repo_rel"
+    fi
+
+    # Record undotted and copied paths in rcrc, so `rc link` installs them
+    # the same way later
+    if [ "$undotted" -eq 1 ]; then
+      if [ "$dry_run" -eq 1 ]; then
+        echo "would add ${repo_rel%%/*} to UNDOTTED in rcrc"
+      else
+        rcrc_add UNDOTTED "${repo_rel%%/*}"
+      fi
+    fi
+
+    if [ "$copy" -eq 1 ]; then
+      if [ "$dry_run" -eq 1 ]; then
+        echo "would add $repo_rel to COPY_ALWAYS in rcrc"
+      else
+        rcrc_add COPY_ALWAYS "$repo_rel"
+      fi
+    fi
+  done
+}
+
+cmd_link() {
+  local dry_run=0 force=0 dest src kind entry action stamp ok=0 added=0
+  local -a new=() stale=() conflicts=() failed=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run|-n) dry_run=1 ;;
+      --force|-f) force=1 ;;
+      -h|--help) help; exit 0 ;;
+      *) die "link: unknown argument $1 (see rc help)" ;;
+    esac
+    shift
+  done
+
+  # Sort everything rcm manages into in place, new, and in the way
+  while IFS=: read -r dest src kind; do
+    case "$(link_state "$dest" "$src" "$kind")" in
+      ok) ok=$((ok + 1)) ;;
+      new) new+=("$kind:$src:$dest") ;;
+      stale) stale+=("$kind:$src:$dest") ;;
+      conflict) conflicts+=("$kind:$src:$dest") ;;
+    esac
+  done < <(lsrc -F)
+
+  stamp="$(date +%Y-%m-%d-%H%M%S)"
+
+  # Copies that are just out of date (git has the old version): update them,
+  # still moving the old one aside rather than overwriting it
+  for entry in ${stale[@]+"${stale[@]}"}; do
+    IFS=: read -r kind src dest <<< "$entry"
+
+    if [ "$dry_run" -eq 1 ]; then
+      echo "~ would update copy $(shown "$dest") (unchanged here; the repo has a newer version)"
+    elif displace "$dest" "$stamp" && install_one "$src" "$dest" "$kind"; then
+      echo "~ updated copy $(shown "$dest"); the old one is in $(shown "$displaced/$stamp")/"
+      reload_hint "$dest"
+      added=$((added + 1))
+    else
+      echo "x couldn't update copy $(shown "$dest"); check $(shown "$displaced/$stamp")/" >&2
+      failed+=("$dest")
+    fi
+  done
+
+  for entry in ${new[@]+"${new[@]}"}; do
+    IFS=: read -r kind src dest <<< "$entry"
+    action="link"
+
+    if [ "$kind" = "X" ]; then
+      action="copy"
+    fi
+
+    if [ "$dry_run" -eq 1 ]; then
+      echo "+ would $action $(shown "$dest")"
+    elif install_one "$src" "$dest" "$kind"; then
+      echo "+ $action $(shown "$dest")"
+      reload_hint "$dest"
+      added=$((added + 1))
+    else
+      echo "x couldn't $action $(shown "$dest")" >&2
+      failed+=("$dest")
+    fi
+  done
+
+  for entry in ${conflicts[@]+"${conflicts[@]}"}; do
+    IFS=: read -r kind src dest <<< "$entry"
+
+    if [ "$force" -eq 0 ]; then
+      echo "! skip $(shown "$dest"): something else is there"
+    elif [ "$dry_run" -eq 1 ]; then
+      echo "! would move $(shown "$dest") to $(shown "$displaced/$stamp")/ and replace it"
+    elif ! displace "$dest" "$stamp"; then
+      echo "x couldn't move $(shown "$dest") aside; left it alone" >&2
+      failed+=("$dest")
+    elif install_one "$src" "$dest" "$kind"; then
+      echo "! moved $(shown "$dest") to $(shown "$displaced/$stamp")/ and replaced it"
+      added=$((added + 1))
+    else
+      echo "x moved $(shown "$dest") aside but couldn't replace it; it's in $(shown "$displaced/$stamp")/" >&2
+      failed+=("$dest")
+    fi
+  done
+
+  if [ "$dry_run" -eq 1 ]; then
+    echo "dry run: ${#new[@]} to add, ${#stale[@]} to update, ${#conflicts[@]} in the way, $ok already in place"
+    return
+  fi
+
+  if [ "$force" -eq 1 ]; then
+    echo "$added added, ${#failed[@]} failed, $ok already in place"
+  else
+    echo "$added added, ${#conflicts[@]} in the way, ${#failed[@]} failed, $ok already in place"
+  fi
+
+  if [ "$force" -eq 0 ] && [ ${#conflicts[@]} -gt 0 ]; then
+    echo "Nothing in the way was touched. Move it aside yourself, or use rc link --force to move it to ~/.rc-displaced/."
+  fi
+
+  if [ ${#failed[@]} -gt 0 ]; then
+    exit 1
+  fi
+}
+
+cmd_unlink() {
+  local dry_run=0 file abs target
+  local -a files=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run|-n) dry_run=1 ;;
+      -h|--help) help; exit 0 ;;
+      -*) die "unlink: unknown option $1 (see rc help)" ;;
+      *) files+=("$1") ;;
+    esac
+    shift
+  done
+
+  # rcm's rcdn with no files removes everything; rc doesn't offer that
+  if [ ${#files[@]} -eq 0 ]; then
+    die "unlink: name the links to remove (see rc help)"
+  fi
+
+  for file in "${files[@]}"; do
+    abs="$(absolute "$file")"
+
+    if [ ! -L "$abs" ]; then
+      echo "! skip $(shown "$abs"): not a link, and rc never removes files" >&2
+      continue
+    fi
+
+    target="$(readlink "$abs")"
+
+    if [[ $target != "$repo"/* ]]; then
+      echo "! skip $(shown "$abs"): links to $(shown "$target"), not into ~/.dotfiles" >&2
+      continue
+    fi
+
+    if [ "$dry_run" -eq 1 ]; then
+      echo "would remove link $(shown "$abs")"
+    else
+      rm "$abs"
+      echo "removed link $(shown "$abs") (the next rc link puts it back)"
+    fi
+  done
+}
+
+cmd_prune() {
+  local dry_run=0 link target count=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run|-n) dry_run=1 ;;
+      -h|--help) help; exit 0 ;;
+      *) die "prune: unknown argument $1 (see rc help)" ;;
+    esac
+    shift
+  done
+
+  # Broken links into the repo, skipping big folders that never hold any
+  while IFS= read -r link; do
+    target="$(readlink "$link")"
+
+    if [[ $target != "$repo"/* ]] || [ -e "$link" ]; then
+      continue
+    fi
+
+    count=$((count + 1))
+
+    if [ "$dry_run" -eq 1 ]; then
+      echo "would remove broken link $(shown "$link")"
+    else
+      rm "$link"
+      echo "removed broken link $(shown "$link")"
+    fi
+  done < <(find "$HOME" -maxdepth 4 \
+    \( -path "$HOME/Library" -o -path "$HOME/.Trash" -o -path "$repo" \
+       -o -path "$displaced" -o -path "$HOME/Code" -o -path "$HOME/Movies" \
+       -o -path "$HOME/Music" -o -path "$HOME/Pictures" -o -path "$HOME/Videos" \
+       -o -path "$HOME/.cache" -o -path "$HOME/.npm" -o -path "$HOME/.cargo" \
+       -o -path "$HOME/.rustup" -o -path "$HOME/.rbenv" -o -path "$HOME/.gem" \
+       -o -path "$HOME/.zinit" -o -path "$HOME/Desktop" \
+       -o -path "$HOME/Documents" -o -path "$HOME/Downloads" \) -prune \
+    -o -type l -print 2>/dev/null)
+
+  if [ "$count" -eq 0 ]; then
+    echo "no broken links"
+  fi
+}
+
+cmd_sync() {
+  local dry_run=0 upstream
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run|-n) dry_run=1 ;;
+      -h|--help) help; exit 0 ;;
+      *) die "sync: unknown argument $1 (see rc help)" ;;
+    esac
+    shift
+  done
+
+  upstream="$(git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)" ||
+    die "sync: the current branch has no remote branch to pull from"
+
+  git -C "$repo" fetch --quiet
+
+  if [ "$dry_run" -eq 1 ]; then
+    echo "incoming from $upstream:"
+    git -C "$repo" log --oneline "HEAD..@{u}"
+    echo "(run rc sync to pull these, then link and prune)"
+    return
+  fi
+
+  # Fast-forward only: git refuses rather than merge, or touch files with
+  # uncommitted changes
+  if ! git -C "$repo" merge --ff-only --quiet "@{u}"; then
+    die "sync: couldn't fast-forward to $upstream; nothing was linked. Sort out the repo first (git status)."
+  fi
+
+  cmd_link
+  cmd_prune
+}
+
+case "${1:-}" in
+  add) shift; cmd_add "$@" ;;
+  sync) shift; cmd_sync "$@" ;;
+  link) shift; cmd_link "$@" ;;
+  unlink) shift; cmd_unlink "$@" ;;
+  prune) shift; cmd_prune "$@" ;;
+  ls) shift; lsrc "$@" ;;
+  help|-h|--help) help ;;
+  "") help; exit 1 ;;
+  *) echo "rc: unknown command $1" >&2; echo >&2; help >&2; exit 1 ;;
+esac

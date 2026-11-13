@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Blocks rcm's rcup, so nothing calls it by accident; rc (in ~/.bin) is the
+# safe way in, and calls the real one itself.
+
+echo "rcup is blocked here. Use rc instead:" >&2
+echo "  rc link --dry-run   see what would change" >&2
+echo "  rc link             link everything, skipping anything in the way" >&2
+exit 1
