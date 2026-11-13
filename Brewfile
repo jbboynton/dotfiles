@@ -113,6 +113,7 @@ cask 'reaper'
 cask 'rectangle'
 cask 'soundsource'
 cask 'spotify'
+cask 'thaw@beta' # until Thaw 3 is stable; `env_drift` warns
 cask 'ultimate-vocal-remover'
 cask 'vanilla'
 cask 'vlc'

@@ -64,6 +64,22 @@ else
   fi
 fi
 
+# Thaw: on the beta until Thaw 3, which macOS 27 needs, reaches the stable cask
+if [[ -x $brew && -d $HOMEBREW_PREFIX/Caskroom/thaw@beta ]]; then
+  stable=$("$brew" info --cask --json=v2 thaw 2>/dev/null | python3 -c '
+import json, sys
+print(json.load(sys.stdin)["casks"][0]["version"])' 2>/dev/null)
+
+  if [[ -z $stable ]]; then
+    problems+=("could not read the thaw cask's version;"\
+" run \`brew info --cask thaw\`")
+  elif (( ${stable%%.*} >= 3 )); then
+    problems+=("thaw $stable is stable; run"\
+" \`brew uninstall --cask thaw@beta && brew install --cask thaw\`"\
+" and change thaw@beta to thaw in ~/.dotfiles/Brewfile")
+  fi
+fi
+
 # print -l with nothing to print still prints an empty line
 if (( $#problems )); then
   print -rl -- $problems
