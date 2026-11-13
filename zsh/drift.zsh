@@ -25,14 +25,14 @@ function drift_check() {
     : >| $dir/stamp
 
     FPATH_CHECK=${(j.:.)fpath} timeout -k 1 5 nice -n 19 \
-      $HOME/.bin/env_drift >| $dir/report.new 2>&1
+      $HOME/.bin/env_drift >| $dir/report.new.$$ 2>&1
 
     # 124 is timeout's exit status when it had to kill the check
     if (( $? == 124 )); then
-      print -r -- "env_drift timed out after 5 seconds" >> $dir/report.new
+      print -r -- "env_drift timed out after 5 seconds" >> $dir/report.new.$$
     fi
 
-    mv -f $dir/report.new $dir/report
+    mv -f $dir/report.new.$$ $dir/report
   ) &!
 }
 
