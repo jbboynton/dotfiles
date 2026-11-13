@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Pulls the latest dotfiles. Then, updates Homebrew packages, Vim plugins, and
 # tmux plugins.
 
 set -eo pipefail
 
 # Globals
-home_dir="/Users/james"
-dotfiles_dir="/Users/james/.dotfiles"
+home_dir="$HOME"
+dotfiles_dir="$HOME/.dotfiles"
 paths_to_check=()
 broken_symlinks=()
 

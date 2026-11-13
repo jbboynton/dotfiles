@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Commits the spell file quickly.
 
 set -eo pipefail
 
 # Globals
-dotfiles_dir="/Users/james/.dotfiles"
+dotfiles_dir="$HOME/.dotfiles"
 spell_file="$dotfiles_dir/vim/spell/en.utf-8.add"
 spell_pattern="en.utf-8.add"
 
