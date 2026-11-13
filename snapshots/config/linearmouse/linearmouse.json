@@ -1,0 +1,160 @@
+{
+  "$schema" : "https:\/\/schema.linearmouse.app\/0.11.4",
+  "schemes" : [
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0x269",
+          "productName" : "Magic Mouse",
+          "serialNumber" : "3c-a6-f6-e3-2e-63",
+          "vendorID" : "0x4c"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 0,
+        "disableAcceleration" : false,
+        "speed" : 0.22
+      }
+    },
+    {
+      "buttons" : {
+        "mappings" : [
+          {
+            "action" : "missionControl.spaceLeft",
+            "button" : 3
+          },
+          {
+            "action" : "missionControl.spaceRight",
+            "button" : 4
+          }
+        ]
+      },
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc52b",
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 0,
+        "disableAcceleration" : false,
+        "speed" : 0.25
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 1
+        },
+        "distance" : "auto"
+      }
+    },
+    {
+      "if" : {
+        "app" : "com.nvidia.gfnpc.mall",
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc52b",
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d"
+        }
+      },
+      "pointer" : {
+        "disableAcceleration" : false
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0x269",
+          "productName" : "Magic Mouse",
+          "serialNumber" : "04-4b-ed-c5-92-5f",
+          "vendorID" : "0x4c"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 0,
+        "speed" : 0.22
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc539",
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 0,
+        "disableAcceleration" : false,
+        "speed" : 0.18
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 0
+        },
+        "distance" : {
+          "vertical" : "auto"
+        },
+        "speed" : {
+          "vertical" : 25
+        }
+      }
+    },
+    {
+      "if" : {
+        "app" : "ca.derivative.TouchDesigner",
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc539",
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 1
+        },
+        "distance" : {
+          "vertical" : "4.3px"
+        },
+        "speed" : {
+          "vertical" : 0
+        }
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "trackpad",
+          "productID" : "0x281",
+          "productName" : "Apple Internal Keyboard \/ Trackpad",
+          "vendorID" : "0x5ac"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : 1,
+        "distance" : "auto",
+        "speed" : 0
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc088",
+          "productName" : "G Pro Wireless Gaming Mouse",
+          "serialNumber" : "9CA035A92F0C961F",
+          "vendorID" : "0x46d"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 0
+      }
+    }
+  ]
+}
