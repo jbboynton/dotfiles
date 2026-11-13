@@ -1,6 +1,15 @@
 " Save netrw history in /var/tmp
 let g:netrw_home = "/var/tmp"
 
+" Netrw separates a symlink's name from its target with a literal tab.
+" 'listchars' has no tab: entry, so with 'list' on Vim falls back to
+" printing tabs as ^I and every symlink line reads "name@^I --> target".
+" Trailing whitespace is not a concern in a directory listing anyway.
+augroup netrwNoList
+  autocmd!
+  autocmd FileType netrw setlocal nolist
+augroup END
+
 " Shorten :Explore to :E
 command! -nargs=* -bar -bang -count=0 -complete=dir E Explore <args>
 

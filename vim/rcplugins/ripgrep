@@ -6,4 +6,8 @@ Plug 'jremmen/vim-ripgrep'
 " Search from derived project root
 let g:rg_derive_root = 1
 
+" Set ripgrep as default
+set grepprg=rg\ --vimgrep\ --smart-case
+set grepformat=%f:%l:%c:%m
+
 " vim:ft=vim
