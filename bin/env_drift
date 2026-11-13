@@ -10,7 +10,7 @@ problems=()
 brew="$HOMEBREW_PREFIX/bin/brew"
 
 if [[ ! -x $brew ]]; then
-  problems+=("brew not found at $brew")
+  problems+=("brew not found at $brew; HOMEBREW_PREFIX is set by brew_env in ~/.dotfiles/zprofile")
 else
   expected=$(env -i HOME=$HOME /bin/zsh -fc '
     eval "$("$1" shellenv)" || exit 1
@@ -21,18 +21,24 @@ else
     for d in ${(M)path:#$prefix/*}; do print -r -- "dir PATH $d"; done
     for d in ${(M)${(s.:.)MANPATH}:#$prefix/*}; do print -r -- "dir MANPATH $d"; done
     for d in ${(M)${(s.:.)INFOPATH}:#$prefix/*}; do print -r -- "dir INFOPATH $d"; done
-    for d in ${(M)fpath:#$prefix/*}; do print -r -- "dir FPATH_CHECK $d"; done
-  ' zsh "$brew")
+    if [[ -n $2 ]]; then
+      for d in ${(M)fpath:#$prefix/*}; do print -r -- "dir FPATH_CHECK $d"; done
+    fi
+  ' zsh "$brew" "${FPATH_CHECK:-}")
 
   if (( $? != 0 )); then
-    problems+=("brew shellenv failed")
+    problems+=("brew shellenv failed; run \`brew shellenv\` to see why")
   fi
 
   for kind name value in ${=expected}; do
     if [[ $kind == var && ${(P)name} != $value ]]; then
-      problems+=("$name is '${(P)name}', brew says '$value'")
+      problems+=("$name is '${(P)name}', brew says '$value'; set by brew_env in ~/.dotfiles/zprofile")
     elif [[ $kind == dir && ":${(P)name}:" != *":$value:"* ]]; then
-      problems+=("$value missing from ${name/FPATH_CHECK/fpath}")
+      if [[ $name == FPATH_CHECK ]]; then
+        problems+=("$value missing from fpath; set in ~/.dotfiles/zsh/homebrew.zsh")
+      else
+        problems+=("$value missing from $name; set by brew_env in ~/.dotfiles/zprofile")
+      fi
     fi
   done
 fi
@@ -41,7 +47,7 @@ fi
 batman="$HOME/.local/bin/batman"
 
 if [[ ! -x $batman ]]; then
-  problems+=("batman not installed at $batman")
+  problems+=("batman not installed at $batman; run ~/.dotfiles/bin/bat_extras_install")
 else
   expected=("${(@f)$(env -i HOME=$HOME PATH=$PATH /bin/zsh -fc '
     eval "$("$1" --export-env)" || exit 1
@@ -50,13 +56,16 @@ else
   ' zsh "$batman")}")
 
   if [[ $expected[1] != $MANPAGER ]]; then
-    problems+=("MANPAGER is '$MANPAGER', batman says '$expected[1]'")
+    problems+=("MANPAGER is '$MANPAGER', batman says '$expected[1]'; set in ~/.dotfiles/zsh/bat.zsh")
   fi
 
   if [[ $expected[2] != $MANROFFOPT ]]; then
-    problems+=("MANROFFOPT is '$MANROFFOPT', batman says '$expected[2]'")
+    problems+=("MANROFFOPT is '$MANROFFOPT', batman says '$expected[2]'; set in ~/.dotfiles/zsh/bat.zsh")
   fi
 fi
 
-print -rl -- $problems
-(( $#problems == 0 ))
+# print -l with nothing to print still prints an empty line
+if (( $#problems )); then
+  print -rl -- $problems
+  exit 1
+fi

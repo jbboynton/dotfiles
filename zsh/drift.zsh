@@ -36,13 +36,26 @@ function drift_check() {
   ) &!
 }
 
+# Run the check by hand. fpath isn't exported, so pass it along; without
+# it, env_drift skips checking fpath
+function env_drift() {
+  FPATH_CHECK=${(j.:.)fpath} command env_drift "$@"
+}
+
 # Print the report at the next prompt, once per shell
 function drift_report() {
   local report=${XDG_CACHE_HOME:-$HOME/.cache}/env-drift/report
 
   if [[ -s $report ]]; then
-    print -P "%F{1}Settings out of sync with their tools:%f"
-    print -r -- "$(<$report)"
+    print -P "%F{1}Settings out of sync with their tools%f"
+    local line
+    for line in ${(f)"$(<$report)"}; do
+      print -r -- "  - $line"
+    done
+    print -r -- "Found by ~/.dotfiles/bin/env_drift, which zsh/drift.zsh runs in the"
+    print -r -- "background once a day. Fix each setting where it says, then run"
+    print -r -- "\`env_drift\` to check: no output means all clear. Until a check comes"
+    print -r -- "back clean, this shows in every new shell."
   fi
 
   add-zsh-hook -d precmd drift_report
