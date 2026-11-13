@@ -2,24 +2,57 @@
 " Asynchronous linting/fixing for Vim and Language Server Protocol (LSP)
 " integration
 
-Plug 'w0rp/ale'
+Plug 'dense-analysis/ale'
 
 " ALE config
-let g:ale_set_highlights = 0
+let g:ale_linters = {
+  \   'javascript': ['eslint'],
+  \ }
 let g:ale_lint_on_text_changed = 'never'
-let g:ale_ruby_rubocop_options = "--rails"
-let g:ale_yaml_yamllint_options = "-d relaxed"
-let g:ale_set_highlights = 0
-let g:ale_set_signs = 1
-
+let g:ale_virtualtext_cursor = 'disabled'
 let g:ale_pattern_options = {
   \   '.*\.env$': { 'ale_enabled': 0 }
   \ }
+
+" HTML markup has no line length limit; only its rendered text wraps at 80
+function! WrapHtmlText(buffer) abort
+  return {'command': 'wrap_html_text 80'}
+endfunction
+
+augroup aleHtml
+  autocmd!
+  autocmd FileType html
+    \ let b:ale_javascript_prettier_options = '--print-width 100000'
+augroup end
+
+let g:ale_fixers = {
+  \   '*': ['remove_trailing_lines', 'trim_whitespace'],
+  \   'css': ['prettier'],
+  \   'graphql': ['prettier'],
+  \   'html': ['prettier', function('WrapHtmlText')],
+  \   'javascript': ['prettier'],
+  \   'javascriptreact': ['prettier'],
+  \   'json': ['prettier'],
+  \   'less': ['prettier'],
+  \   'markdown': ['prettier'],
+  \   'scss': ['prettier'],
+  \   'typescript': ['prettier'],
+  \   'typescriptreact': ['prettier'],
+  \   'vue': ['prettier'],
+  \   'xml': ['xmllint'],
+  \   'yaml': ['prettier'],
+  \ }
+
+let g:ale_ruby_rubocop_options = "--rails"
+let g:ale_yaml_yamllint_options = "-d relaxed"
+
+let g:ale_set_highlights = 0
 
 highlight SignColumn ctermbg=236
 highlight ALEErrorSign ctermfg=red ctermbg=236
 highlight ALEWarningSign ctermfg=yellow ctermbg=236
 
+let g:ale_set_signs = 1
 let g:ale_sign_error = "✖"
 let g:ale_sign_warning = "⇾"
 let g:ale_sign_info = "⇢"
@@ -33,12 +66,6 @@ let g:lightline#ale#indicator_ok = "linted"
 
 augroup vimrcEx
   autocmd!
-
-  highlight ExtraWhitespace ctermbg=darkgreen guibg=darkgreen
-  match ExtraWhitespace /\s\+\%#\@<!$/
-  autocmd BufWinEnter * match ExtraWhitespace /\s\+\%#\@<!$/
-  autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
-  autocmd InsertLeave * match ExtraWhitespace /\s\+$/
 
   " ALE linting events
   set updatetime=1000

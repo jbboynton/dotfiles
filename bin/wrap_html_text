@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Wrap the rendered text in HTML read from stdin to a maximum width.
+
+Written to run after Prettier, which applies one print width to
+markup and text alike. Run Prettier with an effectively unlimited
+width so tags and attributes stay on one line, then pipe the result
+through this to wrap only the text. Vim's ALE runs the pair as HTML
+fixers (see vim/rcplugins/ale).
+
+Markup is never wrapped: lines break only at whitespace that sits in
+text, outside any tag. Lines with no rendered text, and everything
+inside comments, <pre>, <textarea>, <script> and <style>, pass through
+untouched.
+
+Usage: wrap_html_text [WIDTH]  (default 80)
+"""
+
+import re
+import sys
+
+RAW_ELEMENTS = ("pre", "textarea", "script", "style")
+RAW_OPEN = re.compile(r"<(%s)\b" % "|".join(RAW_ELEMENTS), re.I)
+
+
+def tokenize(text):
+    """Split text into (kind, value) tokens: 'tag', 'space' or 'text'."""
+    tokens = []
+    i = 0
+    while i < len(text):
+        if text[i] == "<":
+            j = i + 1
+            quote = None
+            while j < len(text):
+                c = text[j]
+                if quote:
+                    if c == quote:
+                        quote = None
+                elif c in "\"'":
+                    quote = c
+                elif c == ">":
+                    break
+                j += 1
+            tokens.append(("tag", text[i:j + 1]))
+            i = j + 1
+        elif text[i].isspace():
+            j = i
+            while j < len(text) and text[j].isspace():
+                j += 1
+            tokens.append(("space", text[i:j]))
+            i = j
+        else:
+            j = i
+            while j < len(text) and text[j] != "<" and not text[j].isspace():
+                j += 1
+            tokens.append(("text", text[i:j]))
+            i = j
+    return tokens
+
+
+def wrap(line, width):
+    if len(line) <= width:
+        return [line]
+    indent = line[:len(line) - len(line.lstrip())]
+    tokens = tokenize(line.strip())
+    if not any(kind == "text" for kind, _ in tokens):
+        return [line]
+
+    # Glue tags and text into unbreakable words; spaces separate them.
+    words = [""]
+    for kind, value in tokens:
+        if kind == "space":
+            words.append("")
+        else:
+            words[-1] += value
+    words = [w for w in words if w]
+
+    # Text continues at the same indent; text after a tag nests a level.
+    cont = indent if tokens[0][0] == "text" else indent + "  "
+    lines = [indent + words[0]]
+    for word in words[1:]:
+        if len(lines[-1]) + 1 + len(word) <= width:
+            lines[-1] += " " + word
+        else:
+            lines.append(cont + word)
+    return lines
+
+
+def main():
+    width = int(sys.argv[1]) if len(sys.argv) > 1 else 80
+    raw = None  # name of the raw element we are inside, or "--" for comments
+    out = []
+    for line in sys.stdin.read().split("\n"):
+        if raw is None and not re.search(r"<!--|" + RAW_OPEN.pattern, line,
+                                         re.I):
+            out.extend(wrap(line, width))
+            continue
+        out.append(line)
+        # Track entering and leaving comments and raw elements.
+        pos = 0
+        while pos < len(line):
+            if raw is None:
+                m = re.compile(r"<!--|" + RAW_OPEN.pattern, re.I).search(
+                    line, pos)
+                if not m:
+                    break
+                raw = "--" if m.group(0) == "<!--" else m.group(1).lower()
+                pos = m.end()
+            else:
+                end = "-->" if raw == "--" else "</%s>" % raw
+                idx = line.lower().find(end, pos)
+                if idx < 0:
+                    break
+                raw = None
+                pos = idx + len(end)
+    sys.stdout.write("\n".join(out))
+
+
+if __name__ == "__main__":
+    main()

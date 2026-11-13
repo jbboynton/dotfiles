@@ -4,13 +4,22 @@ nnoremap <leader>v :source ~/.vimrc<CR>
 " Copy contents of the current buffer
 nnoremap <Leader>y :silent w !pbcopy<CR>
 
+" Copy name of current buffer to the clipboard
+nnoremap <Leader>g :let @+ = expand("%:p")<CR>
+
 " Remove trailing whitespace
 nnoremap <Leader><Space> :%s/\s\+$//e<CR>:%s/\t/  /e<CR>
+
+" Prettify the current buffer (fixers are set in rcplugins/ale)
+nnoremap <Leader>P :ALEFix<CR>
 
 " Clear the screen
 nnoremap <Leader>c :!clear<CR><CR>
 
 " Search for the word under the cursor
 nnoremap <Leader>? :Rg<CR>
+
+" Set the working directory to the current file
+nnoremap <Leader>cd :cd %:p:h<CR>:pwd<CR>
 
 " vim:ft=vim
