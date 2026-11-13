@@ -1,5 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 cdt() {
-  cd "$(groot)/app/content/themes"
+  cd "$(groot)/themes"
 }
