@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Encodes an image to Base64.
+
+set -eo pipefail
+
+# Options
+file="$1"
+format=""
+
+get_options() {
+  while getopts "h" flag; do
+    case "${flag}" in
+      h) print_usage exit ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Usage: base64img [FILE]
+
+Base64 encodes an image file. Supported formats include GIF, JPG, PNG, and WEBP.
+
+EOM
+}
+
+check_file_exists() {
+  if [ ! -f "$file" ]; then
+    error "file does not exist"
+  fi
+}
+
+check_format() {
+  format="$( \
+    file "$file" \
+    | grep -iEo "gif|jpeg|jpg|png|webp" \
+    | head -n1 \
+    | tr "[:upper:]" "[:lower:]" \
+  )"
+
+  if [ -z "$format" ]; then
+    error "format \"$format\" not supported"
+  fi
+}
+
+encode_image() {
+  encoded="$(base64 -w 0 "$file")"
+
+  encoded="data:image/$format;base64,$encoded"
+
+  echo "$encoded"
+}
+
+get_options "$@"
+check_file_exists
+check_format
+encode_image

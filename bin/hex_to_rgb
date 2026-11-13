@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Reads a 7-character hex color from STDIN and returns the RGB equivalent
+
+set -eo pipefail
+
+read input
+
+# Check if input is valid
+valid_format='^#[0-9a-fA-F]{6}$'
+
+if ! [[ $input =~ $valid_format ]]; then
+  message="Format error: "$input" is not a valid hex color"
+  echo >&2 "$message"
+  exit 1
+fi
+
+red="${input:1:2}"
+green="${input:3:2}"
+blue="${input:5:2}"
+
+printf "%d,%d,%d" "0x$red" "0x$green" "0x$blue"

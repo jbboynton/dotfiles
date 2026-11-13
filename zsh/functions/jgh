@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+jgh() {
+  git clone git@github.com:jbboynton/"$@"
+}

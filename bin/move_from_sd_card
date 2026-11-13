@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Moves photos from SD card to internal SSD
+
+set -eo pipefail
+
+sd_card_dir="/Volumes/SD Card 64/DCIM/101D5600"
+dest_dir="/Users/tarissa/Nikon Imports/JPG"
+file_path_list="/Users/james/Pictures/Nikon Imports/keep_jpg_2"
+already_moved_list="/Users/james/Pictures/Nikon Imports/already_moved"
+log="/Users/james/Pictures/Nikon Imports/move_script_log"
+
+echo -e "\n>>> start" >> "$log"
+echo -e "--- $(date +%s)" >> "$log"
+echo -e "--- $(date --date="today" +"%F")\n" >> "$log"
+
+while read f; do
+  echo -e "\nnow processing: $f" >> "$log"
+  filename="$(basename -- "$f")"
+  copy_from="$sd_card_dir/$filename"
+  copy_to="$dest_dir/$filename"
+
+  # make sure this file hasn't been moved already to avoid filling destination
+  # directory with duplicates
+  already_moved=""
+  grep -q "$f" "$already_moved_list" && already_moved="true"
+
+  if [ -n "$already_moved" ]; then
+    echo "already moved, skipping: $f" >> "$log"
+    already_moved=""
+    continue
+  fi
+
+  # make sure file exists on SD card
+  not_found=""
+  [ -f "$copy_from" ] || not_found="$copy_from"
+
+  if [ -n "$not_found" ]; then
+    msg="file not found: $not_found"
+    echo -e >&2 "$msg"
+    echo "$msg" >> "$log"
+    continue
+  fi
+
+  # make sure file doesn't exist in the destination directory already, and if
+  # so, try to make the new file unique by adding an 'a'
+  already_exists=""
+  [ -f "$copy_to" ] && already_exists="$filename"
+
+  if [ -n "$already_exists" ]; then
+    ext="${filename##*.}"
+    filename="${filename%.*}a.$ext"
+    copy_to="$dest_dir/$filename"
+
+    msg="filename taken, appending an 'a': $already_exists"
+    echo "$msg"
+    echo "$msg" >> "$log"
+  fi
+
+  # if that genius idea to add an 'a' didn't work, continue and try not to dwell
+  # on what a bad programmer you are
+  already_exists_again=""
+  [ -f "$copy_to" ] && already_exists_again="$filename"
+
+  if [ -n "$already_exists_again" ]; then
+    msg="filename taken, could not append to make unique: $already_exists_again"
+    echo -e >&2 "$msg"
+    echo "$msg" >> "$log"
+    continue
+  fi
+
+  # copy file from SD card to destination directory
+  cp "$copy_from" "$copy_to"
+
+  # ensure the file is now present in the destination directory
+  now_exists=""
+  [ -f "$copy_to" ] && now_exists="$filename"
+
+  if [ ! -n "$now_exists" ]; then
+    msg="could not copy file: $now_exists"
+    echo "$msg"
+    echo "$msg" >> "$log"
+    continue
+  fi
+
+  # add file to the moved list so it isn't reprocessed
+  echo "$f" >> "$already_moved_list"
+  echo "adding file to moved list: $f" >> "$log"
+done < "$file_path_list"
+
+echo -e "\n<<< finished\n" >> "$log"

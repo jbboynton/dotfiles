@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+catx() {
+  cat "$(which "$1")"
+}

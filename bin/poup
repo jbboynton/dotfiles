@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Find purchase orders in ~/Downloads, and move them to their home
+
+# Globals
+downloads_directory="$HOME/Downloads"
+purchase_orders_dir="$HOME/Work/Purchase Orders"
+purchase_orders=()
+
+# Options
+force=""
+quiet=""
+
+print_usage() {
+cat <<EOM
+Usage: poup [OPTIONS]
+
+Options:
+  -f             overwrite existing files
+  -h             display this help message
+  -q             minimal output
+
+EOM
+}
+
+get_options() {
+  while getopts 'fhq' flag; do
+    case "${flag}" in
+      f) force='true' ;;
+      h) print_usage exit ;;
+      q) quiet='true' ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+get_options "$@"
+# find_purchase_orders
+# move_to_po_directory
+
+echo "TODO!"

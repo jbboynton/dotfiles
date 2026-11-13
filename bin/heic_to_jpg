@@ -1,0 +1,16 @@
+#!/usr/bin/env zsh
+
+directory="$1"
+
+if [ ! -d "$directory" ]; then
+  echo "not a directory"
+  exit 1
+fi
+
+echo $directory
+
+for file in $directory/*; do
+  echo "$file"
+  echo ${file:r}.jpg
+  magick $file -quality 100% ${file:r}.jpg;
+done

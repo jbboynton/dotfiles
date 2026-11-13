@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Wrapper for youtube-dl (https://github.com/ytdl-org/youtube-dl).
+
+set -eo pipefail
+
+# Options
+youtube_url=""
+audio_only=""
+
+get_options() {
+  while getopts "ahqu:" flag; do
+    case "${flag}" in
+      a) audio_only="true" ;;
+      h) print_usage exit ;;
+      q) quiet="true" ;;
+      u) youtube_url="${OPTARG}" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Usage: yt [OPTION] -u [URL]
+
+Options:
+  -a     audio-only
+  -h     display this help message
+  -q     minimal output
+  -u     YouTube URL (required)
+
+EOM
+}
+
+download_audio() {
+  yt-dlp -f "bestaudio" -x --audio-format mp3 "$youtube_url"
+}
+
+download_audio_and_video() {
+  yt-dlp -f bestvideo+bestaudio "$youtube_url"
+}
+
+main() {
+  if [ -n "$audio_only" ]; then
+    download_audio
+  else
+    download_audio_and_video
+  fi
+}
+
+if [[ "$#" -gt 1 ]]; then
+  get_options "$@"
+else
+  youtube_url="$1"
+fi
+
+main

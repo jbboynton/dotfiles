@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+DOMAIN=$1
+
+for type in A AAAA MX NS TXT CNAME SOA CAA SRV;
+  do dig +noall +answer $DOMAIN $type;
+done

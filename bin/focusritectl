@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Restarts the Focusrite server and opens the hardware control GUI.
+# Useful when the daemon can't dectect the Focusrite after hot-swapping.
+
+# Kill server process if running
+proc_id="$(launchctl list | grep FocusriteControl | awk '{print $1}')"
+[ -n "$proc_id" ] && kill "$proc_id"
+
+# Start server and GUI
+app="/Applications/Focusrite Control.app"
+server="$app/Contents/Library/LoginItems/FocusriteControlServer.app"
+
+open "$server"
+sleep 2
+open "$app"

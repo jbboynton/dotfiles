@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# glob=$1
+dir="/Users/james/Downloads/xxxx"
+
+for f in /Users/james/Downloads/xxxx/*.HEIC; do
+  input_file="$(basename -- "$f")"
+  input_file="${input_file%.*}"
+
+  # # remove leading alphanum chars
+  # output_file="$(echo "$input_file" | sed "s/^[a-z]\+\([1-9].*$\)/\1/")"
+
+  # # remove trailing Dan Carlin and Hardcore History
+  # output_file="$(echo "$output_file" | sed "s/^\(.*\)\-Hardcore\-History\-Dan\-Carlin\(\.mp3\)/\1\2/")"
+
+  # # replace dash and underscore with space
+  # output_file="$(echo "$output_file" | sed "s/[-|_]/\ /g")"
+
+  # output_file_full="$dir/$output_file"
+  output_file_full="$dir/$input_file.jpg"
+  # mv "$f" "$output_file_full"
+
+  magick $f -quality 100% $output_file_full;
+
+  # ffmpeg \
+  #   -i "$f" \
+  #   -vcodec h264 \
+  #   -map_channel 0.1.0 -c:v copy \
+  #   "$output_file_full"
+
+  # echo "$input_file changed to $output_file_full"
+done

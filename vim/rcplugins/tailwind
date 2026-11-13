@@ -1,0 +1,6 @@
+" tailwind
+" Syntax highlighting for Tailwind CSS
+
+Plug 'airblade/vim-tailwind'
+
+" vim:ft=vim

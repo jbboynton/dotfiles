@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Removes n characters from the beginning of each file in the current directory.
+
+set -eo pipefail
+
+# Options
+trim_count="$1"
+quiet="true"
+dry_run=""
+
+get_options() {
+  while getopts "c:dhv" flag; do
+    case "${flag}" in
+      c) trim_count="${OPTARG}" ;;
+      d) dry_run="true" ;;
+      h) print_usage; exit ;;
+      v) quiet="" ;;
+      *) print_usage; exit 1 ;;
+    esac
+  done
+}
+
+info() {
+  [ -n "$quiet" ] || echo -e "☞ $1"
+}
+
+error() {
+  echo -e >&2 "☞ Error: $1"
+  exit 1
+}
+
+print_usage() {
+cat <<EOM
+Trims n characters from all filenames in the current directory.
+
+Usage: ltrim_filenames [OPTIONS] -c [TRIM COUNT]
+
+Options:
+  -c     number of characters to remove (required)
+  -d     dry-run, prints new filenames without changing anything
+  -h     display this help message
+  -v     verbose output
+
+The idea is to run this script with the -d flag (dry-run mode) until the output
+looks correct, at which point you run this script again with the -d flag to
+change the filenames.
+
+Example:
+--------
+
+You have a directory that looks like this:
+
+post-rock-mice_jb2
+├── post-rock-mice_jb2_CLICK.wav
+├── post-rock-mice_jb2_Master.wav
+└── post-rock-mice_jb2_guitar-01-clean-01.wav
+
+You want to remove everything up to and including the second underscore, so the
+directory will look like this:
+
+post-rock-mice_jb2
+├── CLICK.wav
+├── Master.wav
+└── guitar-01-clean-01.wav
+
+Step one is to run this script in dry-run mode to figure out the correct number
+of characters to remove. A first guess might be 15 characters:
+
+| $ ltrim_filenames -d -c 15
+|
+| Output:
+|
+| post-rock-mice_jb2_CLICK.wav ☞ jb2_CLICK.wav
+| post-rock-mice_jb2_Master.wav ☞ jb2_Master.wav
+| post-rock-mice_jb2_guitar-01-clean-01.wav ☞ jb2_guitar-01-clean-01.wav
+
+The output shows that 15 was too few, because the renamed files still begin
+with "jb2_". Now, rerun the script in dry-run mode and with a count of 19:
+
+| $ ltrim_filenames -d -c 19
+|
+| Output:
+|
+| post-rock-mice_jb2_CLICK.wav ☞ CLICK.wav
+| post-rock-mice_jb2_Master.wav ☞ Master.wav
+| post-rock-mice_jb2_guitar-01-clean-01.wav ☞ guitar-01-clean-01.wav
+
+That time the output looks correct. Step two is to rerun the script a final
+time to actually rename the files. Remove the -d flag and execute the script.
+
+EOM
+}
+
+check_trim_count() {
+  if [[ ! "$trim_count" =~ ^[[:digit:]]+$ ]]; then
+    error "provided argument was not numeric: $trim_count"
+  fi
+}
+
+change_filenames() {
+  for f in *; do
+    new_filename="$(echo "$f" | sed -e "s/^.\{$trim_count\}//")"
+
+    if [ -n "$dry_run" ]; then
+      echo "$f ☞ $new_filename"
+    else
+      if [ -z "$quiet" ]; then
+        echo "$f ☞ $new_filename"
+      fi
+      mv "$f" "$new_filename"
+    fi
+  done
+}
+
+main() {
+  check_trim_count
+  change_filenames
+}
+
+if [[ "$#" -gt 1 ]]; then
+  get_options "$@"
+else
+  if [[ ! "$trim_count" =~ ^[[:digit:]]+$ ]]; then
+    print_usage
+    exit
+  else
+    trim_count="$1"
+  fi
+fi
+
+main

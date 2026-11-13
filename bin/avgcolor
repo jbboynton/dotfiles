@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Uses ImageMagick to find the average color of an image file.
+
+set -eo pipefail
+
+file="$1"
+
+hex_unformatted="$( \
+  convert "$1" -resize 1x1 txt:- \
+    | tail -n 1 \
+    | awk '{ print $3 }' \
+  )"
+
+hex="${hex_unformatted:0:7}"
+rgb="$(echo "$hex" | hex_to_rgb)"
+
+print_color() {
+  red="$(echo "$rgb" | cut -d ',' -f 1)"
+  green="$(echo "$rgb" | cut -d ',' -f 2)"
+  blue="$(echo "$rgb" | cut -d ',' -f 3)"
+
+  printf ' \x1b[48;2;%s;%s;%sm ' $red $green $blue
+  echo -en "  "
+  echo -en "\x1b[0m"
+}
+
+main() {
+  echo -e "\n$(print_color) Hex: $hex"
+  echo -e "$(print_color) RGB: $rgb\n"
+}
+
+main

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Checks if a SMB share called `bcfileserver` exists, and mounts it if so.
+
+set -eo pipefail
+
+share_exists() {
+  smbutil view -G smb://Guest:@bcfileserver 2> /dev/null | grep -q cad_files
+}
+
+share_is_unmounted() {
+  ! df -h | grep -q bcfileserver
+}
+
+mount_share() {
+  osascript -e 'mount volume "smb://Guest:@bcfileserver/cad_files"' \
+    > /dev/null 2>&1
+}
+
+share_exists && share_is_unmounted && mount_share

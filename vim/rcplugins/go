@@ -1,0 +1,6 @@
+" go
+" Editor support for the Go programming language
+
+Plug 'fatih/vim-go'
+
+" vim:ft=vim

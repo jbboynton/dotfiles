@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+# echo 'broken right now'
+# exit
+
+start_time="$1"
+end_time="$2"
+
+if [ "$(date +"%A")" == "Sunday" ]; then
+  week_start="$(date --date="this Sunday")"
+else
+  week_start="$(date --date="last Sunday")"
+fi
+
+work_path="$HOME/Work/Hours"
+db_path="$work/.hours_db"
+ymd="$(date --date="today" +"%Y%m%d")"
+
+hours_path="$work_path/hours_$(date -d "$week_start" +"%Y%m%d").md"
+week_of="$(date -d "$week_start" +"%B %d")"
+sunday_day="$(date -d "$week_start" +"%d")"
+
+
+# echo -e "# Hours – Week of $week_of\n" >> "$hours_path"
+# echo -e "| &nbsp; | In | Out |"
+# echo -e "|:---:|:---:|:---:|"
+# echo -e "| **Sun (
+
+
+
+
+# echo -e "| Sun (MM/DD) | Mon (MM/DD) | Tues (MM/DD) | Wed (MM/DD) | Thur (MM/DD) | Fri (MM/DD) | Sat (MM/DD) |" >> "$hours_path"
+# echo -e "|:---:|:---:|:---:|:---:|:---:|:---:|:---:|" >> "$hours_path"
+# echo -e "| &nbsp; | 9:00 - 5:00 | 9:00 - 5:00 | 9:00 - 5:00 | 9:00 - 5:00 | 9:00 - 5:00 | &nbsp;|" >> "$hours_path"
+
+vim "$hours_path" && (cat "$hours_path" | pbcopy)

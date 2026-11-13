@@ -1,0 +1,8 @@
+" highlighturl
+" Highlights URLs everywhere
+
+let g:highlighturl_ctermfg = 'none'
+
+Plug 'itchyny/vim-highlighturl'
+
+" vim:ft=vim

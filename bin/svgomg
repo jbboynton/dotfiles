@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+"""svgomg: run an SVG through svgo with your SVGOMG settings, then put it back.
+
+Self-contained: the svgo config lives in this file (see FEATURES below).
+
+Input (first match wins):
+  1. SOURCE argument: a path to an .svg file, or literal SVG markup
+  2. piped stdin:     cat icon.svg | svgomg
+  3. the clipboard:   a file copied in Finder, SVG image data,
+                      SVG markup as text, or a path as text
+
+Output:
+  - file source      -> file rewritten in place (backup first, unless --clobber)
+  - markup source    -> optimized markup put back on the clipboard
+  - stdout redirected/piped (svgomg > out.svg, svgomg | pbcopy)
+                     -> result goes to stdout ONLY; the source is left alone
+                        (add --write to also write back)
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+# ---------- svgo config (mirrors your SVGOMG settings) ----------
+# Global settings
+PRETTIFY = True
+MULTIPASS = True
+FLOAT_PRECISION = 10      # "Number precision" slider, maxed out
+TRANSFORM_PRECISION = 10  # "Transform precision" slider, maxed out
+P = {"floatPrecision": FLOAT_PRECISION}
+
+# Features, in SVGOMG order (= run order). False = toggled off in SVGOMG.
+# Names are svgo 4 names; see plugins_for() for svgo 3 differences.
+FEATURES = [
+    ("removeDoctype", True),
+    ("removeXMLProcInst", True),
+    ("removeComments", True),
+    ("removeMetadata", True),
+    ("removeXMLNS", False),
+    ("removeEditorsNSData", True),
+    ("cleanupAttrs", True),
+    ("mergeStyles", True),
+    ("inlineStyles", True),
+    ("minifyStyles", True),
+    ("convertStyleToAttrs", False),
+    ("cleanupIds", True),
+    ("removeRasterImages", True),
+    ("removeUselessDefs", True),
+    ("cleanupNumericValues", True, P),
+    ("cleanupListOfValues", True, P),
+    ("convertColors", True),
+    ("removeUnknownsAndDefaults", True),
+    ("removeNonInheritableGroupAttrs", True),
+    ("removeUselessStrokeAndFill", True),
+    ("removeViewBox", False),
+    ("cleanupEnableBackground", True),
+    ("removeHiddenElems", True),
+    ("removeEmptyText", True),
+    ("convertShapeToPath", True, P),
+    ("moveElemsAttrsToGroup", True),
+    ("moveGroupAttrsToElems", True),
+    ("collapseGroups", True),
+    ("convertPathData", True, P),
+    ("convertEllipseToCircle", True),
+    ("convertTransform", True, {**P, "transformPrecision": TRANSFORM_PRECISION}),
+    ("removeEmptyAttrs", True),
+    ("removeEmptyContainers", True),
+    ("mergePaths", True, P),
+    ("removeUnusedNS", True),
+    ("reusePaths", True),
+    ("sortAttrs", True),
+    ("sortDefsChildren", True),
+    ("removeTitle", True),
+    ("removeDesc", True),
+    ("removeDimensions", True),         # "Prefer viewBox to width/height"
+    ("removeStyleElement", True),
+    ("removeScripts", True),
+    ("removeOffCanvasPaths", True),
+    ("convertOneStopGradients", True),
+    ("removeDeprecatedAttrs", True),
+    ("removeXlink", False),             # "Replace xlink with native SVG"
+]
+
+
+def plugins_for(major):
+    out = []
+    for name, on, *params in FEATURES:
+        if not on:
+            continue
+        if major < 4:
+            if name == "removeDeprecatedAttrs":
+                continue  # added in svgo 4
+            if name == "removeScripts":
+                name = "removeScriptElement"  # svgo 3 name
+        out.append({"name": name, "params": params[0]} if params else name)
+    return out
+
+
+def svgo_config_js(major):
+    config = {
+        "multipass": MULTIPASS,
+        "floatPrecision": FLOAT_PRECISION,
+        "js2svg": {"pretty": PRETTIFY, "indent": 2, "eol": "lf", "finalNewline": True},
+        "plugins": plugins_for(major),
+    }
+    return "export default " + json.dumps(config, indent=2) + ";\n"
+
+
+SVG_RE = re.compile(r"<svg[\s>/]", re.IGNORECASE)
+
+# Reads the macOS pasteboard in one shot: copied files (as real POSIX paths),
+# SVG image data, and plain text. Finder puts *file reference* URLs
+# (file:///.file/id=...) on the clipboard; filePathURL turns them into paths.
+JXA_READ = r"""
+ObjC.import('AppKit');
+const pb = $.NSPasteboard.generalPasteboard;
+const str = t => { const v = pb.stringForType(t); return v.isNil() ? null : ObjC.unwrap(v); };
+const files = [];
+const urls = pb.readObjectsForClassesOptions($([$.NSURL]), $.NSDictionary.dictionary);
+if (!urls.isNil()) {
+  for (let i = 0; i < urls.count; i++) {
+    const u = urls.objectAtIndex(i);
+    if (!u.isFileURL) continue;
+    const fp = u.filePathURL;
+    if (!fp.isNil()) files.push(ObjC.unwrap(fp.path));
+  }
+}
+let svg = null;
+const d = pb.dataForType('public.svg-image');
+if (!d.isNil()) {
+  const s = $.NSString.alloc.initWithDataEncoding(d, $.NSUTF8StringEncoding);
+  if (!s.isNil()) svg = ObjC.unwrap(s);
+}
+const types = [];
+const ts = pb.types;
+if (!ts.isNil()) for (let i = 0; i < ts.count; i++) types.push(ObjC.unwrap(ts.objectAtIndex(i)));
+JSON.stringify({ files: files, svg: svg, text: str('public.utf8-plain-text'), types: types });
+"""
+
+
+class SvgomgError(Exception):
+    pass
+
+
+def log(msg):
+    print(f"svgomg: {msg}", file=sys.stderr)
+
+
+# ---------- input resolution ----------
+
+def looks_like_svg(text):
+    return bool(text) and bool(SVG_RE.search(text))
+
+
+def as_svg_path(candidate):
+    """Return a Path if `candidate` names an existing SVG file, else None."""
+    if not candidate:
+        return None
+    s = candidate.strip().strip("'\"")
+    if "\n" in s or len(s) > 4096:
+        return None
+    if s.startswith("file://"):
+        s = unquote(urlparse(s).path)
+    p = Path(s).expanduser()
+    try:
+        if not p.is_file():
+            return None
+    except OSError:
+        return None
+    if p.suffix.lower() in (".svg", ".svgz") or looks_like_svg(read_head(p)):
+        return p.resolve()
+    return None
+
+
+def read_head(p, n=4096):
+    try:
+        with open(p, "r", encoding="utf-8", errors="replace") as f:
+            return f.read(n)
+    except OSError:
+        return ""
+
+
+def read_clipboard():
+    """Return the pasteboard contents dict; on failure, {'error': reason}."""
+    if sys.platform != "darwin":
+        return {"error": "clipboard reading needs macOS"}
+    try:
+        out = subprocess.run(
+            ["osascript", "-l", "JavaScript", "-e", JXA_READ],
+            capture_output=True, text=True, timeout=10,
+        )
+        if out.returncode != 0:
+            return {"error": out.stderr.strip() or f"osascript exited {out.returncode}"}
+        return json.loads(out.stdout)
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as e:
+        return {"error": str(e)}
+
+
+def write_clipboard(text):
+    if sys.platform != "darwin":
+        raise SvgomgError("writing to the clipboard needs macOS (pbcopy)")
+    subprocess.run(["pbcopy"], input=text, text=True, check=True)
+
+
+def resolve_source(arg):
+    """Return (kind, value, label). kind is 'file' or 'markup'."""
+    if arg is not None:
+        if arg == "-":
+            data = sys.stdin.read()
+            if looks_like_svg(data):
+                return "stdin", data, "stdin"
+            raise SvgomgError("stdin does not contain SVG markup")
+        p = as_svg_path(arg)
+        if p:
+            return "file", p, str(p)
+        if looks_like_svg(arg):
+            return "markup", arg, "argument"
+        if Path(arg).expanduser().exists():
+            raise SvgomgError(f"{arg!r} exists but is not an SVG file")
+        raise SvgomgError(f"{arg!r} is not an SVG file path or SVG markup")
+
+    if not sys.stdin.isatty():
+        data = sys.stdin.read()
+        if looks_like_svg(data):
+            return "stdin", data, "stdin"
+
+    clip = read_clipboard()
+    files = clip.get("files") or []
+    svg_files = [f for f in files if as_svg_path(f)]
+    if svg_files:
+        if len(svg_files) > 1:
+            log(f"{len(svg_files)} SVGs on the clipboard; using the first")
+        p = as_svg_path(svg_files[0])
+        return "file", p, f"{p} (copied file)"
+    if looks_like_svg(clip.get("svg")):
+        return "clipboard", clip["svg"], "clipboard (SVG image data)"
+    text = clip.get("text")
+    p = as_svg_path(text)
+    if p:
+        return "file", p, f"{p} (path from clipboard)"
+    if looks_like_svg(text):
+        return "clipboard", text, "clipboard (SVG markup)"
+
+    detail = ""
+    if files:
+        detail = "\n  Copied file(s) aren't SVGs: " + ", ".join(Path(f).name for f in files)
+    elif clip.get("error"):
+        detail = f"\n  Couldn't read the clipboard: {clip['error']}"
+    raise SvgomgError(
+        "no SVG to work on." + detail + "\n"
+        "  The clipboard doesn't hold an SVG file, SVG markup, or a path to an SVG,\n"
+        "  and no SOURCE was given. Try one of:\n"
+        "    svgomg path/to/icon.svg\n"
+        "    svgomg '<svg ...>...</svg>'\n"
+        "    cat icon.svg | svgomg\n"
+        "  or copy an SVG (file in Finder, markup, or path) and run svgomg again."
+    )
+
+
+# ---------- svgo ----------
+
+MIN_SVGO_MAJOR = 3
+
+
+def svgo_version(svgo):
+    """Return a version tuple like (4, 1, 0), or None if it can't be read."""
+    try:
+        out = subprocess.run([svgo, "--version"], capture_output=True, text=True, timeout=15)
+        return tuple(int(x) for x in out.stdout.strip().split(".")[:3])
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+
+
+def svgo_major(svgo):
+    v = svgo_version(svgo)
+    return v[0] if v else 4
+
+
+def svgo_candidates():
+    """Every svgo we can find: $SVGOMG_SVGO, all on PATH, npm's global bin."""
+    seen, found = set(), []
+
+    def add(path):
+        if not path or not os.access(path, os.X_OK) or os.path.isdir(path):
+            return
+        real = os.path.realpath(path)
+        if real not in seen:
+            seen.add(real)
+            found.append(path)
+
+    add(os.environ.get("SVGOMG_SVGO"))
+    for d in os.environ.get("PATH", "").split(os.pathsep):
+        add(os.path.join(d, "svgo"))
+    npm = shutil.which("npm")
+    if npm:
+        try:
+            prefix = subprocess.run([npm, "prefix", "-g"], capture_output=True,
+                                    text=True, timeout=15).stdout.strip()
+            if prefix:
+                add(os.path.join(prefix, "bin", "svgo"))
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return found
+
+
+def find_svgo():
+    """Use $SVGOMG_SVGO if set; otherwise the newest svgo >= 3 we can find."""
+    forced = os.environ.get("SVGOMG_SVGO")
+    candidates = svgo_candidates()
+    if not candidates:
+        raise SvgomgError("svgo not found (npm i -g svgo)")
+    versions = [(c, svgo_version(c)) for c in candidates]
+    if forced:
+        v = svgo_version(forced)
+        if not v or v[0] < MIN_SVGO_MAJOR:
+            raise SvgomgError(f"SVGOMG_SVGO={forced} is svgo {v or '?'}; need {MIN_SVGO_MAJOR}+")
+        return forced
+    usable = [(v, c) for c, v in versions if v and v[0] >= MIN_SVGO_MAJOR]
+    if usable:
+        return max(usable)[1]
+    listing = "\n".join(f"    {c}  ({'.'.join(map(str, v)) if v else 'unknown version'})"
+                        for c, v in versions)
+    raise SvgomgError(
+        f"need svgo {MIN_SVGO_MAJOR}+ but only found:\n{listing}\n"
+        "  Install a current one:  npm i -g svgo\n"
+        "  or point at one:        export SVGOMG_SVGO=/path/to/svgo"
+    )
+
+
+def run_svgo(markup, svgo):
+    with tempfile.TemporaryDirectory(prefix="svgomg-") as tmp:
+        config = Path(tmp) / "svgo.config.mjs"
+        config.write_text(svgo_config_js(svgo_major(svgo)), encoding="utf-8")
+        proc = subprocess.run(
+            [svgo, "--config", str(config), "--input", "-", "--output", "-"],
+            input=markup, capture_output=True, text=True,
+        )
+    if proc.returncode != 0 or not looks_like_svg(proc.stdout):
+        raise SvgomgError(f"svgo failed:\n{proc.stderr.strip() or proc.stdout.strip()}")
+    return proc.stdout
+
+
+# ---------- backups ----------
+
+def next_backup_path(src, backup_dir):
+    """icon.svg -> icon.backup-1.svg, icon.backup-2.svg, ... (never overwrites)."""
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    pat = re.compile(rf"^{re.escape(src.stem)}\.backup-(\d+){re.escape(src.suffix)}$")
+    nums = [int(m.group(1)) for f in backup_dir.iterdir() if (m := pat.match(f.name))]
+    n = max(nums, default=0) + 1
+    return backup_dir / f"{src.stem}.backup-{n}{src.suffix}"
+
+
+def write_file(src, new, clobber, backup_dir):
+    if not clobber:
+        dest = next_backup_path(src, backup_dir or src.parent)
+        shutil.copy2(src, dest)
+        log(f"backup -> {dest}")
+    tmp = src.with_name(f".{src.name}.svgomg-tmp")
+    tmp.write_text(new, encoding="utf-8")
+    shutil.copymode(src, tmp)
+    os.replace(tmp, src)
+
+
+def fmt_size(n):
+    return f"{n / 1000:.2f}k" if n >= 1000 else f"{n} B"
+
+
+# ---------- main ----------
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="svgomg",
+        description="Optimize an SVG with svgo using your SVGOMG settings, then put it back where it came from.",
+        epilog="Without SOURCE, reads piped stdin, then the clipboard.",
+    )
+    ap.add_argument("source", nargs="?", metavar="SOURCE",
+                    help="SVG file path, literal SVG markup, or '-' for stdin")
+    ap.add_argument("-p", "--print", action="store_true", dest="print_out",
+                    help="also print the optimized SVG to the terminal")
+    ap.add_argument("-c", "--clobber", action="store_true",
+                    help="overwrite files in place without making backups")
+    ap.add_argument("-b", "--backup-dir", type=Path, metavar="DIR",
+                    help="where backups go (default: next to the file)")
+    ap.add_argument("-w", "--write", action="store_true",
+                    help="write back to the source even when stdout is piped/redirected")
+    ap.add_argument("--show-config", action="store_true",
+                    help="print the generated svgo config and exit")
+    ap.add_argument("--clipboard-info", action="store_true",
+                    help="print what svgomg sees on the clipboard and exit")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="report which svgo binary is used")
+    ap.add_argument("-q", "--quiet", action="store_true", help="no status messages")
+    args = ap.parse_args()
+
+    global log
+    if args.quiet:
+        log = lambda msg: None  # noqa: E731
+
+    try:
+        if args.clobber and args.backup_dir:
+            raise SvgomgError("--clobber and --backup-dir contradict each other")
+        svgo = find_svgo()
+        if args.verbose:
+            log(f"using {svgo} (svgo {'.'.join(map(str, svgo_version(svgo) or ('?',)))})")
+        if args.clipboard_info:
+            sys.stdout.write(json.dumps(read_clipboard(), indent=2) + "\n")
+            return 0
+        if args.show_config:
+            sys.stdout.write(svgo_config_js(svgo_major(svgo)))
+            return 0
+        backup_dir = args.backup_dir.expanduser().resolve() if args.backup_dir else None
+
+        kind, value, label = resolve_source(args.source)
+        original = value.read_text(encoding="utf-8") if kind == "file" else value
+        if kind == "file" and not looks_like_svg(original):
+            raise SvgomgError(f"{value} does not contain SVG markup")
+
+        result = run_svgo(original, svgo)
+
+        before, after = len(original.encode()), len(result.encode())
+        pct = (1 - after / before) * 100 if before else 0
+        log(f"{label}: {fmt_size(before)} -> {fmt_size(after)}  {pct:.2f}%")
+
+        piped = not sys.stdout.isatty()
+        if piped or args.print_out:
+            sys.stdout.write(result)
+            sys.stdout.flush()
+
+        if piped and not args.write:
+            return 0  # svgomg > out.svg / svgomg | pbcopy: leave the source alone
+
+        if kind == "file":
+            if result == original:
+                log("already optimized; file untouched")
+            else:
+                write_file(value, result, args.clobber, backup_dir)
+                log(f"wrote {value}")
+        elif kind == "clipboard" or (kind == "markup" and not piped):
+            write_clipboard(result)
+            log("optimized SVG copied to clipboard")
+        elif kind == "stdin" and not piped and not args.print_out:
+            sys.stdout.write(result)  # nowhere to "put it back"; show it
+        return 0
+
+    except SvgomgError as e:
+        log(f"error: {e}")
+        return 1
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

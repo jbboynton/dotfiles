@@ -1,0 +1,42 @@
+" fzf
+" Command-line fuzzy finder
+
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
+
+" Default commands - smart case
+" .ignored is passed as an explicit path so rg lists it despite being
+" hidden and gitignored
+let $FZF_DEFAULT_COMMAND = 'rg --files --follow -g "!.git/*" -g "!vendor/*"'
+  \ .' -g "!*.sql" . $(ls -d .ignored 2>/dev/null) | sed "s#^\./##"'
+let $FZF_DEFAULT_OPTS = '--color=hl:14:reverse:bold,hl+:14:reverse:bold'
+
+" ripgrep command options - smart case
+command! -bang -nargs=* Rg
+  \ call fzf#vim#grep(
+  \   'rg --column --line-number --no-heading --smart-case --color=always '
+  \   .shellescape(<q-args>).' . $(ls -d .ignored 2>/dev/null)',
+  \   1,
+  \   fzf#vim#with_preview(),
+  \   <bang>0)
+
+" Layout and preview
+let g:fzf_layout = { 'down': '20%' }
+let g:fzf_preview_window = ['right:33%', 'ctrl-/']
+
+" Keybindings
+nnoremap <C-p> :Files<CR>
+nnoremap <C-i> :Rg<Space>
+
+" Split actions
+let g:fzf_action = {
+  \ 'ctrl-t': 'tab split',
+  \ 'ctrl-x': 'split',
+  \ 'ctrl-v': 'vsplit' }
+
+" Clean buffer appearance
+autocmd! FileType fzf
+autocmd  FileType fzf set laststatus=0 noshowmode noruler
+  \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
+
+" vim:ft=vim

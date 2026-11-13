@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+media_dir="$1"
+media_glob="$1/*.mp3"
+# media_glob="$1/*.wav"
+
+readarray -d '' array < <(fd . --extension mp3 --print0 "$media_dir")
+# for f in $media_glob; do
+for f in "${array[@]}"; do
+  input_file="$(basename -- "$f")"
+  input_file_without_ext="${input_file%.*}"
+  output_file="$media_dir/$input_file_without_ext.wav"
+  # output_file="$media_dir/$input_file_without_ext.mp3"
+
+  ffmpeg -i "$input_file" "$output_file"
+  # ffmpeg -i "$f" -acodec libmp3lame -q:a 0 "$output_file"
+done

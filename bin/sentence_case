@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Transform text into sentence case.
+
+set -eo pipefail
+
+# Variables
+delimiters=".!?"
+input="$(cat -)"
+output=""
+
+info() {
+  echo -e "$1"
+}
+
+error() {
+  echo -e >&2 "Error: $1"
+  exit 1
+}
+
+check_for_input() {
+  [ -n "$input" ] || error "no input provided"
+}
+
+perl_time() {
+  # Eeeesh. Try looking at this: https://regexr.com/85s40
+  output="$( \
+    echo "$input" \
+    | perl -pe 's/(?:[!?."]+|.*?)(([A-Za-z]{1})(.*[!?.]+"?\s*?))/\U$2\L$3/g' \
+  )"
+}
+
+echo_output() {
+  check_for_output && echo "$output"
+}
+
+check_for_output() {
+  [ -n "$output" ] || error "output is empty—I suspect that terrible regex..."
+}
+
+main() {
+  check_for_input
+  perl_time
+  echo_output
+}
+
+main

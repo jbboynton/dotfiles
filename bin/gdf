@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Creates Google Drive folders
+
+scaffold_dir="$HOME/Desktop/google_drive_folders/2022"
+mkdir -p "$scaffold_dir"
+
+mk() {
+  local client="$1"
+  local project="$2"
+
+  mkdir -p "$scaffold_dir/$client/$project/Photos"
+  touch "$scaffold_dir/$client/$project/Photos/keep"
+
+  mkdir -p "$scaffold_dir/$client/$project/Diagrams"
+  touch "$scaffold_dir/$client/$project/Diagrams/keep"
+}
+
+mk "Eyles" "Salon Seating"
+mk "O'Brien" "Bow Pads"
+mk "Waznme" "Bow Cushion"
+mk "Staubach" "Lagoon Enclosure"
+mk "Fontaine" "Enclosure"
+mk "Cooper" "Aft Sun Fly"
+mk "Cooper" "Sunpad Shade"
+mk "Waznme" "Cover"
+mk "O'Brien" "Cover"
+mk "Magee" "Bimini"
+mk "Gavin" "Bow Cushion Pillow"
+mk "Gavin" "Cushions"
+mk "Gavin" "Grill Cover"
+mk "Dooley" "Cushions"
+mk "Regine" "Enclosure"
+mk "Regine" "Cushions"
+mk "Taber" "Cushions and Bolsters"
+mk "Ruh" "Cushions"
+mk "Roderick" "Dodger"
+mk "Giovannucci" "Cushions and Bolsters"
+mk "Scott, Lily" "Bimini"
+mk "Scott, Lily" "Dodger"
+mk "Rutecki" "Enclosure"
+mk "Moynahan" "Cushions"
+mk "Trigo" "Dodger"
+mk "Maccarone" "Aft Curtain"
+mk "Bindas" "Cushions"
+mk "Four Winns" "Enclosure"
+mk "Parsons" "Retractable Roof"
