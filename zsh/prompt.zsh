@@ -20,9 +20,17 @@ zinit wait'0' lucid for \
 function prompt_git_start() {
   gitstatus_stop PROMPT && gitstatus_start -s 1 -u 1 -c 1 -d 1 PROMPT
   add-zsh-hook precmd prompt_git_query
+
+  # zinit runs this from inside the plugin's folder, so wait until it has
+  # gone back before asking about the current folder
+  zmodload zsh/sched
+  sched +0 prompt_git_refresh
+}
+
+# Redraw the prompt that was shown before gitstatus was ready
+function prompt_git_refresh() {
   prompt_git_query
 
-  # Redraw the prompt that was shown before gitstatus was ready
   if zle; then
     zle reset-prompt
   fi
