@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Build bat-extras from source and install its self-contained scripts into
+# ~/.local/bin. Built scripts start faster than the ones in src/. Run again
+# any time to update.
+
+set -euo pipefail
+
+src="$HOME/.local/src/bat-extras"
+
+# Clone the first time, then pull
+if [ -d "$src/.git" ]; then
+  git -C "$src" pull --ff-only
+else
+  mkdir -p "$(dirname "$src")"
+  git clone https://github.com/eth-p/bat-extras.git "$src"
+fi
+
+# Minify everything when shfmt is installed, otherwise just the libraries
+minify="lib"
+
+if command -v shfmt >/dev/null; then
+  minify="all"
+fi
+
+# Build, check the built scripts against the originals, then install
+cd "$src"
+./build.sh --minify="$minify" --no-manuals --install --prefix="$HOME/.local"
+
+echo
+echo "Installed with --minify=$minify:"
+ls "$HOME/.local/bin" | grep -E '^(bat(diff|grep|man|pipe|watch)|prettybat)$'
