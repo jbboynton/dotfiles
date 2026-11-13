@@ -1,0 +1,142 @@
+[colors]
+draw_bold_text_with_bright_colors = false
+transparent_background_colors = true
+
+[colors.bright]
+black = "#4c566a"
+blue = "#81a1c1"
+cyan = "#cdfcfa"
+green = "#d8f2c2"
+magenta = "#d5abcd"
+red = "#fa9ea7"
+white = "#eceff4"
+yellow = "#ffe1a5"
+
+[colors.normal]
+black = "#2e3440"
+blue = "#5e81ac"
+cyan = "#88c0d0"
+green = "#a3be8c"
+magenta = "#b48ead"
+red = "#bf616a"
+white = "#d8dee9"
+yellow = "#ebcb8b"
+
+[colors.primary]
+background = "#21272a"
+foreground = "#d8dee9"
+
+[colors.selection]
+background = "#434c5e"
+text = "#d8dee9"
+
+[cursor]
+unfocused_hollow = true
+
+[cursor.style]
+blinking = "Never"
+shape = "Block"
+
+[env]
+TERM = "alacritty"
+
+[font]
+size = 16.0
+
+[font.bold]
+family = "Ubuntu Sans Mono"
+style = "Bold"
+
+[font.bold_italic]
+family = "Ubuntu Sans Mono"
+style = "Bold Italic"
+
+[font.glyph_offset]
+y = 1
+
+[font.italic]
+family = "Ubuntu Mono"
+style = "Italic"
+
+[font.normal]
+family = "Ubuntu Mono"
+style = "Regular"
+
+[mouse]
+hide_when_typing = false
+
+[scrolling]
+history = 10000
+multiplier = 3
+
+[selection]
+save_to_clipboard = false
+semantic_escape_chars = ",│`|:\"' ()[]{}<>"
+
+[window]
+decorations = "buttonless"
+dynamic_padding = true
+dynamic_title = true
+opacity = 0.96
+startup_mode = "Windowed"
+title = "Alacritty"
+
+[window.dimensions]
+columns = 0
+lines = 0
+
+[window.padding]
+x = 6
+y = 6
+
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\n"
+
+# Ctrl-> and Ctrl-< for indenting markdown list items in Vim. Terminals
+# have no control code for Ctrl-Shift-Period, so send CSI-u sequences
+# ('>' is 62, '<' is 60, modifier 5 is Control). Vim reads these as
+# <F13>/<F14> via a set <F13>= line in after/ftplugin/markdown.vim.
+[[keyboard.bindings]]
+key = "Period"
+mods = "Control|Shift"
+chars = "\u001b[62;5u"
+
+[[keyboard.bindings]]
+key = "Comma"
+mods = "Control|Shift"
+chars = "\u001b[60;5u"
+
+# Cmd + ←/→ to start/end of line, sent as ctrl + a / ctrl + e
+[[keyboard.bindings]]
+key = "Left"
+mods = "Command"
+chars = "\u0001"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Command"
+chars = "\u0005"
+
+# Option + ←/→ and option + backspace/delete for word moves and deletes in
+# zsh. Bound one by one so option still types special characters elsewhere.
+[[keyboard.bindings]]
+key = "Left"
+mods = "Option"
+chars = "\u001b[1;3D"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Option"
+chars = "\u001b[1;3C"
+
+[[keyboard.bindings]]
+key = "Back"
+mods = "Option"
+chars = "\u001b\u007f"
+
+[[keyboard.bindings]]
+key = "Delete"
+mods = "Option"
+chars = "\u001b[3;3~"
