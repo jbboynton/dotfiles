@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -25,8 +25,14 @@ convert_file() {
   ffmpeg \
     -i "$input_file" \
     -vcodec h264 \
-    -map_channel 0.1.0 -c:v copy \
     "$output_file"
+
+  # # Does this transcode stereo audio correctly?
+  # ffmpeg \
+  #   -i "$input_file" \
+  #   -vcodec h264 \
+  #   -map_channel 0.1.0 -c:v copy \
+  #   "$output_file"
 }
 
 prompt_for_25_faster() {
