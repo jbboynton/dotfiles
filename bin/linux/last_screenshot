@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 screenshots_dir="$HOME/screenshots"
 file="$(ls "$screenshots_dir" | sort -rn | head -1)"

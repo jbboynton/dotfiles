@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Ships a branch and cleans up afterwards
 
 set -eo pipefail

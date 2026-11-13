@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Run this script after installing or updating Homebrew packages
 
 set -eo pipefail

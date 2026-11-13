@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Search for snapshots on DigitalOcean
 
 [ -n "$1" ] || \

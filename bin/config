@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # TODO: provide both a 'config' command for dotfiles, and a 'hist' command for
 # history files (.zsh_hsitory, .vim_history, etc.). Commands defined by this

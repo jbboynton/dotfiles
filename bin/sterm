@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Syncs Alacritty's terminfo to the remote host, and installs it
 
 set -e

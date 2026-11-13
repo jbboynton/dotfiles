@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 vssh() {
   pushd "$(vroot)" &>/dev/null

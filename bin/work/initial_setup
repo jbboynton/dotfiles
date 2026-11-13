@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Initial setup needed for new DigitalOcean droplets.
 
 # Required

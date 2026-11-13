@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Checks for a user ID in the most recent VUE files.
 
 set -e

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Wrap commands that interact with the Heroku CLI and set the TERM variable to
 # xterm, since Alacritty isn't a supported terminal type
 

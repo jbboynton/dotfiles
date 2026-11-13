@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 cu() {
   if [[ "$#" -gt 0 ]]; then

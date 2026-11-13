@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 note="$1"
 notes_path="$HOME/Notes"

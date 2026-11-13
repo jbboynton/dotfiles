@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 next_ip_address() {
   local ip_address

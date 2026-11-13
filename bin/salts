@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Uses the pwg script to generate salts for a WordPress site.
 
 set -e

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 copy() {
   command cat "$1" | command pbcopy

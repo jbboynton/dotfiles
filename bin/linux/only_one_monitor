@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Turns off the laptop screen when a VGA connection is detected.
 
 # Options

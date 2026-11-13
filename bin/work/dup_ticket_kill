@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo
 echo 'Finds the claim with the given ID, destroys its refund (if it exists), '

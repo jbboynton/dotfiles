@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 pbpaste > "$HOME/Notes/scratch.md"
 save_note "$HOME/Notes/scratch.md"

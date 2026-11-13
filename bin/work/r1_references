@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 read -r -d '' script <<EORUBY
 ran_at =

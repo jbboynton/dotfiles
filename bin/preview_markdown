@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 md_file="$1"
 previews_dir="/tmp/markdown_previews"

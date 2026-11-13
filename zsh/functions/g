@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Runs git or shows the status if no args are passed
 
 g() {
