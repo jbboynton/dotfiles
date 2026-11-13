@@ -7,6 +7,7 @@
 HISTSIZE=100000
 HISTFILE=~/.history/zsh_history
 SAVEHIST=100000
+
 # Save each command's start time and duration
 setopt EXTENDED_HISTORY
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='fg=yellow,bold,underline'
@@ -36,7 +37,7 @@ zinit lucid for \
   zdharma-continuum/zinit-annex-bin-gem-node
 
 # Installation of Rust compiler environment via the z-a-rust annex
-zinit id-as"rust" as=null sbin="bin/*" lucid rustup for \
+zinit id-as"rust" as=null sbin="bin/*" wait'0' lucid rustup for \
   atload=" \
     [[ ! -f ${ZINIT[COMPLETIONS_DIR]}/_cargo ]] && zinit creinstall -q rust; \
     export CARGO_HOME=\$PWD; \
@@ -49,17 +50,11 @@ zinit wait'0' lucid for \
     ZINIT[ZCOMPDUMP_PATH]=/tmp/zcompdump; \
     zicompinit; \
     zicdreplay" \
+    Aloxaf/fzf-tab \
     zdharma-continuum/fast-syntax-highlighting \
-  atload"history_substring_search_config" \
     zsh-users/zsh-history-substring-search \
   blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
-  OMZP::colored-man-pages \
   htlsne/zinit-rbenv
-
-function history_substring_search_config() {
-  bindkey '^[[A' history-substring-search-up
-  bindkey '^[[B' history-substring-search-down
-}
 
 # Custom completions
 zinit wait'0' lucid for \
