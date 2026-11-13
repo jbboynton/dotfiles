@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 note="$1"
 notes_dir="$HOME/Notes"
@@ -227,7 +227,7 @@ build_html() {
 }
 
 open_html() {
-  open -a Safari.app "$html_output"
+  open -a "Firefox Developer Edition" "$html_output"
 }
 
 build_pdf() {
@@ -247,5 +247,5 @@ build_html "light"
 build_pdf
 clear_html
 build_html "dark"
-open_html
+# open_html
 # open_pdf
