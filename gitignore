@@ -31,12 +31,22 @@
 .vscode/
 .vagrant/
 
-# Environment #
+# Keys and credentials #
 ###############
 .env*
+*.key
 
 # Utility scripts #
 ###################
 yarn_build.sh
 
-master.key
+# Miscellaneous #
+#################
+.ignored/
+*.ignored
+
+# Robots #
+##########
+.claude/
+
+**/.claude/settings.local.json
