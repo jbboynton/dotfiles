@@ -5,6 +5,7 @@
 [core]
   editor = vim
   excludesfile = ~/.gitignore
+  pager = delta
 [alias]
   a = add
   b = branch
@@ -34,10 +35,16 @@
     --all
   slaa = log --oneline --decorate --graph --all
   unstage = reset
+[interactive]
+  diffFilter = delta --color-only
+[delta]
+  navigate = true
+  line-numbers = true
 [fetch]
   prune = true
 [merge]
   ff = only
+  conflictstyle = zdiff3
 [commit]
   gpgsign = true
 [pull]
