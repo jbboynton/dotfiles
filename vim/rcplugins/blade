@@ -1,6 +1,6 @@
 " blade
 " Syntax highlighting for Blade templates
 
-Plug 'jwalton512/vim-blade'
+" Plug 'jwalton512/vim-blade'
 
 " vim:ft=vim

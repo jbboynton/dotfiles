@@ -4,9 +4,9 @@
 Plug 'christoomey/vim-tmux-runner'
 
 " Custom mappings
-nnoremap <leader>vo :VtrOpenRunner<cr>
-nnoremap <leader>va :VtrAttachToPane<cr>
-nnoremap <leader>z :VtrFocusRunner<cr>
-nnoremap <leader>q :VtrSendCommandToRunner q<cr>
+" nnoremap <leader>vo :VtrOpenRunner<cr>
+" nnoremap <leader>va :VtrAttachToPane<cr>
+" nnoremap <leader>z :VtrFocusRunner<cr>
+" nnoremap <leader>q :VtrSendCommandToRunner q<cr>
 
 " vim:ft=vim
