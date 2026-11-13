@@ -1,3 +1,13 @@
+// Backup of ~/.config/linearmouse/linearmouse.json, saved by ~/.dotfiles/bin/snapshot_config
+// every time the app rewrites it.
+//
+// To restore: copy this file over ~/.config/linearmouse/linearmouse.json and delete this
+// header block, through the end-of-header line below, so only the
+// original file is left. One command does both:
+//
+//   sed '1,\|^// end of backup header$|d' ~/.dotfiles/config/linearmouse/linearmouse.json.bak > ~/.config/linearmouse/linearmouse.json
+//
+// end of backup header
 {
   "$schema" : "https:\/\/schema.linearmouse.app\/0.11.4",
   "schemes" : [
