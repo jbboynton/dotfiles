@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Back up LinearMouse's settings into ~/.dotfiles whenever they change.
+
+  LinearMouse rewrites linearmouse.json in place of a symlink, so rcm can't
+  manage it. This copies it to config/linearmouse/linearmouse.json.bak in
+  the repo and commits it; rcm links that as
+  ~/.config/linearmouse/linearmouse.json.bak, next to the real file. The
+  backup starts with a header that explains how to restore it. The folder
+  is watched rather than the file, because the file is replaced on every
+  save.
+
+  rcup installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
+  because launchd won't load a symlinked LaunchAgent. After rcup, load it:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jamesboynton.linearmouse-snapshot.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jamesboynton.linearmouse-snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/james/.dotfiles/bin/snapshot_config</string>
+    <string>/Users/james/.config/linearmouse/linearmouse.json</string>
+    <string>config/linearmouse/linearmouse.json.bak</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/james/.config/linearmouse</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/james/Library/Logs/linearmouse-snapshot.log</string>
+</dict>
+</plist>

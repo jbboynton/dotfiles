@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Copy a config file that an app rewrites on its own (so it can't be a
+# symlink) into the dotfiles repo, and commit just that file. Run by launchd
+# whenever the file's folder changes; see Library/LaunchAgents/ in the repo.
+#
+# The copy starts with a header block saying how to restore it, so it isn't
+# valid as-is: restoring means dropping everything up to the header's last
+# line, which the header itself spells out.
+#
+# Usage: snapshot_config <file> <path inside the repo>
+
+set -euo pipefail
+
+src="$1"
+rel="$2"
+repo="$HOME/.dotfiles"
+dest="$repo/$rel"
+name="$(basename "$src")"
+end_marker="// end of backup header"
+
+# Paths as they'd be typed, with ~ for the home folder
+src_shown="${src/#"$HOME"/\~}"
+dest_shown="${dest/#"$HOME"/\~}"
+
+# Nothing to do when the copy, minus its header, already matches
+if [ -f "$dest" ] && sed "1,\|^$end_marker\$|d" "$dest" | cmp -s - "$src"; then
+  exit 0
+fi
+
+mkdir -p "$(dirname "$dest")"
+
+{
+  echo "// Backup of $src_shown, saved by ~/.dotfiles/bin/snapshot_config"
+  echo "// every time the app rewrites it."
+  echo "//"
+  echo "// To restore: copy this file over $src_shown and delete this"
+  echo "// header block, through the end-of-header line below, so only the"
+  echo "// original file is left. One command does both:"
+  echo "//"
+  echo "//   sed '1,\\|^$end_marker\$|d' $dest_shown > $src_shown"
+  echo "//"
+  echo "$end_marker"
+  cat "$src"
+} > "$dest.tmp"
+
+mv -f "$dest.tmp" "$dest"
+
+# Commit only this file, leaving anything else staged alone. A failure (no
+# signing key unlocked, a rebase in progress) leaves the copy for a manual
+# commit and says so.
+git -C "$repo" add -- "$rel"
+
+if ! git -C "$repo" commit -q -m "Snapshot $name" -- "$rel"; then
+  osascript -e "display notification \"Copied into the repo, but the commit failed\" with title \"Snapshot: $name\""
+  exit 1
+fi
