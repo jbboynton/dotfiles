@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# Every terminal color with its code, hex value, and how each text style renders.
+# Hex values come from Alacritty's config; the samples are drawn by the terminal.
+
+set -euo pipefail
+
+config="${ALACRITTY_CONFIG:-$HOME/.config/alacritty/alacritty.toml}"
+e=$'\033'
+reset="$e[0m"
+
+labels=(
+  "Black" "Red" "Green" "Yellow" "Blue" "Magenta" "Cyan" "Light Gray"
+  "Dark Gray" "Light Red" "Light Green" "Light Yellow" "Light Blue"
+  "Light Magenta" "Light Cyan" "White"
+)
+
+# Styles: SGR code and column heading
+style_codes=(0 1 2 3 "1;3" 4 9 7)
+style_names=(Normal Bold Dim Italic BoldItal Under Strike Reverse)
+
+# Hex values in a fixed order: default fg, default bg, normal 0-7, bright 0-7
+hexes=()
+
+while IFS= read -r value; do
+  hexes+=("$value")
+done < <(awk '
+  /^[[:space:]]*\[/ {
+    section = $0
+    gsub(/[][[:space:]]/, "", section)
+    next
+  }
+
+  /=/ {
+    line = $0
+    gsub(/[[:space:]"]/, "", line)
+    split(line, kv, "=")
+    value[section "." kv[1]] = kv[2]
+  }
+
+  END {
+    n = split("colors.primary.foreground colors.primary.background", keys, " ")
+    split("black red green yellow blue magenta cyan white", names, " ")
+
+    for (i = 1; i <= 8; i++) keys[++n] = "colors.normal." names[i]
+    for (i = 1; i <= 8; i++) keys[++n] = "colors.bright." names[i]
+
+    for (i = 1; i <= n; i++) print (keys[i] in value ? value[keys[i]] : "?")
+  }
+' "$config" 2>/dev/null || true)
+
+# No config: still draw everything, just without hex values
+while [ ${#hexes[@]} -lt 18 ]; do
+  hexes+=("?")
+done
+
+default_fg="${hexes[0]}"
+default_bg="${hexes[1]}"
+
+heading() {
+  printf '\n%s\n\n' "$e[4m$1$reset"
+}
+
+# Column headings, padded to match the rows below
+columns() {
+  local name
+
+  printf '  %-4s %-13s %-8s %-8s ' "Code" "Color" "FG hex" "BG hex"
+
+  for name in "${style_names[@]}"; do
+    printf '%s ' "$name"
+  done
+
+  printf 'Swatch\n'
+}
+
+# One row: the code, its label, both hex values, then each style drawn
+# with the color, and a solid swatch
+row() {
+  local code="$1" label="$2" fg="$3" bg="$4" i name
+
+  printf '  %-4s %-13s %-8s %-8s ' "$code" "$label" "$fg" "$bg"
+
+  for i in "${!style_codes[@]}"; do
+    name="${style_names[$i]}"
+    printf '%s%s%s ' "$e[${style_codes[$i]};${code}m" "$name" "$reset"
+  done
+
+  # Background codes (40-49, 100-107) show as a block of color
+  if { [ "$code" -ge 40 ] && [ "$code" -le 49 ]; } || [ "$code" -ge 100 ]; then
+    printf '%s      %s\n' "$e[${code}m" "$reset"
+  else
+    printf '%s██████%s\n' "$e[${code}m" "$reset"
+  fi
+}
+
+heading "Default colors"
+columns
+row 39 "Foreground" "$default_fg" "$default_bg"
+row 49 "Background" "$default_fg" "$default_bg"
+
+heading "Foreground colors (text on the default background)"
+columns
+
+for i in $(seq 0 15); do
+  if [ "$i" -lt 8 ]; then
+    code=$((30 + i))
+  else
+    code=$((90 + i - 8))
+  fi
+
+  row "$code" "${labels[$i]}" "${hexes[$((i + 2))]}" "$default_bg"
+done
+
+heading "Background colors (default text on the color)"
+columns
+
+for i in $(seq 0 15); do
+  if [ "$i" -lt 8 ]; then
+    code=$((40 + i))
+  else
+    code=$((100 + i - 8))
+  fi
+
+  row "$code" "${labels[$i]}" "$default_fg" "${hexes[$((i + 2))]}"
+done
+
+# Whether bold also brightens, which changes what the Bold column means
+bright_bold="$(awk -F= '/draw_bold_text_with_bright_colors/ { gsub(/[[:space:]]/, "", $2); print $2 }' "$config" 2>/dev/null || true)"
+
+echo
+
+if [ "$bright_bold" = "true" ]; then
+  echo "  Bold also switches 30-37 to their light versions"
+  echo "  (draw_bold_text_with_bright_colors = true)."
+else
+  echo "  Bold is a heavier font in the same color; the light colors are 90-97"
+  echo "  (draw_bold_text_with_bright_colors = false)."
+fi
+
+echo "  Hex values from $(printf '%s' "${config/#"$HOME"/\~}")."
+echo
