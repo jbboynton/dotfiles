@@ -7,7 +7,7 @@ zinit wait'0' lucid for \
   MichaelAquilina/zsh-you-should-use
 
 # Stop the command and show the alias instead of running it
-YSU_HARDCORE=1
+# YSU_HARDCORE=1
 
 # Skip aliases that swap one tool for another, so typing bat itself is fine
 YSU_IGNORED_ALIASES=("cat" "less")

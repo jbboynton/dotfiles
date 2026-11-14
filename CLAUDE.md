@@ -103,7 +103,7 @@ loading.
 | File | Purpose |
 | --- | --- |
 | `aliases.zsh` | Aliases. `cat` and `less` are `bat`. |
-| `alias-reminders.zsh` | zsh-you-should-use in hardcore mode: a command typed out in full, when an alias exists for it, is stopped and the alias shown. Also `alias_candidates`, which lists frequent full commands without an alias. |
+| `alias-reminders.zsh` | zsh-you-should-use: a command typed out in full, when an alias exists for it, runs with a reminder of the alias (hardcore mode, which stops it instead, is off). Also `alias_candidates`, which lists frequent full commands without an alias. |
 | `bat.zsh` | `MANPAGER` and `MANROFFOPT` for batman, written out (checked by `env_drift`). |
 | `drift.zsh` | Schedules `env_drift` and shows its report. |
 | `eza.zsh` | `EZA_COLORS` for eza listings. |
