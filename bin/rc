@@ -38,7 +38,11 @@ rc: manage ~/.dotfiles without ever overwriting a file.
                                  to ~/.rc-displaced/ first
   rc unlink ~/.foo               remove a link into ~/.dotfiles
                                  (never a real file; rc link puts it back)
-  rc prune                       remove broken links into ~/.dotfiles
+  rc rename ~/.bin/foo bar       rename a managed file in the repo (git mv,
+                                 so history is kept) and move its link to
+                                 match; same folder only. Refuses unless
+                                 everything is exactly as expected
+  rc prune                      remove broken links into ~/.dotfiles
   rc ls                          list everything that's managed
   rc help                        this
 
@@ -47,10 +51,107 @@ without changing anything.
 
 rcm's own mkrc, rcup, rcdn and lsrc are blocked; use rc.
 EOF
+  open_group=1
+}
+
+# Output comes in groups with a blank line between them, and always ends
+# with one, so the prompt sits a line below the last thing printed.
+# out and err print a line; gap closes the current group.
+open_group=0
+
+out() {
+  printf '%s\n' "$*"
+  open_group=1
+}
+
+err() {
+  printf '%s\n' "$*" >&2
+  open_group=1
+}
+
+gap() {
+  if [ "$open_group" -eq 1 ]; then
+    echo
+    open_group=0
+  fi
+}
+
+trap gap EXIT
+
+# Colors only on a terminal, and never with NO_COLOR set
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  bold=$'\033[1m'
+  blue=$'\033[34m'
+  cyan=$'\033[36m'
+  green=$'\033[32m'
+  yellow=$'\033[33m'
+  red=$'\033[31m'
+  reset=$'\033[0m'
+else
+  bold=""
+  blue=""
+  cyan=""
+  green=""
+  yellow=""
+  red=""
+  reset=""
+fi
+
+# Icons for headings, errors and notes
+icon_heading="☞"
+icon_error="‼︎"
+icon_note="Ꙫ!"
+
+# One line about one file, led by a colored marker. Callers pass a short
+# code; one-character markers are padded so every path lines up:
+# + added ✓⧾, ~ changed ✓✧, - removed ⨉, ! skipped ◌, x failed ⚑ (stderr)
+item() {
+  local mark="$1" glyph color
+
+  shift
+
+  case "$mark" in
+    +) glyph="✓⧾"; color="$green" ;;
+    "~") glyph="✓✧"; color="$cyan" ;;
+    -) glyph="⨉ "; color="$cyan" ;;
+    !) glyph="◌ "; color="$yellow" ;;
+    x) glyph="⚑ "; color="$red" ;;
+  esac
+
+  if [ "$mark" = "x" ]; then
+    err "$color$glyph$reset $*"
+  else
+    out "$color$glyph$reset $*"
+  fi
+}
+
+# A heading: blue pointing hand, bold text
+heading() {
+  out "$blue$icon_heading$reset $bold$*$reset"
+}
+
+# A count for a summary line, colored only when it isn't zero
+tally() {
+  local count="$1" label="$2" color="$3"
+
+  if [ "$count" -gt 0 ]; then
+    printf '%s%s %s%s' "$color" "$count" "$label" "$reset"
+  else
+    printf '%s %s' "$count" "$label"
+  fi
+}
+
+# After passed-through output: the closing blank line only on a terminal,
+# so piping rc ls into grep stays clean
+list_end() {
+  if [ -t 1 ]; then
+    open_group=1
+  fi
 }
 
 die() {
-  echo "rc: $*" >&2
+  gap
+  err "$red$bold$icon_error$reset $*"
   exit 1
 }
 
@@ -119,7 +220,7 @@ reload_hint() {
 
   if [[ $dest == "$HOME/Library/LaunchAgents/"*.plist ]]; then
     label="$(basename "$dest" .plist)"
-    echo "  reload it: launchctl bootout gui/\$(id -u)/$label; launchctl bootstrap gui/\$(id -u) $(shown "$dest")"
+    out "  ${cyan}reload it:$reset launchctl bootout gui/\$(id -u)/$label; launchctl bootstrap gui/\$(id -u) $(shown "$dest")"
   fi
 }
 
@@ -262,7 +363,7 @@ cmd_add() {
     stored="$repo/$repo_rel"
 
     if [ "$dry_run" -eq 1 ]; then
-      echo "would move $(shown "$abs") to ~/.dotfiles/$repo_rel and $([ "$copy" -eq 1 ] && echo "copy" || echo "link") it back"
+      item + "would move $(shown "$abs") to ~/.dotfiles/$repo_rel and $([ "$copy" -eq 1 ] && echo "copy" || echo "link") it back"
     else
       # Into the repo, without replacing anything
       mkdir -p "$(dirname "$stored")"
@@ -277,14 +378,14 @@ cmd_add() {
         die "add: moved $(shown "$abs") to ~/.dotfiles/$repo_rel, but couldn't put it back; run rc link"
       fi
 
-      echo "added $(shown "$abs") as ~/.dotfiles/$repo_rel"
+      item + "added $(shown "$abs") as ~/.dotfiles/$repo_rel"
     fi
 
     # Record undotted and copied paths in rcrc, so `rc link` installs them
     # the same way later
     if [ "$undotted" -eq 1 ]; then
       if [ "$dry_run" -eq 1 ]; then
-        echo "would add ${repo_rel%%/*} to UNDOTTED in rcrc"
+        item "~" "would add ${repo_rel%%/*} to UNDOTTED in rcrc"
       else
         rcrc_add UNDOTTED "${repo_rel%%/*}"
       fi
@@ -292,7 +393,7 @@ cmd_add() {
 
     if [ "$copy" -eq 1 ]; then
       if [ "$dry_run" -eq 1 ]; then
-        echo "would add $repo_rel to COPY_ALWAYS in rcrc"
+        item "~" "would add $repo_rel to COPY_ALWAYS in rcrc"
       else
         rcrc_add COPY_ALWAYS "$repo_rel"
       fi
@@ -332,16 +433,18 @@ cmd_link() {
     IFS=: read -r kind src dest <<< "$entry"
 
     if [ "$dry_run" -eq 1 ]; then
-      echo "~ would update copy $(shown "$dest") (unchanged here; the repo has a newer version)"
+      item "~" "would update copy $(shown "$dest") (unchanged here; the repo has a newer version)"
     elif displace "$dest" "$stamp" && install_one "$src" "$dest" "$kind"; then
-      echo "~ updated copy $(shown "$dest"); the old one is in $(shown "$displaced/$stamp")/"
+      item "~" "updated copy $(shown "$dest"); the old one is in $(shown "$displaced/$stamp")/"
       reload_hint "$dest"
       added=$((added + 1))
     else
-      echo "x couldn't update copy $(shown "$dest"); check $(shown "$displaced/$stamp")/" >&2
+      item x "couldn't update copy $(shown "$dest"); check $(shown "$displaced/$stamp")/"
       failed+=("$dest")
     fi
   done
+
+  gap
 
   for entry in ${new[@]+"${new[@]}"}; do
     IFS=: read -r kind src dest <<< "$entry"
@@ -352,49 +455,53 @@ cmd_link() {
     fi
 
     if [ "$dry_run" -eq 1 ]; then
-      echo "+ would $action $(shown "$dest")"
+      item + "would $action $(shown "$dest")"
     elif install_one "$src" "$dest" "$kind"; then
-      echo "+ $action $(shown "$dest")"
+      item + "$action $(shown "$dest")"
       reload_hint "$dest"
       added=$((added + 1))
     else
-      echo "x couldn't $action $(shown "$dest")" >&2
+      item x "couldn't $action $(shown "$dest")"
       failed+=("$dest")
     fi
   done
+
+  gap
 
   for entry in ${conflicts[@]+"${conflicts[@]}"}; do
     IFS=: read -r kind src dest <<< "$entry"
 
     if [ "$force" -eq 0 ]; then
-      echo "! skip $(shown "$dest"): something else is there"
+      item ! "skip $(shown "$dest"): something else is there"
     elif [ "$dry_run" -eq 1 ]; then
-      echo "! would move $(shown "$dest") to $(shown "$displaced/$stamp")/ and replace it"
+      item ! "would move $(shown "$dest") to $(shown "$displaced/$stamp")/ and replace it"
     elif ! displace "$dest" "$stamp"; then
-      echo "x couldn't move $(shown "$dest") aside; left it alone" >&2
+      item x "couldn't move $(shown "$dest") aside; left it alone"
       failed+=("$dest")
     elif install_one "$src" "$dest" "$kind"; then
-      echo "! moved $(shown "$dest") to $(shown "$displaced/$stamp")/ and replaced it"
+      item ! "moved $(shown "$dest") to $(shown "$displaced/$stamp")/ and replaced it"
       added=$((added + 1))
     else
-      echo "x moved $(shown "$dest") aside but couldn't replace it; it's in $(shown "$displaced/$stamp")/" >&2
+      item x "moved $(shown "$dest") aside but couldn't replace it; it's in $(shown "$displaced/$stamp")/"
       failed+=("$dest")
     fi
   done
 
+  gap
+
   if [ "$dry_run" -eq 1 ]; then
-    echo "dry run: ${#new[@]} to add, ${#stale[@]} to update, ${#conflicts[@]} in the way, $ok already in place"
+    out "$blue$icon_heading$reset ${bold}Dry run:$reset $(tally ${#new[@]} "to add" "$green"), $(tally ${#stale[@]} "to update" "$cyan"), $(tally ${#conflicts[@]} "in the way" "$yellow"), $ok already in place"
     return
   fi
 
   if [ "$force" -eq 1 ]; then
-    echo "$added added, ${#failed[@]} failed, $ok already in place"
+    out "$blue$icon_heading$reset ${bold}Done:$reset $(tally "$added" "added" "$green"), $(tally ${#failed[@]} "failed" "$red"), $ok already in place"
   else
-    echo "$added added, ${#conflicts[@]} in the way, ${#failed[@]} failed, $ok already in place"
+    out "$blue$icon_heading$reset ${bold}Done:$reset $(tally "$added" "added" "$green"), $(tally ${#conflicts[@]} "in the way" "$yellow"), $(tally ${#failed[@]} "failed" "$red"), $ok already in place"
   fi
 
   if [ "$force" -eq 0 ] && [ ${#conflicts[@]} -gt 0 ]; then
-    echo "Nothing in the way was touched. Move it aside yourself, or use rc link --force to move it to ~/.rc-displaced/."
+    out "Nothing in the way was touched. Move it aside yourself, or use ${bold}rc link --force$reset to move it to ~/.rc-displaced/."
   fi
 
   if [ ${#failed[@]} -gt 0 ]; then
@@ -425,24 +532,168 @@ cmd_unlink() {
     abs="$(absolute "$file")"
 
     if [ ! -L "$abs" ]; then
-      echo "! skip $(shown "$abs"): not a link, and rc never removes files" >&2
+      item ! "skip $(shown "$abs"): not a link, and rc never removes files"
       continue
     fi
 
     target="$(readlink "$abs")"
 
     if [[ $target != "$repo"/* ]]; then
-      echo "! skip $(shown "$abs"): links to $(shown "$target"), not into ~/.dotfiles" >&2
+      item ! "skip $(shown "$abs"): links to $(shown "$target"), not into ~/.dotfiles"
       continue
     fi
 
     if [ "$dry_run" -eq 1 ]; then
-      echo "would remove link $(shown "$abs")"
+      item - "would remove link $(shown "$abs")"
     else
       rm "$abs"
-      echo "removed link $(shown "$abs") (the next rc link puts it back)"
+      item - "removed link $(shown "$abs") (the next rc link puts it back)"
     fi
   done
+}
+
+cmd_rename() {
+  local dry_run=0 file="" new_name="" abs dest="" src="" kind="" d s k
+  local rel new_src new_dest new_rel key list pattern found
+  local -a args=() patterns=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run|-n) dry_run=1 ;;
+      -h|--help) help; exit 0 ;;
+      -*) die "rename: unknown option $1 (see rc help)" ;;
+      *) args+=("$1") ;;
+    esac
+    shift
+  done
+
+  if [ ${#args[@]} -ne 2 ]; then
+    die "rename: give the file and its new name, e.g. rc rename ~/.bin/foo bar"
+  fi
+
+  file="${args[0]}"
+  new_name="${args[1]}"
+
+  # A plain new name: same folder, so dotting and rcrc's folder rules can't change
+  if [[ $new_name == */* ]] || [ -z "$new_name" ] || [ "$new_name" = "." ] || [ "$new_name" = ".." ]; then
+    die "rename: the new name must be a plain file name, not a path; rename only works within a folder"
+  fi
+
+  abs="$(absolute "$file")"
+
+  # Find the file in rcm's list, by its place in ~ or in the repo
+  while IFS=: read -r d s k; do
+    if [ "$d" = "$abs" ] || [ "$s" = "$abs" ]; then
+      dest="$d"
+      src="$s"
+      kind="$k"
+    fi
+  done < <(lsrc -F)
+
+  if [ -z "$src" ]; then
+    die "rename: $(shown "$abs") isn't a file rc manages (see rc ls)"
+  fi
+
+  rel="${src#"$repo"/}"
+  new_src="$(dirname "$src")/$new_name"
+  new_dest="$(dirname "$dest")/$new_name"
+  new_rel="${new_src#"$repo"/}"
+
+  if [ "$new_src" = "$src" ]; then
+    die "rename: that's its name already"
+  fi
+
+  # Copies need care (a LaunchAgent has to be unloaded first); do those by hand
+  if [ "$kind" != "@" ]; then
+    die "rename: $(shown "$dest") is installed as a copy, not a link; rename it by hand"
+  fi
+
+  # The file in the repo: a real file, committed, so git has its contents
+  if [ -L "$src" ] || [ ! -f "$src" ]; then
+    die "rename: ~/.dotfiles/$rel isn't a plain file"
+  fi
+
+  if ! git -C "$repo" ls-files --error-unmatch -- "$rel" > /dev/null 2>&1; then
+    die "rename: ~/.dotfiles/$rel isn't committed to git yet; commit it first"
+  fi
+
+  # rcrc rules that name either path would change how it's installed
+  for key in UNDOTTED COPY_ALWAYS EXCLUDES; do
+    list="$(sed -n "s/^$key=\"\(.*\)\"$/\1/p" "$rcrc")"
+    read -r -a patterns <<< "$list"
+
+    for pattern in ${patterns[@]+"${patterns[@]}"}; do
+      # Unquoted on the right, so rcrc's own patterns match as patterns
+      if [[ $rel == $pattern ]] || [[ $new_rel == $pattern ]] || [[ ${rel%%/*} == $pattern ]]; then
+        die "rename: rcrc's $key mentions this file ($pattern); rename it by hand and update rcrc"
+      fi
+    done
+  done
+
+  # The link in ~: exactly the right link, or not there at all
+  found="$(link_state "$dest" "$src" "$kind")"
+
+  if [ "$found" = "conflict" ]; then
+    die "rename: $(shown "$dest") isn't the link rc expects; sort it out first (rc link -n shows it)"
+  fi
+
+  # Nothing at all at either new path, in the repo or in ~
+  if occupied "$new_src"; then
+    die "rename: ~/.dotfiles/$new_rel exists already; not overwriting it"
+  fi
+
+  if occupied "$new_dest"; then
+    die "rename: $(shown "$new_dest") exists already; not overwriting it"
+  fi
+
+  # Uncommitted edits travel with the file; say so
+  if ! git -C "$repo" diff --quiet -- "$rel" || ! git -C "$repo" diff --cached --quiet -- "$rel"; then
+    out "$yellow$icon_note$reset ~/.dotfiles/$rel has uncommitted changes; they move with it"
+  fi
+
+  gap
+
+  if [ "$dry_run" -eq 1 ]; then
+    item "~" "would git mv ~/.dotfiles/$rel to ~/.dotfiles/$new_rel"
+    item + "would link $(shown "$new_dest")"
+
+    if [ "$found" = "ok" ]; then
+      item - "would remove the old link $(shown "$dest")"
+    fi
+
+    return
+  fi
+
+  # 1. Rename in the repo; git refuses if the new path exists
+  if ! git -C "$repo" mv -- "$rel" "$new_rel" || occupied "$src" || [ ! -f "$new_src" ]; then
+    die "rename: git mv failed; check git status in ~/.dotfiles"
+  fi
+
+  item "~" "renamed ~/.dotfiles/$rel to ~/.dotfiles/$new_rel (git mv)"
+
+  # 2. The new link; on failure, undo step 1 so nothing is left half done
+  if ! install_one "$new_src" "$new_dest" "@"; then
+    if git -C "$repo" mv -- "$new_rel" "$rel" && [ -f "$src" ]; then
+      die "rename: couldn't link $(shown "$new_dest"); undid the rename, so nothing changed"
+    fi
+
+    die "rename: couldn't link $(shown "$new_dest"), and couldn't undo the rename; check git status in ~/.dotfiles"
+  fi
+
+  item + "linked $(shown "$new_dest")"
+
+  # 3. The old link, now broken: only if it's still exactly that link
+  if [ "$found" = "ok" ]; then
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ] && [ ! -e "$dest" ]; then
+      rm "$dest"
+      item - "removed the old link $(shown "$dest")"
+    else
+      item ! "left $(shown "$dest") alone: it changed during the rename; rc prune cleans up a broken link"
+    fi
+  fi
+
+  gap
+  out "$green${bold}done.$reset The rename is staged in git; commit it when ready. Run ${bold}rehash$reset so zsh sees the new name."
 }
 
 cmd_prune() {
@@ -468,10 +719,10 @@ cmd_prune() {
     count=$((count + 1))
 
     if [ "$dry_run" -eq 1 ]; then
-      echo "would remove broken link $(shown "$link")"
+      item - "would remove broken link $(shown "$link")"
     else
       rm "$link"
-      echo "removed broken link $(shown "$link")"
+      item - "removed broken link $(shown "$link")"
     fi
   done < <(find "$HOME" -maxdepth 4 \
     \( -path "$HOME/Library" -o -path "$HOME/.Trash" -o -path "$repo" \
@@ -484,7 +735,7 @@ cmd_prune() {
     -o -type l -print 2>/dev/null)
 
   if [ "$count" -eq 0 ]; then
-    echo "no broken links"
+    out "${green}no broken links$reset"
   fi
 }
 
@@ -506,9 +757,10 @@ cmd_sync() {
   git -C "$repo" fetch --quiet
 
   if [ "$dry_run" -eq 1 ]; then
-    echo "incoming from $upstream:"
+    heading "Incoming from $upstream"
     git -C "$repo" log --oneline "HEAD..@{u}"
-    echo "(run rc sync to pull these, then link and prune)"
+    gap
+    out "(run rc sync to pull these, then link and prune)"
     return
   fi
 
@@ -519,6 +771,7 @@ cmd_sync() {
   fi
 
   cmd_link
+  gap
   cmd_prune
 }
 
@@ -527,9 +780,10 @@ case "${1:-}" in
   sync) shift; cmd_sync "$@" ;;
   link) shift; cmd_link "$@" ;;
   unlink) shift; cmd_unlink "$@" ;;
+  rename) shift; cmd_rename "$@" ;;
   prune) shift; cmd_prune "$@" ;;
-  ls) shift; lsrc "$@" ;;
+  ls) shift; lsrc "$@"; list_end ;;
   help|-h|--help) help ;;
   "") help; exit 1 ;;
-  *) echo "rc: unknown command $1" >&2; echo >&2; help >&2; exit 1 ;;
+  *) err "$red$bold$icon_error$reset unknown command $1"; gap; help >&2; exit 1 ;;
 esac

@@ -139,6 +139,26 @@ some_config_line
   drop the executable bit, so check `git diff --summary` for mode changes
   after bulk edits.
 
+### Script output
+
+How every utility script here prints, so they read alike. `bin/rc` is the
+reference implementation (`out`, `err`, `gap`, `item`, `heading`, `tally`).
+
+- **Blank lines group output.** Related lines sit together, with one blank
+  line between groups. Output always ends with exactly one blank line, so
+  the prompt sits a line below the last thing printed. Errors too.
+- **Color sets the hierarchy, subtly, the way Homebrew does.** Headings are
+  a blue `☞` with bold text; errors start with a bold red `‼︎`; notes with
+  a yellow `Ꙫ!`. Bold picks out the one thing to notice (a
+  command to run, a summary label). Cyan is for changes and secondary
+  labels. Green means success, yellow a warning or a skip, red an error.
+- **Per-file lines lead with a colored marker,** padded to two columns so
+  paths line up: `✓⧾` added (green), `✓✧` changed and `⨉` removed (cyan),
+  `◌` skipped or a warning (yellow), `⚑` failed (red, to stderr).
+- **Summary counts are colored only when they are not zero.**
+- **Color only on a terminal,** and never with `NO_COLOR` set, so piped
+  output stays plain.
+
 ### Commits
 
 Follow the existing history:
