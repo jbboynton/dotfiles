@@ -68,20 +68,36 @@ Why rc avoids rcm's own commands, learned the hard way:
 ### Files an app rewrites
 
 Some apps replace their config file on every save, which turns a symlink
-back into a plain file. Don't link those. `bin/snapshot_config` copies the
-file into the repo, with a restore header on top, and commits just that
-file. A LaunchAgent in `Library/LaunchAgents/` runs it when the file's
-folder changes. LinearMouse works this way: the real file stays at
-`~/.config/linearmouse/linearmouse.json`, and the committed copy is
-`config/linearmouse/linearmouse.json.bak`, linked next to it.
+back into a plain file, or keep settings in macOS preferences. Don't link
+those. `bin/snapshot_config` copies the settings into the repo, with a
+restore note at the top, and commits just that file. A LaunchAgent in
+`Library/LaunchAgents/` runs it when the file (or its folder) changes, and
+rcm links each copy, named `*.bak`, next to the original.
 
-Keyboard Maestro works the same way, with two options. `--plist` saves its
-binary plist as XML, so it diffs, with the restore note as an XML comment
-(the copy stays a valid plist). `--keychain SERVICE` refuses to write or
-commit if that Keychain item's value turns up in the copy. Some apps
-touch their folder constantly (Keyboard Maestro rewrites a stats file on
-every macro run), so `snapshot_config` exits in milliseconds when the file
-isn't newer than the last snapshot.
+| App | Agent | What's copied |
+| --- | --- | --- |
+| LinearMouse | `linearmouse-snapshot` | device settings (`~/.config/linearmouse/linearmouse.json`) and app settings (preferences) |
+| Keyboard Maestro | `keyboard-maestro-snapshot` | the macros file (see Keyboard Maestro) |
+| iStat Menus | `istatmenus-snapshot` | the `com.bjango.istatmenus.menubar.7` and `.status` preferences |
+| Thaw | `thaw-snapshot` | the profile, from `~/Library/Application Support/Thaw/Profiles/`; its live preferences are an opaque blob. A new profile needs its own line in the agent |
+
+Options, all in `snapshot_config`'s header:
+
+- `--plist` saves a binary plist as XML, so it diffs; the restore note is an
+  XML comment, so the copy stays a valid plist.
+- `--defaults DOMAIN` reads a preferences domain through `defaults export`.
+  Restoring is `defaults import`, which merges, so left-out keys stay put.
+- `--drop REGEX` leaves out matching top-level keys: noise (window frames,
+  update checks, menu bar positions) and anything private. The repo is
+  public; iStat Menus' license and device authorization are dropped.
+- `--keychain SERVICE` refuses to write or commit if that Keychain item's
+  value turns up in the copy.
+
+It exits in milliseconds when the source isn't newer than the copy (some
+apps touch their folder constantly), commits one snapshot at a time (several
+agents can fire at once), and waits out a git lock James is holding. A
+failed commit leaves the copy for a manual commit and notifies; the next run
+tries again.
 
 ## Shell startup
 
@@ -299,9 +315,6 @@ As of November 15, 2026:
   the two "Stop" ones) wait through fixed pauses, up to 5.5 seconds, and
   click fixed screen positions. Replace them with Pause Until conditions
   on the window or button, and test with real recordings.
-- Delete the macro backups in `~/Documents/Keyboard Maestro backups/2026-11-14/`
-  once James has checked the changed macros. Two of them still hold the
-  plain-text secrets that moved to the Keychain.
 
 ## Related
 

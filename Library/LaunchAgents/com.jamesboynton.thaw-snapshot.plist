@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Back up the Thaw profile into ~/.dotfiles whenever it changes.
+
+  Thaw keeps profiles as JSON in ~/Library/Application Support/Thaw/Profiles/
+  (one file per profile, plus profiles.json listing them) and reapplies the
+  profile at launch, so the profile is the settings worth keeping. Its live
+  preferences are mostly an opaque binary blob, so they aren't versioned.
+  The copies are in Library/Application Support/Thaw/Profiles/ in the repo,
+  linked next to the originals. A new profile needs its own line here.
+
+  rc link installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
+  because launchd won't load a symlinked LaunchAgent. After rc link, load it:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jamesboynton.thaw-snapshot.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jamesboynton.thaw-snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>'/Users/james/.dotfiles/bin/snapshot_config' '/Users/james/Library/Application Support/Thaw/Profiles/79CD0F88-9B1D-4F8A-992C-F16D5CCD62C4.json' 'Library/Application Support/Thaw/Profiles/79CD0F88-9B1D-4F8A-992C-F16D5CCD62C4.json.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '/Users/james/Library/Application Support/Thaw/Profiles/profiles.json' 'Library/Application Support/Thaw/Profiles/profiles.json.bak'</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/james/Library/Application Support/Thaw/Profiles</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/james/Library/Logs/thaw-snapshot.log</string>
+</dict>
+</plist>

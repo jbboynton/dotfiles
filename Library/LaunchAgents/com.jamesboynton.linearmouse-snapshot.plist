@@ -3,16 +3,18 @@
 <!--
   Back up LinearMouse's settings into ~/.dotfiles whenever they change.
 
-  LinearMouse rewrites linearmouse.json in place of a symlink, so rcm can't
-  manage it. This copies it to config/linearmouse/linearmouse.json.bak in
-  the repo and commits it; rcm links that as
-  ~/.config/linearmouse/linearmouse.json.bak, next to the real file. The
-  backup starts with a header that explains how to restore it. The folder
-  is watched rather than the file, because the file is replaced on every
-  save.
+  Device settings are in ~/.config/linearmouse/linearmouse.json, which
+  LinearMouse rewrites in place of a symlink, so rcm can't manage it; the
+  copy is config/linearmouse/linearmouse.json.bak in the repo. The folder is
+  watched rather than the file, because the file is replaced on every save.
 
-  rcup installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
-  because launchd won't load a symlinked LaunchAgent. After rcup, load it:
+  App settings (menu bar, Dock) are in its preferences; the copy is
+  Library/Preferences/com.lujjjh.LinearMouse.plist.bak, without update
+  checks and window positions. rcm links both copies next to the originals,
+  and each starts with a header that explains how to restore it.
+
+  rc link installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
+  because launchd won't load a symlinked LaunchAgent. After rc link, load it:
     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jamesboynton.linearmouse-snapshot.plist
 -->
 <plist version="1.0">
@@ -21,13 +23,14 @@
   <string>com.jamesboynton.linearmouse-snapshot</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/james/.dotfiles/bin/snapshot_config</string>
-    <string>/Users/james/.config/linearmouse/linearmouse.json</string>
-    <string>config/linearmouse/linearmouse.json.bak</string>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>'/Users/james/.dotfiles/bin/snapshot_config' '/Users/james/.config/linearmouse/linearmouse.json' 'config/linearmouse/linearmouse.json.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.lujjjh.LinearMouse' '--drop' '^(SU|NSWindow Frame|NSStatusItem|LaunchAtLogin__)' '/Users/james/Library/Preferences/com.lujjjh.LinearMouse.plist' 'Library/Preferences/com.lujjjh.LinearMouse.plist.bak'</string>
   </array>
   <key>WatchPaths</key>
   <array>
     <string>/Users/james/.config/linearmouse</string>
+    <string>/Users/james/Library/Preferences/com.lujjjh.LinearMouse.plist</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
