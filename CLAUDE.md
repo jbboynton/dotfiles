@@ -269,7 +269,10 @@ Maestro and its Engine, then run the `plutil` command in the copy's header.
     James's windows where they were.
   - The Engine's log: `~/Library/Logs/Keyboard Maestro/Engine.log`.
 - **Macros that pair with this repo:** cmd-return activates Alacritty;
-  shift-cmd-return runs `~/.bin/alacritty_here`. Cmd-' and shift-cmd-' open a
+  shift-cmd-return runs `~/.bin/alacritty_here`. Shift-cmd-/ activates
+  Claude; shift-opt-cmd-/ runs `~/.bin/claude_here`, which holds Claude's
+  title bar and switches back (Claude has no New Window command and ignores
+  menu commands while in the background). Cmd-' and shift-cmd-' open a
   Firefox window and a private one in the current Space: they press the File
   menu item through Accessibility, because Firefox's own `--new-window`
   activates Firefox first and macOS then switches Spaces. Cmd-\ opens a

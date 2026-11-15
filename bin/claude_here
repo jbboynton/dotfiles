@@ -1,0 +1,130 @@
+#!/usr/bin/env -S osascript -l JavaScript
+// Bring Claude's window to the current Space. Claude has no New Window
+// command and ignores menu commands while it's in the background, so this
+// does what a person would: go to Claude's Space, hold the window's title
+// bar, and switch back, which carries the window along. Bound to
+// shift-opt-cmd-/ in Keyboard Maestro (shift-cmd-/ still switches to Claude).
+//
+// Needs Accessibility permission to post mouse and key events, so it runs
+// from Keyboard Maestro. The Space it came from is found by trying a step
+// right, then left (the window server doesn't say which Space is which), so
+// it handles the neighboring Space, which with two Spaces is always the case.
+
+ObjC.import('CoreGraphics');
+ObjC.import('Foundation');
+
+function onscreenIds() {
+  var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly, 0)));
+  var ids = {};
+  list.forEach(function (w) {
+    if (w.kCGWindowLayer === 0 && (w.kCGWindowBounds || {}).Height > 100) ids[w.kCGWindowNumber] = w.kCGWindowOwnerName;
+  });
+  return ids;
+}
+
+// Claude's main window: its largest normal window
+function claudeWindow() {
+  var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0)));
+  var best = null;
+  list.forEach(function (w) {
+    var b = w.kCGWindowBounds;
+    if (w.kCGWindowOwnerName !== 'Claude' || w.kCGWindowLayer !== 0 || !b || b.Height < 200) return;
+    if (!best || b.Width * b.Height > best.b.Width * best.b.Height) best = { id: w.kCGWindowNumber, b: b, here: !!w.kCGWindowIsOnscreen };
+  });
+  return best;
+}
+
+function mouse(type, x, y) {
+  var e = $.CGEventCreateMouseEvent(null, type, $.CGPointMake(x, y), $.kCGMouseButtonLeft);
+  $.CGEventPost($.kCGHIDEventTap, e);
+}
+
+// Arrow keys carry the fn flag; the Spaces shortcut only matches with it
+function switchSpace(right) {
+  var code = right ? 124 : 123;
+  var flags = $.kCGEventFlagMaskControl | $.kCGEventFlagMaskSecondaryFn;
+  [true, false].forEach(function (down) {
+    var e = $.CGEventCreateKeyboardEvent(null, code, down);
+    $.CGEventSetFlags(e, flags);
+    $.CGEventPost($.kCGHIDEventTap, e);
+  });
+}
+
+// The hotkey's own modifiers may still be held; they mustn't mix into the
+// drag or the Space switch
+function waitForModifiersUp() {
+  var held = $.kCGEventFlagMaskCommand | $.kCGEventFlagMaskAlternate | $.kCGEventFlagMaskShift | $.kCGEventFlagMaskControl;
+  for (var i = 0; i < 40; i++) {
+    if (($.CGEventSourceFlagsState($.kCGEventSourceStateHIDSystemState) & held) === 0) return;
+    delay(0.025);
+  }
+}
+
+function anyOf(ids, now) {
+  return Object.keys(ids).some(function (k) { return k in now; });
+}
+
+function run() {
+  var w = claudeWindow();
+  var claude = Application('Claude');
+
+  if (!w) {
+    claude.activate();
+    return 'no Claude window; activated Claude';
+  }
+
+  if (w.here) {
+    claude.activate();
+    return 'already on this Space';
+  }
+
+  waitForModifiersUp();
+  var pointer = $.CGEventGetLocation($.CGEventCreate(null));
+  var start = onscreenIds();
+  claude.activate();
+
+  // Wait for the switch to Claude's Space
+  for (var i = 0; i < 40 && !claudeWindow().here; i++) delay(0.05);
+  delay(0.35);
+
+  w = claudeWindow();
+  var x = w.b.X + w.b.Width - 300, y = w.b.Y + 22;
+
+  mouse($.kCGEventLeftMouseDown, x, y);
+  delay(0.1);
+  mouse($.kCGEventLeftMouseDragged, x + 4, y);
+  delay(0.05);
+  mouse($.kCGEventLeftMouseDragged, x + 8, y);
+  delay(0.15);
+
+  // Back to where we started, carrying the window; try right, then left
+  // A try that changes nothing on screen within 0.3 s went off the end.
+  var tries = [true, false, false];
+  var arrived = false;
+  var there = JSON.stringify(Object.keys(onscreenIds()).sort());
+
+  for (var t = 0; t < tries.length && !arrived; t++) {
+    switchSpace(tries[t]);
+
+    for (var p = 0; p < 14 && !arrived; p++) {
+      delay(0.05);
+      var now = onscreenIds();
+      arrived = anyOf(start, now);
+
+      if (p >= 5 && JSON.stringify(Object.keys(now).sort()) === there) break;
+    }
+
+    there = JSON.stringify(Object.keys(onscreenIds()).sort());
+  }
+
+  // Drag back to where the grab started, so the window ends up where it was
+  mouse($.kCGEventLeftMouseDragged, x, y);
+  delay(0.05);
+  mouse($.kCGEventLeftMouseUp, x, y);
+  delay(0.1);
+  $.CGWarpMouseCursorPosition(pointer);
+  claude.activate();
+
+  var after = claudeWindow();
+  return 'back on the starting Space: ' + arrived + '; Claude window here: ' + (after && after.here);
+}
