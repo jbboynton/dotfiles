@@ -3,8 +3,7 @@
   Backup of ~/Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist, saved as XML by
   ~/.dotfiles/bin/snapshot_config every time the app rewrites it.
 
-  This file is still a valid plist. To restore, quit the app first,
-  then convert it back over the original:
+  This file is still a valid plist. To restore, quit the app first, then:
 
     plutil -convert binary1 -o '~/Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist' '~/.dotfiles/Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist.bak'
 -->
@@ -6176,6 +6175,62 @@ end tell
 					<key>UID</key>
 					<string>E60CEC85-1A46-46B4-AFF8-156569D54FB7</string>
 				</dict>
+				<dict>
+					<key>Actions</key>
+					<array>
+						<dict>
+							<key>ActionUID</key>
+							<integer>91309</integer>
+							<key>DisplayKind</key>
+							<string>None</string>
+							<key>HonourFailureSettings</key>
+							<true/>
+							<key>IncludeStdErr</key>
+							<true/>
+							<key>IncludedVariables</key>
+							<array>
+								<string>9999</string>
+							</array>
+							<key>MacroActionType</key>
+							<string>ExecuteShellScript</string>
+							<key>Path</key>
+							<string></string>
+							<key>Source</key>
+							<string>Nothing</string>
+							<key>Text</key>
+							<string>"$HOME/.bin/claude_here"</string>
+							<key>TimeOutAbortsMacro</key>
+							<true/>
+							<key>TrimResults</key>
+							<true/>
+							<key>TrimResultsNew</key>
+							<true/>
+							<key>UseText</key>
+							<true/>
+						</dict>
+					</array>
+					<key>CreationDate</key>
+					<real>816421685.45496702</real>
+					<key>ModificationDate</key>
+					<real>816421685.540097</real>
+					<key>Name</key>
+					<string>Bring Claude to this Space</string>
+					<key>Triggers</key>
+					<array>
+						<dict>
+							<key>FireType</key>
+							<string>Pressed</string>
+							<key>KeyCode</key>
+							<integer>44</integer>
+							<key>MacroTriggerType</key>
+							<string>HotKey</string>
+							<key>Modifiers</key>
+							<integer>2816</integer>
+						</dict>
+					</array>
+					<key>UID</key>
+					<string>4D64D0D8-9DF7-4AC2-9F5E-E9958275D034</string>
+				</dict>
 			</array>
 			<key>Modifiers</key>
 			<integer>0</integer>
@@ -8693,7 +8748,7 @@ WHERE is_read = 0
 	<key>MacroPreferencesVersion</key>
 	<integer>102</integer>
 	<key>PreferenceSaveUUID</key>
-	<string>B87846CD-4605-4687-833F-1C5EC66D20F7</string>
+	<string>4E87FD34-8FD3-4B6B-9073-2AFC147C7912</string>
 	<key>PreferenceSavedDate</key>
 	<string>2026_11_15</string>
 	<key>Version</key>
