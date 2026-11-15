@@ -6092,9 +6092,9 @@ end tell
 					<key>CreationDate</key>
 					<real>816410182.50560999</real>
 					<key>ModificationDate</key>
-					<real>816410182.61168396</real>
+					<real>816419526.235726</real>
 					<key>Name</key>
-					<string>Remember the last Finder folder</string>
+					<string>Remember the last Finder folder (for ⌘\)</string>
 					<key>Triggers</key>
 					<array>
 						<dict>
@@ -8693,7 +8693,7 @@ WHERE is_read = 0
 	<key>MacroPreferencesVersion</key>
 	<integer>102</integer>
 	<key>PreferenceSaveUUID</key>
-	<string>D46F7B5D-0DA5-4F1F-B2A0-A94038ED02C6</string>
+	<string>E63F31A2-67D6-4FCC-A2D6-A6A41978DDE9</string>
 	<key>PreferenceSavedDate</key>
 	<string>2026_11_15</string>
 	<key>Version</key>
