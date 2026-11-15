@@ -31,8 +31,8 @@ fi
 read -r _ old_tty session <<< "$old"
 clients_before="$(tmux list-clients -F '#{client_tty}')"
 
-# The old window's frame (x y width height), so the new one can match it: the
-# largest window Alacritty has
+# The old window (the largest window Alacritty has): its frame, x y width
+# height, so the new one can match it, then 1 if it's on this Space
 frame="$(osascript -l JavaScript -e '
 ObjC.import("CoreGraphics");
 var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0)));
@@ -59,7 +59,24 @@ frame="${frame% *}"
 # The running Alacritty's own socket, named for its pid. Keyboard Maestro sets
 # its own TMPDIR, where alacritty msg would find no socket or a stale one.
 socket="$(getconf DARWIN_USER_TEMP_DIR)Alacritty-$pid.sock"
-"$alacritty" msg --socket "$socket" create-window
+
+# create-window sometimes fails with "Broken pipe" (seen on the first try
+# after Alacritty has sat idle). A failed attempt creates nothing, so retry.
+created=0
+
+for _ in 1 2 3; do
+  if "$alacritty" msg --socket "$socket" create-window 2>/dev/null; then
+    created=1
+    break
+  fi
+
+  sleep 0.3
+done
+
+if [ "$created" -eq 0 ]; then
+  echo "alacritty_here: Alacritty didn't open a new window (alacritty msg create-window failed 3 times)" >&2
+  exit 1
+fi
 
 # The new window's shell starts tmux (tat); wait up to 5 seconds for its client
 new_tty=""
@@ -84,7 +101,6 @@ tmux switch-client -c "$new_tty" -t "$session"
 tmux detach-client -t "$old_tty"
 
 # Only the old window's shell is left on its tty; hanging it up closes the window
-sleep 0.2
 old_pids="$(ps -t "${old_tty#/dev/}" -o pid= 2>/dev/null || true)"
 
 if [ -n "$old_pids" ]; then
@@ -92,14 +108,18 @@ if [ -n "$old_pids" ]; then
   kill -HUP $old_pids 2>/dev/null || true
 fi
 
-# Give the new window the old one's frame; it's the only one left on this Space
+# Give the new window the old one's frame and focus it. Accessibility only
+# sees this Space, where the new window is the only Alacritty window, so no
+# need to wait for the old one to close. open -a is the fallback.
+place=""
+
 if [ -n "$frame" ]; then
   read -r x y w h <<< "$frame"
-  sleep 0.3
-  osascript -e "tell application \"System Events\" to tell process \"Alacritty\"
-    set position of window 1 to {$x, $y}
-    set size of window 1 to {$w, $h}
-  end tell" > /dev/null 2>&1 || true
+  place="set position of window 1 to {$x, $y}
+    set size of window 1 to {$w, $h}"
 fi
 
-open -a Alacritty
+osascript -e "tell application \"System Events\" to tell process \"Alacritty\"
+    $place
+    set frontmost to true
+  end tell" > /dev/null 2>&1 || open -a Alacritty
