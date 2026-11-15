@@ -7,6 +7,11 @@ The remote is `git@github.com:jbboynton/dotfiles.git`, on `main`.
 Read this before changing anything. Most of it records decisions already
 made, so they don't get re-litigated or quietly undone.
 
+This file is the repo's only documentation: anything a future session
+needs goes here, kept short and current, not in a separate doc that can go
+stale. `.ignored/` (gitignored) holds scratch and is never a source of
+truth.
+
 ## How files get into place: rcm, through `rc`
 
 The repo is managed with [rcm](https://github.com/thoughtbot/rcm). Every
@@ -69,6 +74,14 @@ file. A LaunchAgent in `Library/LaunchAgents/` runs it when the file's
 folder changes. LinearMouse works this way: the real file stays at
 `~/.config/linearmouse/linearmouse.json`, and the committed copy is
 `config/linearmouse/linearmouse.json.bak`, linked next to it.
+
+Keyboard Maestro works the same way, with two options. `--plist` saves its
+binary plist as XML, so it diffs, with the restore note as an XML comment
+(the copy stays a valid plist). `--keychain SERVICE` refuses to write or
+commit if that Keychain item's value turns up in the copy. Some apps
+touch their folder constantly (Keyboard Maestro rewrites a stats file on
+every macro run), so `snapshot_config` exits in milliseconds when the file
+isn't newer than the last snapshot.
 
 ## Shell startup
 
@@ -203,6 +216,50 @@ Follow the existing history:
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
+## Keyboard Maestro
+
+The macros live in Keyboard Maestro's own file,
+`~/Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist`,
+which it rewrites on every save. A LaunchAgent snapshots it into
+`Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist.bak`
+and commits it (see "Files an app rewrites"). To restore, quit Keyboard
+Maestro and its Engine, then run the `plutil` command in the copy's header.
+
+- **No secrets in macros.** The repo is public. A macro that needs a
+  password reads it from the login Keychain when it runs, with an Execute
+  Shell Script action (results trimmed, to the clipboard or pasted):
+  `security find-generic-password -a "$USER" -s 'Keyboard Maestro: NAME' -w`.
+  Add each such item to the `--keychain` list in
+  `Library/LaunchAgents/com.jamesboynton.keyboard-maestro-snapshot.plist`
+  and reload the agent.
+- **Back up a macro before changing it**: a `.kmmacros` file (a plist array
+  holding one group whose `Macros` contains the macro's XML), outside the
+  repo. Double-clicking it imports it again.
+- **Working on macros without James's hands**, all through osascript:
+  - Read with `xml of macro id "UUID"` (Keyboard Maestro Editor). Change
+    with `set xml of action N of macro ...`; a whole macro's `xml` can't be
+    set. Create with `make new macro`, then `make new action` and
+    `make new trigger` `with properties {xml: ...}`.
+  - Run with `tell application "Keyboard Maestro Engine" to do script "UUID"`.
+    It returns when the macro finishes, so timing the call times the macro.
+  - Check results through Keyboard Maestro, which has Accessibility
+    permission (osascript doesn't): pass an Execute AppleScript action's XML
+    to `do script`, saving its result to a variable, and read it with
+    `getvariable`. `CGWindowListCopyWindowInfo` (from JXA, no permission
+    needed) shows which windows are on the current Space.
+  - Switch Spaces for a test with System Events `key code 124 using control
+    down`, run inside Keyboard Maestro; its own keystroke action lacks the fn
+    flag the shortcut needs. Close test windows afterwards, and leave
+    James's windows where they were.
+  - The Engine's log: `~/Library/Logs/Keyboard Maestro/Engine.log`.
+- **Macros that pair with this repo:** cmd-return activates Alacritty;
+  shift-cmd-return runs `~/.bin/alacritty_here`. Cmd-' and shift-cmd-' open a
+  Firefox window and a private one in the current Space: they press the File
+  menu item through Accessibility, because Firefox's own `--new-window`
+  activates Firefox first and macOS then switches Spaces. Cmd-\ opens a
+  Finder window at the last folder used; "Remember the last Finder folder"
+  keeps a fallback in the `FinderLastFolder` variable.
+
 ## Safety
 
 - **Ask before downloading or installing anything** (brew, pip, npm, git
@@ -222,7 +279,7 @@ Follow the existing history:
 
 ## Open items
 
-As of November 13, 2026:
+As of November 15, 2026:
 
 - The spell file (`vim/spell/en.utf-8.add`) gains words almost every time
   James writes prose in vim, which leaves the repo permanently dirty. Plan:
@@ -238,6 +295,13 @@ As of November 13, 2026:
   `~/Notes/brew-todo.md`; read it before touching Homebrew.
 - Still to build: a vim write hook that offers a one-word command to commit
   a changed dotfile through Claude Code.
+- The QuickTime recording macros ("Start QuickTime movie recording" and
+  the two "Stop" ones) wait through fixed pauses, up to 5.5 seconds, and
+  click fixed screen positions. Replace them with Pause Until conditions
+  on the window or button, and test with real recordings.
+- Delete the macro backups in `~/Documents/Keyboard Maestro backups/2026-11-14/`
+  once James has checked the changed macros. Two of them still hold the
+  plain-text secrets that moved to the Keychain.
 
 ## Related
 

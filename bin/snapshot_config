@@ -3,17 +3,35 @@
 # symlink) into the dotfiles repo, and commit just that file. Run by launchd
 # whenever the file's folder changes; see Library/LaunchAgents/ in the repo.
 #
-# The copy starts with a header block saying how to restore it, so it isn't
-# valid as-is: restoring means dropping everything up to the header's last
-# line, which the header itself spells out.
+# The copy starts with a header saying how to restore it. For most files
+# that's a // comment block, so restoring means dropping everything through
+# the header's last line, which the header itself spells out. With --plist,
+# a binary plist is saved as XML (so it diffs) and the header is an XML
+# comment, so the copy stays a valid plist.
 #
-# Usage: snapshot_config <file> <path inside the repo>
+# --keychain names a Keychain item (by service) whose value must never be
+# committed. The repo is public: if any listed value turns up in the copy,
+# nothing is written or committed, and a notification says why.
+#
+# Usage: snapshot_config [--plist] [--keychain SERVICE]... <file> <path inside the repo>
 
 set -euo pipefail
 
+plist=0
+keychain=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --plist) plist=1 ;;
+    --keychain) keychain+=("$2"); shift ;;
+    *) break ;;
+  esac
+  shift
+done
+
 src="$1"
 rel="$2"
-repo="$HOME/.dotfiles"
+repo="${DOTFILES:-$HOME/.dotfiles}"
 dest="$repo/$rel"
 name="$(basename "$src")"
 end_marker="// end of backup header"
@@ -22,28 +40,81 @@ end_marker="// end of backup header"
 src_shown="${src/#"$HOME"/\~}"
 dest_shown="${dest/#"$HOME"/\~}"
 
-# Nothing to do when the copy, minus its header, already matches
-if [ -f "$dest" ] && sed "1,\|^$end_marker\$|d" "$dest" | cmp -s - "$src"; then
+notify() {
+  osascript -e "display notification \"$1\" with title \"Snapshot: $name\""
+}
+
+# Cheap exit first: launchd runs this on every change in the watched folder,
+# which for some apps is every time they're used. Nothing to do unless the
+# file is newer than the last snapshot (a checked copy is touched below).
+if [ -f "$dest" ] && [ ! "$src" -nt "$dest" ]; then
   exit 0
 fi
 
+tmp="$dest.tmp"
 mkdir -p "$(dirname "$dest")"
 
-{
-  echo "// Backup of $src_shown, saved by ~/.dotfiles/bin/snapshot_config"
-  echo "// every time the app rewrites it."
-  echo "//"
-  echo "// To restore: copy this file over $src_shown and delete this"
-  echo "// header block, through the end-of-header line below, so only the"
-  echo "// original file is left. One command does both:"
-  echo "//"
-  echo "//   sed '1,\\|^$end_marker\$|d' $dest_shown > $src_shown"
-  echo "//"
-  echo "$end_marker"
-  cat "$src"
-} > "$dest.tmp"
+if [ "$plist" -eq 1 ]; then
+  xml="$(plutil -convert xml1 -o - "$src")"
 
-mv -f "$dest.tmp" "$dest"
+  {
+    head -n 1 <<< "$xml"
+    echo "<!--"
+    echo "  Backup of $src_shown, saved as XML by"
+    echo "  ~/.dotfiles/bin/snapshot_config every time the app rewrites it."
+    echo ""
+    echo "  This file is still a valid plist. To restore, quit the app first,"
+    echo "  then convert it back over the original:"
+    echo ""
+    echo "    plutil -convert binary1 -o '$src_shown' '$dest_shown'"
+    echo "-->"
+    tail -n +2 <<< "$xml"
+  } > "$tmp"
+else
+  {
+    echo "// Backup of $src_shown, saved by ~/.dotfiles/bin/snapshot_config"
+    echo "// every time the app rewrites it."
+    echo "//"
+    echo "// To restore: copy this file over $src_shown and delete this"
+    echo "// header block, through the end-of-header line below, so only the"
+    echo "// original file is left. One command does both:"
+    echo "//"
+    echo "//   sed '1,\\|^$end_marker\$|d' $dest_shown > $src_shown"
+    echo "//"
+    echo "$end_marker"
+    cat "$src"
+  } > "$tmp"
+fi
+
+# The header never changes, so an identical copy means nothing to commit.
+# Touching it lets the cheap exit above skip this file until it changes again.
+if [ -f "$dest" ] && cmp -s "$tmp" "$dest"; then
+  rm -f "$tmp"
+  touch "$dest"
+  exit 0
+fi
+
+# Never commit a listed secret. A refusal touches the old copy (if any), so it
+# warns once per change instead of on every run.
+for service in ${keychain[@]+"${keychain[@]}"}; do
+  secret="$(security find-generic-password -s "$service" -w 2>/dev/null || true)"
+
+  if [ -z "$secret" ]; then
+    rm -f "$tmp"
+    [ -f "$dest" ] && touch "$dest"
+    notify "Couldn't read the Keychain item '$service' to check for it; nothing committed"
+    exit 1
+  fi
+
+  if grep -qF -- "$secret" "$tmp"; then
+    rm -f "$tmp"
+    [ -f "$dest" ] && touch "$dest"
+    notify "The value of the Keychain item '$service' is in the file; nothing committed"
+    exit 1
+  fi
+done
+
+mv -f "$tmp" "$dest"
 
 # Commit only this file, leaving anything else staged alone. A failure (no
 # signing key unlocked, a rebase in progress) leaves the copy for a manual
@@ -51,6 +122,6 @@ mv -f "$dest.tmp" "$dest"
 git -C "$repo" add -- "$rel"
 
 if ! git -C "$repo" commit -q -m "Snapshot $name" -- "$rel"; then
-  osascript -e "display notification \"Copied into the repo, but the commit failed\" with title \"Snapshot: $name\""
+  notify "Copied into the repo, but the commit failed"
   exit 1
 fi

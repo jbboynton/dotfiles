@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Back up Keyboard Maestro's macros into ~/.dotfiles whenever they change.
+
+  Keyboard Maestro rewrites its macros file (a binary plist) on every save,
+  so rcm can't manage it. snapshot_config saves it as XML to
+  "Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist.bak"
+  in the repo and commits it; rcm links that next to the real file. The
+  backup starts with an XML comment that explains how to restore it.
+
+  The repo is public, so the snapshot is refused (with a notification) if
+  the value of any Keychain item listed below (after each keychain option)
+  turns up in it.
+  Macros that need a secret read it from the Keychain at run time instead.
+
+  The folder is watched because the file is replaced on every save. Keyboard
+  Maestro also rewrites its stats file in that folder every time a macro
+  runs, so this fires often; snapshot_config exits in a few milliseconds
+  when the macros file hasn't changed since the last snapshot.
+
+  rc link installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
+  because launchd won't load a symlinked LaunchAgent. After rc link, load it:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jamesboynton.keyboard-maestro-snapshot.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jamesboynton.keyboard-maestro-snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/james/.dotfiles/bin/snapshot_config</string>
+    <string>--plist</string>
+    <string>--keychain</string>
+    <string>Keyboard Maestro: ELECSYS staging SSH password</string>
+    <string>--keychain</string>
+    <string>Keyboard Maestro: GFN Microsoft login</string>
+    <string>/Users/james/Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist</string>
+    <string>Library/Application Support/Keyboard Maestro/Keyboard Maestro Macros.plist.bak</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/james/Library/Application Support/Keyboard Maestro</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/james/Library/Logs/keyboard-maestro-snapshot.log</string>
+</dict>
+</plist>
