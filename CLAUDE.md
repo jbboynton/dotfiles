@@ -181,7 +181,9 @@ Follow the existing history:
   pages through bat-extras' batman. `bin/bat_extras_install` builds
   bat-extras from source into `~/.local/bin`. The built scripts start 2–3
   times faster than the source ones. It minifies everything when `shfmt` is
-  installed, otherwise only the libraries.
+  installed, otherwise only the libraries. `ll` and `llt` (in
+  `zsh/functions/`) page through bat when the listing is taller than the
+  window, and print plain when piped.
 - **delta** is git's pager and diff filter, with `zdiff3` conflicts.
 - **entr** is installed (batwatch uses it) with no wrapper on purpose. Use
   it directly, in its own tmux window.

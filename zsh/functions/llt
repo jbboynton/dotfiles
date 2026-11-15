@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+llt() {
+  local -a opts=(--long -L 2 -T)
+
+  # On a terminal, page through bat when the tree is taller than the window
+  if [[ -t 1 ]]; then
+    eza "${opts[@]}" --color=always "$@" | bat --plain --paging=auto
+  else
+    eza "${opts[@]}" "$@"
+  fi
+}

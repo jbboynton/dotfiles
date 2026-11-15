@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+ll() {
+  local -a opts=(-abghlm --sort name --group-directories-first --git)
+
+  # On a terminal, page through bat when the listing is taller than the window
+  if [[ -t 1 ]]; then
+    eza "${opts[@]}" --color=always "$@" | bat --plain --paging=auto
+  else
+    eza "${opts[@]}" "$@"
+  fi
+}
