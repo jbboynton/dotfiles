@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Backup of the com.lujjjh.LinearMouse preferences, saved as XML by
+  ~/.dotfiles/bin/snapshot_config every time the app rewrites it.
+  Keys matching ^(SU|NSWindow Frame|NSStatusItem|LaunchAtLogin__) are left out.
+
+  This file is still a valid plist. To restore, quit the app first, then:
+
+    defaults import com.lujjjh.LinearMouse '~/.dotfiles/Library/Preferences/com.lujjjh.LinearMouse.plist.bak'
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>menuBarBatteryDisplayMode</key>
+	<string>"below10"</string>
+	<key>menuBarVisibilityMode</key>
+	<string>"always"</string>
+	<key>menuBarVisibilityModeMigrationCompleted</key>
+	<true/>
+	<key>showInDock</key>
+	<true/>
+	<key>showInMenuBar</key>
+	<true/>
+</dict>
+</plist>
