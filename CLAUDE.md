@@ -194,7 +194,11 @@ Follow the existing history:
 - **Alacritty** reads `~/.config/alacritty/alacritty.toml`; the YAML file is
   unused. Option is not Alt (`option_as_alt` is off), so special characters
   still type. The few Option and Cmd combinations zsh needs are bound one
-  by one under `keyboard.bindings`.
+  by one under `keyboard.bindings`. Keyboard Maestro: cmd-return switches to
+  its Space; shift-cmd-return runs `bin/alacritty_here`, which brings it to
+  the current Space instead (a new window at the old one's frame, the tmux
+  client moved over, the old window closed; macOS has no way to move another
+  app's window between Spaces).
 - **tmux** passes Alacritty's truecolor through (`terminal-features`).
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.

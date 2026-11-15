@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Bring Alacritty to the current Space. macOS won't move another app's window
+# between Spaces, so this opens a new Alacritty window here, gives it the old
+# window's position and size, moves its tmux client to the session the old
+# window was showing, then closes the old one.
+# Bound to shift-cmd-return in Keyboard Maestro; cmd-return still goes to it.
+
+set -euo pipefail
+
+export PATH="/opt/homebrew/bin:$PATH"
+alacritty=/Applications/Utilities/Alacritty.app/Contents/MacOS/alacritty
+
+# Not running yet: launching opens a window on this Space anyway
+pid="$(pgrep -x alacritty | head -1 || true)"
+
+if [ -z "$pid" ]; then
+  open -a Alacritty
+  exit
+fi
+
+# The tmux client in the existing window, the most recently used if several.
+# Sessions are targeted by id: tmux reads a dot in a name as a pane.
+old="$(tmux list-clients -F '#{client_activity} #{client_tty} #{session_id}' 2>/dev/null | sort -rn | head -1 || true)"
+
+# No tmux client to carry over: nothing to move, so just bring it forward
+if [ -z "$old" ]; then
+  open -a Alacritty
+  exit
+fi
+
+read -r _ old_tty session <<< "$old"
+clients_before="$(tmux list-clients -F '#{client_tty}')"
+
+# The old window's frame (x y width height), so the new one can match it: the
+# largest window Alacritty has
+frame="$(osascript -l JavaScript -e '
+ObjC.import("CoreGraphics");
+var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0)));
+var best = null;
+list.forEach(function (w) {
+  var b = w.kCGWindowBounds;
+  if (w.kCGWindowOwnerPID !== '"$pid"' || w.kCGWindowLayer !== 0 || !b) return;
+  if (!best || b.Width * b.Height > best.Width * best.Height) {
+    best = b;
+    best.here = w.kCGWindowIsOnscreen ? 1 : 0;
+  }
+});
+best ? [best.X, best.Y, best.Width, best.Height].map(Math.round).concat(best.here).join(" ") : "";
+' 2>/dev/null || true)"
+
+# Already on this Space: nothing to move
+if [ "${frame##* }" = "1" ]; then
+  open -a Alacritty
+  exit
+fi
+
+frame="${frame% *}"
+
+# The running Alacritty's own socket, named for its pid. Keyboard Maestro sets
+# its own TMPDIR, where alacritty msg would find no socket or a stale one.
+socket="$(getconf DARWIN_USER_TEMP_DIR)Alacritty-$pid.sock"
+"$alacritty" msg --socket "$socket" create-window
+
+# The new window's shell starts tmux (tat); wait up to 5 seconds for its client
+new_tty=""
+
+for _ in $(seq 50); do
+  new_tty="$(tmux list-clients -F '#{client_tty}' | grep -vxF "$clients_before" | head -1 || true)"
+
+  if [ -n "$new_tty" ]; then
+    break
+  fi
+
+  sleep 0.1
+done
+
+if [ -z "$new_tty" ]; then
+  echo "alacritty_here: the new window never attached to tmux; both windows are still open" >&2
+  exit 1
+fi
+
+# Same session in the new window, then detach the old window's client
+tmux switch-client -c "$new_tty" -t "$session"
+tmux detach-client -t "$old_tty"
+
+# Only the old window's shell is left on its tty; hanging it up closes the window
+sleep 0.2
+old_pids="$(ps -t "${old_tty#/dev/}" -o pid= 2>/dev/null || true)"
+
+if [ -n "$old_pids" ]; then
+  # shellcheck disable=SC2086
+  kill -HUP $old_pids 2>/dev/null || true
+fi
+
+# Give the new window the old one's frame; it's the only one left on this Space
+if [ -n "$frame" ]; then
+  read -r x y w h <<< "$frame"
+  sleep 0.3
+  osascript -e "tell application \"System Events\" to tell process \"Alacritty\"
+    set position of window 1 to {$x, $y}
+    set size of window 1 to {$w, $h}
+  end tell" > /dev/null 2>&1 || true
+fi
+
+open -a Alacritty
