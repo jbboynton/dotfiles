@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Back up iStat Menus' settings into ~/.dotfiles whenever they change.
+
+  Its settings are in two preference domains: com.bjango.istatmenus.menubar.7
+  (every module's settings) and com.bjango.istatmenus.status (which modules
+  are shown). The copies are in Library/Preferences/ in the repo, linked next
+  to the originals. The repo is public, so the license, the device's
+  authorization, update bookkeeping, menu bar positions and the cached ISS
+  orbit data are left out. Restoring with defaults import merges, so the
+  left-out keys stay as they are.
+
+  rc link installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
+  because launchd won't load a symlinked LaunchAgent. After rc link, load it:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jamesboynton.istatmenus-snapshot.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.jamesboynton.istatmenus-snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>'/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.menubar.7' '--drop' '^(License|Device|Updates|Status)$' '/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist' 'Library/Preferences/com.bjango.istatmenus.menubar.7.plist.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.status' '--drop' '^(NSStatusItem|Zarya)' '/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist' 'Library/Preferences/com.bjango.istatmenus.status.plist.bak'</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist</string>
+    <string>/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/james/Library/Logs/istatmenus-snapshot.log</string>
+</dict>
+</plist>
