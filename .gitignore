@@ -5,3 +5,4 @@ ssh/*
 token
 bin/teste
 config/gh/hosts.yml
+.ignored/
