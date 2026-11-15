@@ -9,8 +9,12 @@ made, so they don't get re-litigated or quietly undone.
 
 This file is the repo's only documentation: anything a future session
 needs goes here, kept short and current, not in a separate doc that can go
-stale. `.ignored/` (gitignored) holds scratch and is never a source of
-truth.
+stale. `.ignored/` (gitignored) holds local scratch, plus private docs that
+must stay out of this public repo. Those are listed here, and are the only
+files in it a session should read:
+
+- `.ignored/home-audit.md`: the brief for the home folder audit (see Open
+  items). Read it before working on the audit.
 
 ## How files get into place: rcm, through `rc`
 
@@ -309,7 +313,8 @@ As of November 15, 2026:
   superseded by it.
 - Clean up old backups and unused configs once everything is confirmed
   working.
-- The home folder audit, which includes the unfinished Homebrew cleanup.
+- The home folder audit (brief: `.ignored/home-audit.md`), which includes
+  the unfinished Homebrew cleanup.
   That cleanup's whole state (decisions, rules, restore notes) is in
   `~/Notes/brew-todo.md`; read it before touching Homebrew.
 - Still to build: a vim write hook that offers a one-word command to commit
