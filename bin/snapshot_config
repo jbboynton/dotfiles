@@ -9,20 +9,31 @@
 # a binary plist is saved as XML (so it diffs) and the header is an XML
 # comment, so the copy stays a valid plist.
 #
+# --defaults DOMAIN reads an app's preferences through `defaults export`
+# (implies --plist; <file> is the domain's plist, used only for its date).
+# Restoring is `defaults import`, which merges: keys left out stay as they are.
+# --drop REGEX leaves out top-level keys that match, for noise (window frames,
+# update checks) and anything private (licenses).
+#
 # --keychain names a Keychain item (by service) whose value must never be
 # committed. The repo is public: if any listed value turns up in the copy,
 # nothing is written or committed, and a notification says why.
 #
-# Usage: snapshot_config [--plist] [--keychain SERVICE]... <file> <path inside the repo>
+# Usage: snapshot_config [--plist | --defaults DOMAIN] [--drop REGEX]
+#          [--keychain SERVICE]... <file> <path inside the repo>
 
 set -euo pipefail
 
 plist=0
+domain=""
+drop=""
 keychain=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --plist) plist=1 ;;
+    --defaults) plist=1; domain="$2"; shift ;;
+    --drop) drop="$2"; shift ;;
     --keychain) keychain+=("$2"); shift ;;
     *) break ;;
   esac
@@ -55,18 +66,40 @@ tmp="$dest.tmp"
 mkdir -p "$(dirname "$dest")"
 
 if [ "$plist" -eq 1 ]; then
-  xml="$(plutil -convert xml1 -o - "$src")"
+  if [ -n "$domain" ]; then
+    xml="$(defaults export "$domain" -)"
+    restore="defaults import $domain '$dest_shown'"
+    what="the $domain preferences"
+  else
+    xml="$(plutil -convert xml1 -o - "$src")"
+    restore="plutil -convert binary1 -o '$src_shown' '$dest_shown'"
+    what="$src_shown"
+  fi
+
+  # Leave out keys matching --drop
+  if [ -n "$drop" ]; then
+    xml="$(/usr/bin/python3 -c '
+import plistlib, re, sys
+d = plistlib.loads(sys.stdin.buffer.read())
+d = {k: v for k, v in d.items() if not re.search(sys.argv[1], k)}
+sys.stdout.buffer.write(plistlib.dumps(d))
+' "$drop" <<< "$xml")"
+  fi
 
   {
     head -n 1 <<< "$xml"
     echo "<!--"
-    echo "  Backup of $src_shown, saved as XML by"
+    echo "  Backup of $what, saved as XML by"
     echo "  ~/.dotfiles/bin/snapshot_config every time the app rewrites it."
+
+    if [ -n "$drop" ]; then
+      echo "  Keys matching $drop are left out."
+    fi
+
     echo ""
-    echo "  This file is still a valid plist. To restore, quit the app first,"
-    echo "  then convert it back over the original:"
+    echo "  This file is still a valid plist. To restore, quit the app first, then:"
     echo ""
-    echo "    plutil -convert binary1 -o '$src_shown' '$dest_shown'"
+    echo "    $restore"
     echo "-->"
     tail -n +2 <<< "$xml"
   } > "$tmp"
@@ -86,9 +119,15 @@ else
   } > "$tmp"
 fi
 
-# The header never changes, so an identical copy means nothing to commit.
-# Touching it lets the cheap exit above skip this file until it changes again.
-if [ -f "$dest" ] && cmp -s "$tmp" "$dest"; then
+# Whether git has the copy committed as it is now
+committed() {
+  git -C "$repo" ls-files --error-unmatch -- "$rel" > /dev/null 2>&1 &&
+    git -C "$repo" diff --quiet HEAD -- "$rel"
+}
+
+# The header never changes, so an identical, committed copy means nothing to
+# do. Touching it lets the cheap exit above skip this file until it changes.
+if [ -f "$dest" ] && cmp -s "$tmp" "$dest" && committed; then
   rm -f "$tmp"
   touch "$dest"
   exit 0
@@ -116,12 +155,42 @@ done
 
 mv -f "$tmp" "$dest"
 
-# Commit only this file, leaving anything else staged alone. A failure (no
-# signing key unlocked, a rebase in progress) leaves the copy for a manual
-# commit and says so.
-git -C "$repo" add -- "$rel"
+# One snapshot commits at a time: several agents can fire at once, and git's
+# index is shared. mkdir is atomic; a lock older than a minute is left over
+# from a run that died, so take it over.
+lock="$repo/.git/snapshot_config.lock"
 
-if ! git -C "$repo" commit -q -m "Snapshot $name" -- "$rel"; then
-  notify "Copied into the repo, but the commit failed"
-  exit 1
-fi
+for _ in $(seq 60); do
+  if mkdir "$lock" 2>/dev/null; then
+    trap 'rmdir "$lock" 2>/dev/null' EXIT
+    break
+  fi
+
+  if [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+    rmdir "$lock" 2>/dev/null || true
+    continue
+  fi
+
+  sleep 0.5
+done
+
+# Commit only this file, leaving anything else staged alone. James may be
+# using git at the same moment, so wait out a held git lock for up to 10
+# seconds. Any other failure (no signing key unlocked, a rebase in
+# progress) leaves the copy for a manual commit and says so; backdating it
+# makes the next run try again instead of taking the cheap exit.
+for _ in $(seq 20); do
+  if out="$(git -C "$repo" add -- "$rel" 2>&1 &&
+    git -C "$repo" commit -q -m "Snapshot $name" -- "$rel" 2>&1)"; then
+    exit 0
+  fi
+
+  case "$out" in
+    *.lock*|*"cannot lock"*) sleep 0.5 ;;
+    *) break ;;
+  esac
+done
+
+touch -t 200001010000 "$dest"
+notify "Copied into the repo, but the commit failed"
+exit 1
