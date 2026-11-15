@@ -1,0 +1,19 @@
+// Backup of ~/Library/Application Support/Thaw/Profiles/profiles.json, saved by ~/.dotfiles/bin/snapshot_config
+// every time the app rewrites it.
+//
+// To restore: copy this file over ~/Library/Application Support/Thaw/Profiles/profiles.json and delete this
+// header block, through the end-of-header line below, so only the
+// original file is left. One command does both:
+//
+//   sed '1,\|^// end of backup header$|d' ~/.dotfiles/Library/Application Support/Thaw/Profiles/profiles.json.bak > ~/Library/Application Support/Thaw/Profiles/profiles.json
+//
+// end of backup header
+[
+  {
+    "createdAt" : "2026-11-14T01:26:18Z",
+    "id" : "79CD0F88-9B1D-4F8A-992C-F16D5CCD62C4",
+    "modifiedAt" : "2026-11-14T02:01:44Z",
+    "name" : "james v1",
+    "reappliesAtLaunchSetting" : true
+  }
+]
