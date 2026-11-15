@@ -1,25 +1,39 @@
 #!/usr/bin/env -S osascript -l JavaScript
 // Bring Claude's window to the current Space. Claude has no New Window
 // command and ignores menu commands while it's in the background, so this
-// does what a person would: go to Claude's Space, hold the window's title
-// bar, and switch back, which carries the window along. Bound to
-// shift-opt-cmd-/ in Keyboard Maestro (shift-cmd-/ still switches to Claude).
+// does what a person would: activate Claude (macOS switches to its Space),
+// hold the window's title bar, and switch back, which carries the window
+// along. Bound to shift-opt-cmd-/ in Keyboard Maestro (shift-cmd-/ still
+// switches to Claude).
 //
-// Needs Accessibility permission to post mouse and key events, so it runs
-// from Keyboard Maestro. The Space it came from is found by trying a step
-// right, then left (the window server doesn't say which Space is which), so
-// it handles the neighboring Space, which with two Spaces is always the case.
+// The way back is counted, not guessed: the window server's (private,
+// read-only) Spaces calls give the ordered Spaces and the current one, so it
+// works with any number of Spaces. If "Switch to Desktop N" is turned on for
+// the Space to return to, it jumps there in one move; otherwise it steps with
+// control-arrow. Needs Accessibility permission to post mouse and key
+// events, so it runs from Keyboard Maestro.
 
 ObjC.import('CoreGraphics');
 ObjC.import('Foundation');
 
-function onscreenIds() {
-  var list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly, 0)));
-  var ids = {};
-  list.forEach(function (w) {
-    if (w.kCGWindowLayer === 0 && (w.kCGWindowBounds || {}).Height > 100) ids[w.kCGWindowNumber] = w.kCGWindowOwnerName;
-  });
-  return ids;
+ObjC.bindFunction('CGSMainConnectionID', ['int', []]);
+ObjC.bindFunction('CGSGetActiveSpace', ['unsigned long long', ['int']]);
+ObjC.bindFunction('CGSCopyManagedDisplaySpaces', ['id', ['int']]);
+
+var cid = $.CGSMainConnectionID();
+
+// The display's Spaces in order and the index of the current one
+function spaces() {
+  var active = $.CGSGetActiveSpace(cid);
+  var displays = ObjC.deepUnwrap($.CGSCopyManagedDisplaySpaces(cid));
+
+  for (var i = 0; i < displays.length; i++) {
+    var ids = displays[i].Spaces.map(function (s) { return s.ManagedSpaceID; });
+    var at = ids.indexOf(active);
+    if (at >= 0) return { ids: ids, at: at };
+  }
+
+  return null;
 }
 
 // Claude's main window: its largest normal window
@@ -29,25 +43,48 @@ function claudeWindow() {
   list.forEach(function (w) {
     var b = w.kCGWindowBounds;
     if (w.kCGWindowOwnerName !== 'Claude' || w.kCGWindowLayer !== 0 || !b || b.Height < 200) return;
-    if (!best || b.Width * b.Height > best.b.Width * best.b.Height) best = { id: w.kCGWindowNumber, b: b, here: !!w.kCGWindowIsOnscreen };
+    if (!best || b.Width * b.Height > best.b.Width * best.b.Height) best = { b: b, here: !!w.kCGWindowIsOnscreen };
   });
   return best;
 }
 
-function mouse(type, x, y) {
-  var e = $.CGEventCreateMouseEvent(null, type, $.CGPointMake(x, y), $.kCGMouseButtonLeft);
-  $.CGEventPost($.kCGHIDEventTap, e);
+// The "Switch to Desktop N" shortcut (symbolic hotkey 117 + N) as
+// [key code, modifier flags], or null when it's turned off
+function desktopShortcut(n) {
+  var task = $.NSTask.alloc.init;
+  var pipe = $.NSPipe.pipe;
+  task.launchPath = '/usr/bin/defaults';
+  task.arguments = ['export', 'com.apple.symbolichotkeys', '-'];
+  task.standardOutput = pipe;
+  task.launch;
+  var data = pipe.fileHandleForReading.readDataToEndOfFile;
+  task.waitUntilExit;
+  var keys = ObjC.deepUnwrap($.NSPropertyListSerialization.propertyListWithDataOptionsFormatError(data, 0, null, null));
+  var entry = keys && keys.AppleSymbolicHotKeys && keys.AppleSymbolicHotKeys[String(117 + n)];
+  if (!entry || !entry.enabled || !entry.value) return null;
+  return [entry.value.parameters[1], entry.value.parameters[2]];
 }
 
-// Arrow keys carry the fn flag; the Spaces shortcut only matches with it
-function switchSpace(right) {
-  var code = right ? 124 : 123;
-  var flags = $.kCGEventFlagMaskControl | $.kCGEventFlagMaskSecondaryFn;
+function mouse(type, x, y) {
+  $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, $.CGPointMake(x, y), $.kCGMouseButtonLeft));
+}
+
+function key(code, flags) {
   [true, false].forEach(function (down) {
     var e = $.CGEventCreateKeyboardEvent(null, code, down);
     $.CGEventSetFlags(e, flags);
     $.CGEventPost($.kCGHIDEventTap, e);
   });
+}
+
+// Wait until the active Space is the one wanted (up to 1.5 s)
+function waitForSpace(index) {
+  for (var i = 0; i < 60; i++) {
+    var s = spaces();
+    if (s && s.at === index) return true;
+    delay(0.025);
+  }
+  return false;
 }
 
 // The hotkey's own modifiers may still be held; they mustn't mix into the
@@ -60,71 +97,70 @@ function waitForModifiersUp() {
   }
 }
 
-function anyOf(ids, now) {
-  return Object.keys(ids).some(function (k) { return k in now; });
-}
-
 function run() {
-  var w = claudeWindow();
   var claude = Application('Claude');
+  var w = claudeWindow();
 
-  if (!w) {
+  if (!w || w.here) {
     claude.activate();
-    return 'no Claude window; activated Claude';
-  }
-
-  if (w.here) {
-    claude.activate();
-    return 'already on this Space';
+    return w ? 'already on this Space' : 'no Claude window; activated Claude';
   }
 
   waitForModifiersUp();
   var pointer = $.CGEventGetLocation($.CGEventCreate(null));
-  var start = onscreenIds();
+  var start = spaces();
+
+  // macOS switches to Claude's Space on activation. The window shows as on
+  // screen as soon as the slide starts; the active Space only changes once it
+  // lands, so wait for that (up to 1.5 s).
   claude.activate();
+  var there = spaces();
 
-  // Wait for the switch to Claude's Space
-  for (var i = 0; i < 40 && !claudeWindow().here; i++) delay(0.05);
-  delay(0.35);
+  for (var i = 0; i < 60 && start && there && there.at === start.at; i++) {
+    delay(0.025);
+    there = spaces();
+  }
 
+  if (!start || !there || there.at === start.at) return 'Claude activated; no Space switch to undo';
+
+  delay(0.15);
   w = claudeWindow();
   var x = w.b.X + w.b.Width - 300, y = w.b.Y + 22;
 
+  // Hold the title bar, nudging it so macOS treats it as a window drag
   mouse($.kCGEventLeftMouseDown, x, y);
-  delay(0.1);
+  delay(0.06);
   mouse($.kCGEventLeftMouseDragged, x + 4, y);
-  delay(0.05);
+  delay(0.03);
   mouse($.kCGEventLeftMouseDragged, x + 8, y);
-  delay(0.15);
+  delay(0.08);
 
-  // Back to where we started, carrying the window; try right, then left
-  // A try that changes nothing on screen within 0.3 s went off the end.
-  var tries = [true, false, false];
+  // Back to the starting Space, carrying the window: one jump if "Switch to
+  // Desktop N" is on for it, otherwise one control-arrow per Space
+  var shortcut = desktopShortcut(start.at + 1);
+  var steps = start.at - there.at;
   var arrived = false;
-  var there = JSON.stringify(Object.keys(onscreenIds()).sort());
 
-  for (var t = 0; t < tries.length && !arrived; t++) {
-    switchSpace(tries[t]);
+  if (shortcut) {
+    key(shortcut[0], shortcut[1]);
+    arrived = waitForSpace(start.at);
+  } else {
+    var arrow = steps > 0 ? 124 : 123;
+    var flags = $.kCGEventFlagMaskControl | $.kCGEventFlagMaskSecondaryFn;
 
-    for (var p = 0; p < 14 && !arrived; p++) {
-      delay(0.05);
-      var now = onscreenIds();
-      arrived = anyOf(start, now);
-
-      if (p >= 5 && JSON.stringify(Object.keys(now).sort()) === there) break;
+    for (var s = 1; s <= Math.abs(steps); s++) {
+      key(arrow, flags);
+      arrived = waitForSpace(there.at + s * (steps > 0 ? 1 : -1));
     }
-
-    there = JSON.stringify(Object.keys(onscreenIds()).sort());
   }
 
   // Drag back to where the grab started, so the window ends up where it was
   mouse($.kCGEventLeftMouseDragged, x, y);
-  delay(0.05);
+  delay(0.03);
   mouse($.kCGEventLeftMouseUp, x, y);
-  delay(0.1);
+  delay(0.05);
   $.CGWarpMouseCursorPosition(pointer);
   claude.activate();
 
-  var after = claudeWindow();
-  return 'back on the starting Space: ' + arrived + '; Claude window here: ' + (after && after.here);
+  return 'moved back ' + Math.abs(steps) + ' Space(s)' + (shortcut ? ' with a Desktop shortcut' : '') + '; arrived: ' + arrived;
 }
