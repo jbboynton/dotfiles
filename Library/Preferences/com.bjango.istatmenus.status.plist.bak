@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Backup of the com.bjango.istatmenus.status preferences, saved as XML by
+  ~/.dotfiles/bin/snapshot_config every time the app rewrites it.
+  Keys matching ^(NSStatusItem|Zarya|Item\.Visibility$|Location-Last$) are left out.
+
+  This file is still a valid plist. To restore, quit the app first, then:
+
+    defaults import com.bjango.istatmenus.status '~/.dotfiles/Library/Preferences/com.bjango.istatmenus.status.plist.bak'
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Notifications.State</key>
+	<dict>
+		<key>status</key>
+		<integer>2</integer>
+		<key>style</key>
+		<integer>1</integer>
+	</dict>
+</dict>
+</plist>
