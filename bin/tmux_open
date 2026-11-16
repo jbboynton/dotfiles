@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Open whatever was clicked in a tmux pane: a link or a file path.
+
+tmux.conf binds a click to this, with what tmux knows about the spot:
+
+    tmux_open --link=URL --line=TEXT --x=COLUMN --cwd=DIR
+
+  --link  the OSC 8 link under the mouse, if the program printed one
+  --line  the text of the line under the mouse
+  --x     the column clicked, counted from the pane's left edge
+  --cwd   the pane's working directory, for relative paths
+
+A web link opens in the browser. A path opens only if it exists: a text
+file in vim in a new tmux window (at the line, for `file:12` or
+`file#L12`), anything else with `open`. A click on anything else does
+nothing, so the binding can run this on every click.
+
+With TMUX_OPEN_LOG set, it appends what it would do to that file instead.
+"""
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
+
+WRAPPERS = '\'"`()[]{}<>,;'
+TEXT = re.compile(rb'[\x00-\x08\x0e-\x1f]')
+
+
+def act(*cmd):
+    log = os.environ.get('TMUX_OPEN_LOG')
+    if log:
+        with open(log, 'a') as f:
+            f.write(' '.join(cmd) + '\n')
+    else:
+        subprocess.run(cmd)
+
+
+def token(line, x):
+    """The run of non-space characters at column x."""
+    if not 0 <= x < len(line) or line[x].isspace():
+        return ''
+    start = end = x
+    while start > 0 and not line[start - 1].isspace():
+        start -= 1
+    while end < len(line) and not line[end].isspace():
+        end += 1
+    return line[start:end]
+
+
+def candidates(word):
+    """Paths the word could mean, each with a line number or None."""
+    word = word.lstrip(WRAPPERS).rstrip(WRAPPERS + '.:')
+    yield word, None
+    m = re.fullmatch(r'(.+?)(?::(\d+)(?::\d+)?|#L(\d+)(?:-L?\d+)?)', word)
+    if m:
+        yield m.group(1).rstrip(WRAPPERS), m.group(2) or m.group(3)
+    # git's diff headers: a/path and b/path
+    if re.match(r'[ab]/', word):
+        yield word[2:], None
+
+
+def is_text(path):
+    try:
+        with open(path, 'rb') as f:
+            return not TEXT.search(f.read(4096))
+    except OSError:
+        return False
+
+
+def open_path(path, line, cwd):
+    path = os.path.expanduser(path)
+    if not os.path.isabs(path):
+        path = os.path.join(cwd, path)
+    path = os.path.normpath(path)
+    if os.path.isfile(path) and is_text(path):
+        vim = ['vim', f'+{line}', path] if line else ['vim', path]
+        act('tmux', 'new-window', '-c', os.path.dirname(path), *vim)
+    elif os.path.exists(path):
+        act('open', path)
+    else:
+        return False
+    return True
+
+
+def main():
+    args = dict(a[2:].split('=', 1) for a in sys.argv[1:] if '=' in a)
+    link, cwd = args.get('link', ''), args.get('cwd') or os.getcwd()
+    if re.match(r'https?://', link):
+        act('open', link)
+        return
+    if link.startswith('file://'):
+        url = urllib.parse.urlparse(link)
+        m = re.fullmatch(r'L?(\d+).*', url.fragment)
+        open_path(urllib.parse.unquote(url.path), m and m.group(1), cwd)
+        return
+    try:
+        word = token(args.get('line', ''), int(args.get('x', '')))
+    except ValueError:
+        return
+    if re.match(r'https?://', word.strip(WRAPPERS)):
+        act('open', word.strip(WRAPPERS).rstrip('.'))
+        return
+    if not re.search(r'[/.~]', word):
+        return
+    for path, line in candidates(word):
+        if path and open_path(path, line, cwd):
+            return
+
+
+if __name__ == '__main__':
+    main()
