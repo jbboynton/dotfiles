@@ -317,6 +317,10 @@ Follow the existing history:
     also marks out a row whose cells wrap onto several lines; the header
     has a different, bluish one. A space of padding sits inside the left
     and right edges. No column is narrower than its longest word.
+  - `:wq` sends the reply if it was written or changed: tmux presses
+    Enter in Claude's pane just after the script exits. `:cq`, a kill, or
+    an unchanged draft sends nothing and leaves the text in Claude's
+    prompt. `CLAUDE_EDIT_SEND=0` turns sending off.
   - `q` in that pane resets it after a stray key or click: the pager
     quits and the script starts it again at the end, laid out afresh. A
     change in the pane's width lays it out afresh unasked (less swallows

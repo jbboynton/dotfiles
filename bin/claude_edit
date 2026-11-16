@@ -27,8 +27,13 @@ Set it for Claude Code only, in ~/.claude/settings.json:
 
     "env": { "EDITOR": "~/.bin/claude_edit" }
 
+Leaving vim with :wq sends the reply, if it was written or changed. :cq,
+or quitting with the draft as it was, returns to Claude's prompt with the
+text there and nothing sent.
+
 Environment:
   CLAUDE_EDIT_VIM         the editor to run (default: vim)
+  CLAUDE_EDIT_SEND        0 to never send, only fill in Claude's prompt
   CLAUDE_EDIT_TRANSCRIPT  a transcript to read, skipping the lookup
 """
 import glob
@@ -652,7 +657,7 @@ def edit(path, line, own, place, columns, source=None):
                  f'+nnoremap <buffer> <C-v> {paste}', path]
     if not place:
         subprocess.run(cmd)
-        return
+        return False
     target = place[0]
     made = ['-P', '-F', '#{pane_id}', '-c', os.getcwd(), shlex.join(cmd)]
     if target:
@@ -665,16 +670,19 @@ def edit(path, line, own, place, columns, source=None):
     else:
         pane = run('tmux', 'split-window', '-v', '-l', '40%', '-t', own,
                    *made)
+        run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on')
     if not pane:
         subprocess.run(cmd)
-        return
+        return False
     run('tmux', 'select-pane', '-t', pane)
     backdrop = Backdrop(own, source)
+    saved = False
     try:
         # Claude Code waits on this process, so wait on vim's pane.
         while alive().get(pane):
             time.sleep(0.1)
             backdrop.keep_up()
+        saved = left_cleanly(pane)
     finally:
         # Also reached when Claude's pane is closed mid-reply (main turns
         # the hangup into an exit): stop the pager, bring the target back.
@@ -688,6 +696,24 @@ def edit(path, line, own, place, columns, source=None):
                     own)
         run('tmux', 'kill-pane', '-t', pane)
         run('tmux', 'select-pane', '-t', own)
+    return saved
+
+
+def left_cleanly(pane):
+    """Whether vim in that pane exited normally: :wq, not :cq or a kill."""
+    return run('tmux', 'display', '-p', '-t', pane,
+               '#{pane_dead_status}') == '0'
+
+
+def send_soon(own):
+    """Press Enter in Claude's pane, once Claude Code has the reply back.
+
+    Claude Code only puts the editor's text in its prompt; sending it is a
+    second step. It reads the file after this process exits, so the key
+    is sent by tmux a moment later.
+    """
+    run('tmux', 'run-shell', '-b',
+        f'sleep 0.6; tmux send-keys -t {shlex.quote(own)} Enter')
 
 
 def main():
@@ -732,7 +758,7 @@ def main():
     elif own_block:
         with open(path, 'w') as f:
             f.write(draft)
-    edit(path, line, own, place, columns, source)
+    saved = edit(path, line, own, place, columns, source)
     with open(path) as f:
         body = f.read()
     if quote and MARKER in body:
@@ -740,6 +766,11 @@ def main():
     if quote or own_block:
         with open(path, 'w') as f:
             f.write(own_block + body)
+    # :wq on a reply that was written or changed sends it. :cq, or leaving
+    # the draft as it was, goes back to Claude's prompt with nothing sent.
+    if (saved and body.strip() and body.strip() != draft.strip()
+            and os.environ.get('CLAUDE_EDIT_SEND') != '0'):
+        send_soon(own)
 
 
 if __name__ == '__main__':
