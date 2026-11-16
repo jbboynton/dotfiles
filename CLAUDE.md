@@ -284,14 +284,53 @@ Follow the existing history:
     terminal. Kill the server afterwards.
 - **Claude Code's editor** (Ctrl-G) is `bin/claude_edit`, set as `EDITOR`
   under `env` in `~/.claude/settings.json` (not in this repo), so only
-  Claude Code sees it. It opens vim in the pane below Claude's, with
-  Claude's last message above the draft, re-wrapped by pandoc, and strips
-  it again on exit. `prefix e` picks a different pane; `prefix E` resets
-  that.
+  Claude Code sees it. It opens vim in the pane below Claude's, holding
+  only the draft, and shows the whole chat in Claude's pane meanwhile.
+  `prefix e` picks a different pane; `prefix E` resets that.
   - Not a floating pane, by James's choice. vim starts in a window named
     "parked" and trades places with the target (`swap-pane`), so no pane
     changes size; the target waits there and is traded back. With no pane
     below Claude, vim gets a split.
+  - Claude Code blanks its own pane while its editor runs, and cannot be
+    kept interactive. The script runs `less` there on the whole chat,
+    rebuilt from the session's transcript and opened at the end, so James
+    can scroll back while he writes (keys or the wheel, with that pane
+    focused). It is a copy of the text, not Claude's own screen: no tool
+    output. Claude Code redraws when the editor exits.
+  - `pandoc -t ansi` renders the chat: bold and italics without their
+    markup, and links as OSC 8 hyperlinks that can be clicked. James asked
+    for no label on the pager and no part of the chat in the vim buffer.
+    Outside tmux there is no second pane, so there the last message still
+    goes above the draft and is stripped on exit.
+  - James's choices for the chat view, to look like Claude Code's own:
+    `❯ YOU` and `❯ CLAUDE` before each speaker's text (two blank lines
+    above each but the first), which is indented two spaces and stays
+    within 80 columns; inline code cyan; links light cyan, underlined,
+    bold only inside bold text. Tables are the exception to 80 columns:
+    the script draws them itself, each column as wide as its content,
+    wrapping cells only at the pane's width (pandoc's gfm reader makes
+    every column of a wide table equal), with four spaces between
+    columns and the header row bold light blue over a dim blue rule.
+    A table sits two spaces further in than the text, with two blank
+    lines above and below it. Every second row has a faint background
+    (James wanted neither blank lines nor rules between rows), which
+    also marks out a row whose cells wrap onto several lines; the header
+    has a different, bluish one. A space of padding sits inside the left
+    and right edges. No column is narrower than its longest word.
+  - `q` in that pane resets it after a stray key or click: the pager
+    quits and the script starts it again at the end, laid out afresh. A
+    change in the pane's width lays it out afresh unasked (less swallows
+    the first key after a resize, so `q` alone would take two presses)
+    and keeps the reader's place, by finding the top line on screen in
+    the old layout and the same text in the new. Keys
+    that would leave the chat (`v`, `!`, `s`, `|`, `h`) do nothing.
+  - The pager is not in mouse mode (`--mouse`): there it leaves a clicked
+    link highlighted and jumps on a right-click. The script tags the pane
+    `@chat_view`, and tmux's `WheelUpPane`/`WheelDownPane` bindings send
+    it `k`/`j`; clicks open links through `tmux_open`, drags select.
+  - It stays `less`, not bat: bat is not a pager and would run the same
+    `less` underneath, and its markdown highlighting shows the markup
+    that pandoc's rendering hides.
   - This is the first step toward a queue layout for the bullpen (current
     chat top left, its terminal or reply below, waiting chats stacked on
     the right). The design is James's sketch; ask him for it.
