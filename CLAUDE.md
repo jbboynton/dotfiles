@@ -249,6 +249,26 @@ Follow the existing history:
     TERM=alacritty tmux -L NAME ... new-session CMD` and pipe keys and
     SGR mouse clicks into its stdin; `FILE` then holds what tmux sent the
     terminal. Kill the server afterwards.
+- **Claude Code's editor** (Ctrl-G) is `bin/claude_edit`, set as `EDITOR`
+  under `env` in `~/.claude/settings.json` (not in this repo), so only
+  Claude Code sees it. It opens vim in the pane below Claude's, with
+  Claude's last message above the draft, re-wrapped by pandoc, and strips
+  it again on exit. `prefix e` picks a different pane; `prefix E` resets
+  that.
+  - Not a floating pane, by James's choice. vim starts in a window named
+    "parked" and trades places with the target (`swap-pane`), so no pane
+    changes size; the target waits there and is traded back. With no pane
+    below Claude, vim gets a split.
+  - This is the first step toward a queue layout for the bullpen (current
+    chat top left, its terminal or reply below, waiting chats stacked on
+    the right). The design is James's sketch; ask him for it.
+  - Claude Code passes one file, `claude-prompt-*.md`; anything else (git,
+    from Claude's shell) gets plain vim.
+  - The editor's environment has no session ID. The script finds it from
+    `~/.claude/sessions/<pid>.json` of its parent Claude process, which is
+    undocumented and may move.
+  - Claude Code's own `externalEditorContext` does the same as `#` lines,
+    unwrapped. Leave it off; the script copes if it is on.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
