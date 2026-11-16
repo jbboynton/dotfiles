@@ -93,7 +93,9 @@ Options, all in `snapshot_config`'s header:
   Restoring is `defaults import`, which merges, so left-out keys stay put.
 - `--drop REGEX` leaves out matching top-level keys: noise (window frames,
   update checks, menu bar positions) and anything private. The repo is
-  public; iStat Menus' license and device authorization are dropped.
+  public; iStat Menus' license and device authorization are dropped. So
+  is its `Item.Visibility`, which records whether each menu bar item is
+  showing right now and flips many times a day.
 - `--keychain SERVICE` refuses to write or commit if that Keychain item's
   value turns up in the copy.
 
