@@ -15,6 +15,9 @@ files in it a session should read:
 
 - `.ignored/home-audit.md`: the brief for the home folder audit (see Open
   items). Read it before working on the audit.
+- `.ignored/handoff-tmux-queue.md`: where the tmux work stands (see Open
+  items), and `.ignored/tmux-tests/`, the scripts that test it on a
+  private tmux server.
 
 ## How files get into place: rcm, through `rc`
 
@@ -364,7 +367,14 @@ Maestro and its Engine, then run the `plutil` command in the copy's header.
 
 ## Open items
 
-As of November 15, 2026:
+As of November 16, 2026:
+
+- The tmux work is in two parts. Part 1 (PR 31, `tmux-quality-of-life`)
+  is to land first. Part 2 (PR 32, `tmux-quality-of-life-2`) is
+  `claude_queue`, a queue in the bullpen's `pm` window of the chats that
+  need James: built and tested on a fake bullpen, never run on the real
+  one, and paused until part 1 is in use. Its state, James's decisions and
+  what is left are in `.ignored/handoff-tmux-queue.md` and in PR 32.
 
 - The spell file (`vim/spell/en.utf-8.add`) gains words almost every time
   James writes prose in vim, which leaves the repo permanently dirty. Plan:
