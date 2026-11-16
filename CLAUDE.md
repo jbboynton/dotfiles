@@ -140,7 +140,8 @@ loading.
     `wait'0a'` does not reorder it. `.ignored/tmux-tests/prompttime.sh`
     measures both.
 - **Hard-coded values need a drift check.** When a value is written out
-  instead of computed (Homebrew's variables, batman's `MANPAGER`),
+  instead of computed (Homebrew's variables, batman's `MANPAGER`, rbenv's
+  shims folder),
   `bin/env_drift` compares it with what the tool reports.
   `zsh/drift.zsh` runs it once a day in the background, at low priority,
   with a 5-second timeout, and warns at the next prompt on a mismatch or a
@@ -161,6 +162,7 @@ loading.
 | `fzf-tab.zsh` | fzf-tab settings. Tab accepts the highlighted completion. |
 | `homebrew.zsh` | Homebrew's completions on `fpath`. |
 | `keybindings.zsh` | Every key binding, history search included, in one place. |
+| `rbenv.zsh` | What `rbenv init -` prints, written out (checked by `env_drift`). It replaced a plugin that ran rbenv in every new shell, about 80 ms; James rarely runs Ruby but wants it to keep working. |
 | `prompt.zsh` | Path plus git status from gitstatus. gitstatus keeps a daemon, and the prompt waits at most 10 ms before updating in the background. |
 | `functions/` | One function per file. |
 

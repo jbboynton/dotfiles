@@ -64,6 +64,26 @@ else
   fi
 fi
 
+# rbenv: the shims folder and shell its `init -` sets, compared with ours
+rbenv="$HOMEBREW_PREFIX/bin/rbenv"
+
+if [[ -x $rbenv ]]; then
+  expected=("${(@f)$(env -i HOME=$HOME PATH=$HOMEBREW_PREFIX/bin:/usr/bin:/bin \
+    /bin/zsh -fc '
+      eval "$("$1" init - zsh)" || exit 1
+      print -r -- "$path[1]"
+      print -r -- "$RBENV_SHELL"
+    ' zsh "$rbenv")}")
+
+  if [[ ":$PATH:" != *":$expected[1]:"* ]]; then
+    problems+=("$expected[1] missing from PATH; set in ~/.dotfiles/zsh/rbenv.zsh")
+  fi
+
+  if [[ $expected[2] != $RBENV_SHELL ]]; then
+    problems+=("RBENV_SHELL is '$RBENV_SHELL', rbenv says '$expected[2]'; set in ~/.dotfiles/zsh/rbenv.zsh")
+  fi
+fi
+
 # Thaw: on the beta until Thaw 3, which macOS 27 needs, reaches the stable cask
 if [[ -x $brew && -d $HOMEBREW_PREFIX/Caskroom/thaw@beta ]]; then
   stable=$("$brew" info --cask --json=v2 thaw 2>/dev/null | python3 -c '
