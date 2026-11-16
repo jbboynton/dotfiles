@@ -262,6 +262,8 @@ Follow the existing history:
     window (`file:12` and `file#L12` jump to the line), the rest with
     `open`. Anything else is ignored, and the click still reaches the
     pane. A path that wraps onto a second row is not matched.
+    Option-click (`M-MouseDown1Pane`) opens any path in vim instead: a
+    folder, an image, or a bare name such as `bin`.
   - Fuzzy pickers: `prefix Tab` (windows) and `prefix Shift-Tab`
     (sessions) are tmux 3.8's own. `prefix F` is tmux-fzf, for commands
     and key bindings.
