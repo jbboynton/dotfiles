@@ -247,9 +247,14 @@ Follow the existing history:
   extended keys through (`terminal-features`). A feature reaches a client
   only when it attaches: reload, then detach and reattach.
   - `extended-keys` is `always` with the `csi-u` format. With `on`, tmux
-    honors only xterm's request (`CSI > 4 ; n m`), which neither vim nor a
-    kitty-protocol program sends, so Alacritty's Ctrl-> binding reached vim
-    as a plain `.`.
+    honors only xterm's request (`CSI > 4 ; n m`). Claude Code sends it;
+    vim doesn't, so Alacritty's Ctrl-> binding reached vim as a plain `.`.
+    A pane takes the setting when it is created: panes older than a
+    change keep their old mode (`#{pane_key_mode}` shows it).
+  - Alacritty names an ordinary key in a binding by the character it
+    types with the binding's modifiers held: Ctrl-Shift-period is
+    `key = ">"`, not `"."` and not `"Period"`. A name it doesn't know is
+    accepted silently and never matches.
   - `allow-passthrough` stays off: it exists for desktop notifications,
     which Alacritty doesn't show.
   - A click (`MouseDown1Pane`) runs `bin/tmux_open`, which opens an OSC 8
