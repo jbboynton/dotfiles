@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Record what a Claude Code session is doing, on its tmux pane, so tmux can
-# show which chats need James. Run by
+# show it and `claude_queue` can line up the chats that need James. Run by
 # Claude Code's hooks (~/.claude/settings.json) and, for `wants`, by an
 # agent itself.
 #
@@ -57,6 +57,9 @@ pane="${TMUX_PANE:-}"
       ;;
     *) exit 0 ;;
   esac
+
+  # Let the queue rearrange itself, without waiting for it
+  tmux run-shell -b "$HOME/.bin/claude_queue sync"
 } > /dev/null 2>&1
 
 exit 0

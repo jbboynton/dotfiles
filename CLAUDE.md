@@ -325,9 +325,8 @@ Follow the existing history:
   - It stays `less`, not bat: bat is not a pager and would run the same
     `less` underneath, and its markdown highlighting shows the markup
     that pandoc's rendering hides.
-  - This is the first step toward a queue layout for the bullpen (current
-    chat top left, its terminal or reply below, waiting chats stacked on
-    the right). The design is James's sketch; ask him for it.
+  - From a bullpen chat with the queue on (below), `claude_queue` places
+    the reply instead.
   - Claude Code passes one file, `claude-prompt-*.md`; anything else (git,
     from Claude's shell) gets plain vim.
   - The editor's environment has no session ID. The script finds it from
@@ -346,6 +345,24 @@ Follow the existing history:
     prints or fails can change what Claude does.
   - No hook fires when James denies a permission prompt; the state
     corrects itself at the next tool call or the end of the turn.
+- **The queue** (`bin/claude_queue`, experimental, the bullpen's `pm`
+  window only). `prefix Q` turns it on or off; off, nothing is touched.
+  On, the window is: the current chat top left (the coordinator, or the
+  chat being replied to), James's terminal or the reply below it, and on
+  the right the chats that need him: the coordinator if displaced, chats
+  with a half-written reply, blocked chats, then chats that want input,
+  each oldest first. Queued chats are moved in from `dev` and `qa` and
+  sent home when answered. Ctrl-G in any bullpen chat moves it to the top
+  left and opens the reply below; `prefix G` brings a half-written reply
+  back there. The design is James's; the script's docstring has the rest.
+  - It lays the window out itself. The bullpen's own `relayout` of `pm`
+    undoes that until the next state change.
+  - A chat sent home lands in a `tiled` layout, not the bullpen's grid.
+  - The bullpen's rules still send agents' questions to the coordinator,
+    not to James, so nothing tells agents to run `agent_state wants` yet.
+    James decided (2026-11-16) that this changes when the queue goes into
+    practice: questions through the coordinator get dropped or reach him
+    late, so agents will then ask him directly and flag themselves.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
