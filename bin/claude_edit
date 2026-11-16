@@ -5,18 +5,23 @@ Claude Code calls its editor with one argument, a temporary markdown file
 holding the draft prompt, and reads the file back when the editor exits.
 This wrapper:
 
-  1. Puts Claude's last message above the draft, re-wrapped to 80 columns,
-     then a marker line. Everything down to the marker is removed again
-     after vim exits, so only the reply is sent.
-  2. Opens vim in the pane below Claude's instead of in Claude's own pane,
-     with the cursor on the reply. Whatever was in that pane (a terminal,
-     say) waits in a window named "parked" and comes back when vim exits,
-     and focus returns to Claude.
+  1. Opens vim in the pane below Claude's instead of in Claude's own pane,
+     holding only the draft. Whatever was in that pane (a terminal, say)
+     waits in a window named "parked" and comes back when vim exits, and
+     focus returns to Claude.
+  2. Shows the whole conversation in Claude's pane meanwhile, rendered
+     from the session's transcript and scrollable, since Claude Code
+     blanks its own screen while its editor runs.
 
 The pane vim takes over is the one named by the window option
 @claude_edit_pane (set with the pane-number overlay; see tmux.conf), else
 the pane directly below Claude's. With neither, vim gets a new split below
-Claude. Outside tmux, vim runs in place.
+Claude.
+
+Outside tmux, vim runs in place, in Claude's pane. There is nowhere to
+show the conversation then, so Claude's last message goes above the
+draft, re-wrapped, then a marker line; everything down to the marker is
+removed again after vim exits, so only the reply is sent.
 
 Set it for Claude Code only, in ~/.claude/settings.json:
 
@@ -29,11 +34,15 @@ Environment:
 import glob
 import json
 import os
+import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import time
+import unicodedata
 
 MARKER = ('<!-- Reply below this line. '
           'It and everything above are removed on save. -->')
@@ -70,9 +79,13 @@ def transcript():
     return found[0] if found else None
 
 
-def last_message(path):
-    """Text of the last message Claude addressed to the user."""
-    text = ''
+def messages(path):
+    """Yield (speaker, text) for what James and Claude said, in order.
+
+    Tool calls and their results, Claude's thinking, subagents' own
+    conversations and text the harness adds (it starts with a tag) are
+    left out.
+    """
     try:
         with open(path) as f:
             for line in f:
@@ -80,18 +93,333 @@ def last_message(path):
                     row = json.loads(line)
                 except ValueError:
                     continue
-                if row.get('type') != 'assistant' or row.get('isSidechain'):
+                kind = row.get('type')
+                if (kind not in ('user', 'assistant') or row.get('isMeta')
+                        or row.get('isSidechain')):
                     continue
                 content = (row.get('message') or {}).get('content')
-                if not isinstance(content, list):
+                if isinstance(content, str):
+                    parts = [content]
+                elif isinstance(content, list):
+                    parts = [c.get('text', '') for c in content
+                             if c.get('type') == 'text']
+                else:
                     continue
-                parts = [c.get('text', '') for c in content
-                         if c.get('type') == 'text']
-                if ''.join(parts).strip():
-                    text = '\n\n'.join(parts).strip()
+                text = '\n\n'.join(p for p in parts if p.strip()).strip()
+                if text and not (kind == 'user' and text.startswith('<')):
+                    yield ('You' if kind == 'user' else 'Claude'), text
     except OSError:
-        pass
+        return
+
+
+def last_message(path):
+    """Text of the last message Claude addressed to the user."""
+    text = ''
+    for speaker, said in messages(path):
+        if speaker == 'Claude':
+            text = said
     return text
+
+
+# --- the chat, as Claude Code shows it -----------------------------------
+
+# Text that marks a spot in the markdown, to find again in pandoc's output.
+MARK = 'zqxjkv'
+SGR = re.compile(r'\033\[[0-9;]*m')
+SPEAKER_COLOR = {'You': '33', 'Claude': '36'}
+SEPARATOR = re.compile(r'\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*')
+
+
+def pandoc_ansi(text, columns):
+    """Markdown as styled terminal text, or None without pandoc.
+
+    pandoc's ansi writer sets bold and italics without their markup and
+    turns links into OSC 8 hyperlinks, which less, tmux and Alacritty pass
+    through, so a link's label can be clicked. Two of its choices are
+    changed here, to James's taste:
+
+      - links are light cyan, not cyan (still underlined, and bold only
+        inside bold text);
+      - inline code is cyan, not red on white, and loses the space pandoc
+        pads it with on each side.
+    """
+    if not shutil.which('pandoc'):
+        return None
+    r = subprocess.run(
+        ['pandoc', '-f', 'gfm', '-t', 'ansi', f'--columns={columns}'],
+        input=text, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    out = re.sub(r'\033\[36m((?:\033\[[0-9;]*m)*\033\]8;;)',
+                 '\033[96m\\1', r.stdout)
+
+    return re.sub(r'((?:\033\[(?:1|22|23|3)m)*)\033\[31m\033\[47m'
+                  r'((?:\033\[[0-9;]*m)*)(.*?)\033\[0m', code_span, out)
+
+
+def code_span(m):
+    """One line's worth of inline code, restyled (see pandoc_ansi)."""
+    body = m.group(3)
+    body = body[1:] if body.startswith(' ') else body
+    body = body[:-1] if body.endswith(' ') else body
+    return f'{m.group(1)}\033[36m{body}\033[0m'
+
+
+OSC8 = re.compile(r'\033\]8;;[^\033]*\033\\')
+PIECE = re.compile(r'(\033\[[0-9;]*m|\033\]8;;[^\033]*\033\\| +)')
+# Between a table's columns
+GAP = ' ' * 4
+# The background of every second row of a table: a shade lighter than the
+# terminal's own (#21272a in config/alacritty/alacritty.toml)
+STRIPE = '\033[48;2;43;50;55m'
+# The header row's background: as faint, tinted blue like its text
+HEADER = '\033[48;2;38;50;66m'
+
+
+def shown(text):
+    """Columns the text takes on screen, without its escape sequences."""
+    text = OSC8.sub('', SGR.sub('', text))
+    return sum(2 if unicodedata.east_asian_width(c) in 'WF' else 1
+               for c in text)
+
+
+def wrap_styled(text, width):
+    """Wrap styled text at spaces; styles and links span the breaks.
+
+    Each line ends by closing whatever style and link are open, and the
+    next begins by opening them again, so a line can be padded and set
+    beside other columns. A word is everything between two spaces,
+    however its styling changes on the way: `(` followed by code followed
+    by `)` stays together. A word wider than the column is left whole.
+    """
+    lines, line, used, gap = [], '', 0, ''
+    styles, link = [], ''            # open now, at the end of `word`
+    word, size = '', 0
+    opened = ([], '')                # open where `word` began
+
+    def place():
+        """Put the finished word on the line, or on a new one."""
+        nonlocal line, used, gap, word, size, opened
+        if size:
+            if used and used + len(gap) + size > width:
+                was_styles, was_link = opened
+                lines.append(line + ('\033]8;;\033\\' if was_link else '')
+                             + ('\033[0m' if was_styles else ''))
+                line, used = ''.join(was_styles) + was_link, 0
+            elif used:
+                line += gap
+                used += len(gap)
+            used += size
+        line += word
+        word, size, gap = '', 0, ''
+        opened = (list(styles), link)
+
+    for piece in PIECE.split(text):
+        if not piece:
+            continue
+        if SGR.fullmatch(piece):
+            styles = [] if piece == '\033[0m' else styles + [piece]
+            word += piece
+        elif OSC8.fullmatch(piece):
+            link = '' if piece == '\033]8;;\033\\' else piece
+            word += piece
+        elif piece.isspace():
+            place()
+            gap = piece
+        else:
+            word += piece
+            size += shown(piece)
+    place()
+    lines.append(line + ('\033]8;;\033\\' if link else '')
+                 + ('\033[0m' if styles else ''))
+    return lines
+
+
+def lift_tables(text, tables):
+    """Replace each table in the markdown with a marker; collect them.
+
+    A table is taken out so it can be drawn at the pane's width while the
+    prose around it wraps at 80 columns. Each is kept as its rows of cells
+    and its columns' alignments.
+    """
+    lines, out, i, fenced = text.split('\n'), [], 0, False
+    while i < len(lines):
+        line = lines[i]
+        if line.lstrip().startswith(('```', '~~~')):
+            fenced = not fenced
+        is_table = (not fenced and line.startswith('|')
+                    and i + 1 < len(lines) and '-' in lines[i + 1]
+                    and SEPARATOR.fullmatch(lines[i + 1]))
+        if not is_table:
+            out.append(line)
+            i += 1
+            continue
+        j = i
+        while j < len(lines) and lines[j].startswith('|'):
+            j += 1
+        rows = [[c.strip().replace('\\|', '|') for c in
+                 re.split(r'(?<!\\)\|', r.strip().strip('|'))]
+                for r in lines[i:j]]
+        aligns = ['right' if m.endswith(':') and not m.startswith(':')
+                  else 'centre' if m.endswith(':') else 'left'
+                  for m in rows[1]]
+        tables.append((rows[:1] + rows[2:], aligns))
+        out += ['', f'TABLE{MARK}{len(tables) - 1}', '']
+        i = j
+    return '\n'.join(out)
+
+
+def column_widths(natural, least, room):
+    """Each column's width: what its content needs, if the row fits.
+
+    Otherwise the widest columns give way first: every column gets what
+    it needs up to a common limit, set so that the row just fits. No
+    column goes below `least`, its longest word, which cannot be broken;
+    in a pane too narrow even for that, the table is wider than the pane.
+    """
+    if sum(natural) <= room:
+        return natural
+    limit = max(natural)
+    while limit > 1 and sum(max(min(n, limit), low)
+                            for n, low in zip(natural, least)) > room:
+        limit -= 1
+    return [max(min(n, limit), low) for n, low in zip(natural, least)]
+
+
+def draw_tables(tables, room):
+    """Each table as lines of terminal text, at most `room` columns wide.
+
+    Columns are as wide as their longest cell, with four spaces between
+    them; past `room`, cells wrap. The header is bold light blue on a
+    faint blue background, over a dim blue rule. Every second row below
+    it has a faint background of its own, so rows can be told apart
+    without lines or gaps, whatever their height. A space of padding sits
+    inside the table's left and right edges.
+    """
+    cells = [cell for rows, _ in tables for row in rows for cell in row]
+    sep = f'CELL{MARK}'
+    doc = f'\n\n{sep}\n\n'.join(c or f'EMPTY{MARK}' for c in cells)
+    styled = (pandoc_ansi(doc, 100000) or doc).rstrip('\n').split('\n')
+    styled = [s for s in styled if s.strip()]
+    texts, part = [], []
+    for line in styled + [sep]:
+        if SGR.sub('', line).strip() == sep:
+            text = ' '.join(part)
+            texts.append('' if f'EMPTY{MARK}' in text else text)
+            part = []
+        else:
+            part.append(line.strip())
+    texts = iter(texts)
+    drawn = []
+    for rows, aligns in tables:
+        grid = [[next(texts) for _ in row] for row in rows]
+        count = len(aligns)
+        grid = [(row + [''] * count)[:count] for row in grid]
+        natural = [max(max(shown(row[k]) for row in grid), 3)
+                   for k in range(count)]
+        # A space inside each edge of the table keeps text off the edge
+        # of a row's background.
+        least = [max(shown(word) for row in grid
+                     for word in (SGR.sub('', OSC8.sub('', row[k])).split()
+                                  or ['']))
+                 for k in range(count)]
+        widths = column_widths(natural, least,
+                               room - len(GAP) * (count - 1) - 2)
+        lines = []
+        for n, row in enumerate(grid):
+            wrapped = [wrap_styled(cell, w) for cell, w in zip(row, widths)]
+            for k in range(max(len(w) for w in wrapped)):
+                parts = []
+                for col, (cell, w) in enumerate(zip(wrapped, widths)):
+                    text = cell[k] if k < len(cell) else ''
+                    if n == 0 and text:
+                        text = f'\033[1;94m{text}\033[0m'
+                    pad = w - shown(text)
+                    left = {'right': pad, 'centre': pad // 2}.get(
+                        aligns[col], 0)
+                    parts.append(' ' * left + text + ' ' * (pad - left))
+                whole = ' ' + GAP.join(parts) + ' '
+                shade = HEADER if n == 0 else STRIPE if n % 2 == 0 else ''
+                if shade:
+                    # A background runs the table's full width, and has
+                    # to be set again after anything in a cell that
+                    # resets it.
+                    whole = shade + whole.replace(
+                        '\033[0m', '\033[0m' + shade).replace(
+                        '\033[49m', shade) + '\033[0m'
+                else:
+                    whole = whole.rstrip()
+                lines.append(whole)
+            if n == 0:
+                # The rule runs edge to edge, under the padding too, on
+                # the header's background.
+                spans = list(widths)
+                spans[0] += 1
+                spans[-1] += 1
+                rule = GAP.join('─' * w for w in spans)
+                lines.append(f'{HEADER}\033[2;34m{rule}\033[0m')
+        drawn.append(lines)
+    return drawn
+
+
+def render_chat(path, width):
+    """The whole chat as terminal text, laid out for a pane this wide.
+
+        ❯ YOU
+
+          The text, indented under its speaker and wrapped so that no
+          line passes 80 columns.
+
+    Tables are the exception to the 80 columns: each column is as wide as
+    its content needs, up to the pane's width, where cells start to wrap.
+    A table is indented two spaces further than the text, with two blank
+    lines above and below it, as there are above each speaker.
+    Returns '' if there is nothing to show, and plain markdown if pandoc
+    is missing.
+    """
+    parts, tables, last = [], [], None
+    for speaker, said in messages(path):
+        if speaker != last:
+            parts.append(f'SPEAKER{MARK}{speaker}')
+            last = speaker
+        parts.append(lift_tables(said, tables))
+    if not parts:
+        return ''
+    doc = '\n\n'.join(parts)
+    body = pandoc_ansi(doc, min(width - 1, WIDTH) - 2)
+    if body is None:
+        return doc.replace(f'SPEAKER{MARK}', '# ')
+    inset = '    '
+    drawn = draw_tables(tables, max(width - 1 - len(inset), 20)) \
+        if tables else []
+    lines = []
+
+    def space(count):
+        """Leave exactly this many blank lines after what is there."""
+        while lines and not lines[-1]:
+            lines.pop()
+        if lines:
+            lines.extend([''] * count)
+
+    after_table = False
+    for line in body.rstrip('\n').split('\n'):
+        plain = SGR.sub('', line).strip()
+        if after_table and plain:
+            space(2)
+        after_table = after_table and not plain
+        if plain.startswith(f'SPEAKER{MARK}'):
+            name = plain[len(f'SPEAKER{MARK}'):]
+            color = SPEAKER_COLOR.get(name, '37')
+            space(2)
+            lines.append(f'\033[1;{color}m❯ {name.upper()}\033[0m')
+        elif plain.startswith(f'TABLE{MARK}') and drawn:
+            table = drawn[int(plain[len(f'TABLE{MARK}'):])]
+            space(2)
+            lines += [inset + row if row else row for row in table]
+            after_table = True
+        else:
+            lines.append('  ' + line if line else line)
+    return '\n'.join(lines)
 
 
 def wrap(text, columns):
@@ -145,7 +473,172 @@ def alive():
     return {r.split()[0]: r.split()[1] == '0' for r in rows if r}
 
 
-def edit(path, line, own, place, columns):
+def same_place(seen, was, now):
+    """Where to open the new layout so the reader stays where they were.
+
+    seen is the pane's rows of text, was the old layout's lines and now
+    the new one's, all without styling. Returns the line of `now` to put
+    at the top, or None for the end: when the reader was at the end
+    already, or their place cannot be found.
+
+    The top row on screen is looked for in the old layout. From there the
+    nearest line above that both layouts have (prose and speakers are the
+    same in both; only tables are laid out again) gives the matching line
+    in the new one.
+    """
+    rows = [r.strip() for r in seen if r.strip()][:5]
+    if not rows or not was:
+        return None
+    best, top = 0, None
+    for i, line in enumerate(was):
+        if rows[0] not in line:
+            continue
+        ahead = ' '.join(was[i:i + 12])
+        score = sum(row in ahead for row in rows)
+        if score > best:
+            best, top = score, i
+    # A screenful from the end is the end: stay there.
+    if top is None or top + len(seen) >= len(was) - 1:
+        return None
+    for anchor in range(top, -1, -1):
+        text = was[anchor]
+        if not text.strip():
+            continue
+        nth = was[:anchor + 1].count(text)
+        found = [i for i, line in enumerate(now) if line == text]
+        if len(found) >= nth:
+            return min(found[nth - 1] + top - anchor, len(now) - 1)
+    return 0
+
+
+class Backdrop:
+    """The conversation so far, in Claude's own pane, while vim is open.
+
+    Claude Code clears its screen before it starts its editor, expecting
+    the editor to draw there. With vim in another pane, Claude's pane
+    would sit blank. Run a pager in it instead, on the whole chat, opened
+    at the end: James can scroll back through it as he writes. Claude
+    Code redraws its own screen when the editor exits.
+    """
+
+    # The pager's bottom line, blanked: a prompt of one space, drawn in the
+    # default colors where less would use reverse video.
+    PROMPT = ['-Ps ', '--use-color', '--color=P-', '--tilde']
+    # Keys that would leave the chat for something else do nothing: the
+    # editor, a shell, saving, piping, help.
+    KEYS = '--lesskey-content=#command;' + ';'.join(
+        f'{key} noaction' for key in ('v', '!', 's', '|', 'h', 'H'))
+
+    def __init__(self, own, source):
+        self.tty = self.pager = self.file = self.less = self.own = None
+        self.source = None
+        self.width = self.ticks = 0
+        self.plain = []
+        try:
+            self.tty = open('/dev/tty', 'w')
+        except OSError:
+            return
+        # Claude's full-screen mode is still on the alternate screen and
+        # will repaint it. Otherwise borrow the alternate screen, so
+        # nothing drawn here is left in the scrollback.
+        self.borrowed = run('tmux', 'display', '-p', '-t', own,
+                            '#{alternate_on}') != '1'
+        self.put(('\033[?1049h' if self.borrowed else '')
+                 + '\033[2J\033[H')
+        self.less = shutil.which('less')
+        if not (source and self.less):
+            return
+        self.source = source
+        self.own = own
+        fd, self.file = tempfile.mkstemp(prefix='claude-chat-', suffix='.md')
+        os.close(fd)
+        run('tmux', 'set', '-p', '-t', own, '@chat_view', '1')
+        self.start()
+
+    def start(self, seen=()):
+        """Lay the chat out for the pane as it is now, and page it.
+
+        Opened at the end, or, given the rows the reader had on screen,
+        where they were. Run again each time the pager quits, so `q` also
+        re-fits the tables after the pane has changed width.
+        """
+        self.width = self.pane_width()
+        chat = render_chat(self.source, self.width)
+        was, self.plain = self.plain, [
+            OSC8.sub('', SGR.sub('', line)) for line in chat.split('\n')]
+        at = same_place(seen, was, self.plain)
+        with open(self.file, 'w') as f:
+            f.write(chat + '\n')
+        # -X: leave the alternate screen alone; it is handled here.
+        # No --mouse: with it, less marks the line clicked and highlights
+        # a clicked link until another is clicked. tmux scrolls the pager
+        # instead (see the wheel bindings in tmux.conf, which look for
+        # @chat_view), opens a clicked link, and selects text on a drag.
+        self.put('\033[2J\033[H')
+        self.pager = subprocess.Popen(
+            [self.less, '-R', '-X', '+G' if at is None else f'+{at + 1}g',
+             *self.PROMPT, self.KEYS, self.file],
+            stdout=self.tty, stderr=subprocess.DEVNULL)
+
+    def on_screen(self):
+        """The pane's rows of text as they are now, top to bottom."""
+        return run('tmux', 'capture-pane', '-p', '-t', self.own).split('\n')
+
+    def pane_width(self):
+        return int(run('tmux', 'display', '-p', '-t', self.own,
+                       '#{pane_width}') or 80)
+
+    def keep_up(self):
+        """Start the pager again if it has quit or the pane has resized.
+
+        So `q` in Claude's pane is the way to reset the view after a
+        stray key or click: the pager quits and comes straight back, laid
+        out afresh, at the end of the chat. A change of width lays it out
+        afresh too, so tables are re-fitted, but stays where the reader
+        was. (less swallows the first key after a resize, so `q` alone
+        would need pressing twice.)
+        """
+        if not self.pager:
+            return
+        self.ticks += 1
+        if self.pager.poll() is not None:
+            self.start()
+        elif not self.ticks % 5 and self.pane_width() != self.width:
+            # Find the reader's place before the old pager is gone.
+            place = self.on_screen()
+            self.pager.terminate()
+            self.pager.wait()
+            self.start(place)
+
+    def put(self, text):
+        try:
+            self.tty.write(text)
+            self.tty.flush()
+        except OSError:
+            pass
+
+    def close(self):
+        if self.file:
+            run('tmux', 'set', '-p', '-u', '-t', self.own, '@chat_view')
+        if self.pager:
+            self.pager.terminate()
+            try:
+                self.pager.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.pager.kill()
+        if self.file:
+            os.remove(self.file)
+        if self.tty:
+            self.put('\033[2J\033[H\033[?25h'
+                     + ('\033[?1049l' if self.borrowed else ''))
+            try:
+                self.tty.close()
+            except OSError:
+                # The terminal is already gone (Claude's pane was closed).
+                pass
+
+
+def edit(path, line, own, place, columns, source=None):
     vim = shlex.split(os.environ.get('CLAUDE_EDIT_VIM', 'vim'))
     # Wrap at the pane's width, in view and while typing, so a narrow pane
     # never scrolls sideways. zb: the reply at the bottom, as much of the
@@ -171,17 +664,25 @@ def edit(path, line, own, place, columns):
         subprocess.run(cmd)
         return
     run('tmux', 'select-pane', '-t', pane)
-    # Claude Code waits on this process, so wait on vim's pane.
-    while alive().get(pane):
-        time.sleep(0.1)
-    if target and target in alive():
-        if pane in alive():
-            run('tmux', 'swap-pane', '-d', '-s', target, '-t', pane)
-        else:
-            # vim's pane was killed outright: bring the target home.
-            run('tmux', 'join-pane', '-d', '-v', '-s', target, '-t', own)
-    run('tmux', 'kill-pane', '-t', pane)
-    run('tmux', 'select-pane', '-t', own)
+    backdrop = Backdrop(own, source)
+    try:
+        # Claude Code waits on this process, so wait on vim's pane.
+        while alive().get(pane):
+            time.sleep(0.1)
+            backdrop.keep_up()
+    finally:
+        # Also reached when Claude's pane is closed mid-reply (main turns
+        # the hangup into an exit): stop the pager, bring the target back.
+        backdrop.close()
+        if target and target in alive():
+            if pane in alive():
+                run('tmux', 'swap-pane', '-d', '-s', target, '-t', pane)
+            elif own in alive():
+                # vim's pane was killed outright: bring the target home.
+                run('tmux', 'join-pane', '-d', '-v', '-s', target, '-t',
+                    own)
+        run('tmux', 'kill-pane', '-t', pane)
+        run('tmux', 'select-pane', '-t', own)
 
 
 def main():
@@ -190,6 +691,9 @@ def main():
     name = os.path.basename(sys.argv[-1]) if len(sys.argv) == 2 else ''
     if not (name.startswith('claude-prompt-') and name.endswith('.md')):
         os.execvp('vim', ['vim', *sys.argv[1:]])
+    # Leave through the cleanup in edit() if the terminal goes away.
+    for sig in (signal.SIGHUP, signal.SIGTERM):
+        signal.signal(sig, lambda *_: sys.exit(1))
     path = sys.argv[1]
     with open(path) as f:
         draft = f.read()
@@ -208,7 +712,12 @@ def main():
     # A narrow pane gets narrower text, so nothing runs off its edge.
     columns = min(WIDTH, place[1] - GUTTER) if place else WIDTH
     source = transcript()
-    quote = wrap(last_message(source), max(columns, 30)) if source else ''
+    # In tmux the whole chat is on show in Claude's pane (Backdrop), so the
+    # buffer holds only the draft. Without tmux, vim takes over Claude's
+    # pane, and the last message goes above the draft instead.
+    quote = ''
+    if source and not place:
+        quote = wrap(last_message(source), max(columns, 30))
     line = 1
     if quote:
         head = f'{quote}\n\n{MARKER}\n\n'
@@ -218,7 +727,7 @@ def main():
     elif own_block:
         with open(path, 'w') as f:
             f.write(draft)
-    edit(path, line, own, place, columns)
+    edit(path, line, own, place, columns, source)
     with open(path) as f:
         body = f.read()
     if quote and MARKER in body:
