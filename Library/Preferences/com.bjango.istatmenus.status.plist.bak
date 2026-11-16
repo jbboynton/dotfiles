@@ -16,22 +16,22 @@
 		<key>CPU</key>
 		<dict>
 			<key>state</key>
-			<integer>4</integer>
+			<integer>0</integer>
 		</dict>
 		<key>Memory</key>
 		<dict>
 			<key>state</key>
-			<integer>4</integer>
+			<integer>0</integer>
 		</dict>
 		<key>Network</key>
 		<dict>
 			<key>state</key>
-			<integer>4</integer>
+			<integer>0</integer>
 		</dict>
 		<key>Sensors</key>
 		<dict>
 			<key>state</key>
-			<integer>4</integer>
+			<integer>0</integer>
 		</dict>
 	</dict>
 	<key>Notifications.State</key>
