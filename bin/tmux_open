@@ -3,8 +3,10 @@
 
 tmux.conf binds a click to this, with what tmux knows about the spot:
 
-    tmux_open --link=URL --line=TEXT --x=COLUMN --cwd=DIR
+    tmux_open [--vim] --link=URL --line=TEXT --x=COLUMN --cwd=DIR
 
+  --vim   open any path in vim, whatever it is (Option-click): a folder,
+          an image, or a bare name with no slash or dot in it
   --link  the OSC 8 link under the mouse, if the program printed one
   --line  the text of the line under the mouse
   --x     the column clicked, counted from the pane's left edge
@@ -68,31 +70,34 @@ def is_text(path):
         return False
 
 
-def open_path(path, line, cwd):
+def open_path(path, line, cwd, in_vim=False):
     path = os.path.expanduser(path)
     if not os.path.isabs(path):
         path = os.path.join(cwd, path)
     path = os.path.normpath(path)
-    if os.path.isfile(path) and is_text(path):
-        vim = ['vim', f'+{line}', path] if line else ['vim', path]
-        act('tmux', 'new-window', '-c', os.path.dirname(path), *vim)
-    elif os.path.exists(path):
-        act('open', path)
-    else:
+    if not os.path.exists(path):
         return False
+    if in_vim or (os.path.isfile(path) and is_text(path)):
+        vim = ['vim', f'+{line}', path] if line else ['vim', path]
+        home = path if os.path.isdir(path) else os.path.dirname(path)
+        act('tmux', 'new-window', '-c', home, *vim)
+    else:
+        act('open', path)
     return True
 
 
 def main():
     args = dict(a[2:].split('=', 1) for a in sys.argv[1:] if '=' in a)
     link, cwd = args.get('link', ''), args.get('cwd') or os.getcwd()
+    in_vim = '--vim' in sys.argv[1:]
     if re.match(r'https?://', link):
         act('open', link)
         return
     if link.startswith('file://'):
         url = urllib.parse.urlparse(link)
         m = re.fullmatch(r'L?(\d+).*', url.fragment)
-        open_path(urllib.parse.unquote(url.path), m and m.group(1), cwd)
+        open_path(urllib.parse.unquote(url.path), m and m.group(1), cwd,
+                  in_vim)
         return
     try:
         word = token(args.get('line', ''), int(args.get('x', '')))
@@ -101,10 +106,13 @@ def main():
     if re.match(r'https?://', word.strip(WRAPPERS)):
         act('open', word.strip(WRAPPERS).rstrip('.'))
         return
-    if not re.search(r'[/.~]', word):
+    # A plain click needs something that looks like a path, so a click on
+    # a word that happens to name a folder here does nothing. With --vim
+    # the click was deliberate, and any name that exists opens.
+    if not in_vim and not re.search(r'[/.~]', word):
         return
     for path, line in candidates(word):
-        if path and open_path(path, line, cwd):
+        if path and open_path(path, line, cwd, in_vim):
             return
 
 
