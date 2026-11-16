@@ -1,0 +1,102 @@
+#!/usr/bin/env osascript -l JavaScript
+// Say what is on the clipboard, for pasting into a reply to Claude.
+//
+// vim/autoload/claudepaste.vim calls this when Ctrl-V is pressed in the
+// buffer bin/claude_edit opens. It prints one line of JSON:
+//
+//   {"text": "..."}              ordinary text, to paste as it is
+//   {"items": [{"label": "Image", "ref": "file:///..."}, ...]}
+//                                things to refer to by a label instead
+//   {}                           nothing usable
+//
+// An item is a file copied in Finder (its own location, nothing is
+// copied), an image on the clipboard such as a screenshot (saved as a
+// PNG), or text too long to paste comfortably (saved as a text file).
+// What is saved goes under $TMPDIR/claude-paste, which macOS clears of
+// files left unused for three days.
+//
+// Usage: claude_paste [MAX_LINES [MAX_CHARS]]   text past either limit is
+//                                               saved (default 40, 4000)
+// CLAUDE_PASTE_BOARD names a pasteboard to read in place of the
+// clipboard, for tests.
+
+ObjC.import('AppKit');
+
+const IMAGES = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'tif', 'tiff',
+                'bmp', 'svg'];
+const VIDEOS = ['mov', 'mp4', 'm4v', 'webm', 'avi', 'mkv'];
+
+function label(path) {
+  const ext = path.split('.').pop().toLowerCase();
+  if (IMAGES.includes(ext)) return 'Image';
+  if (VIDEOS.includes(ext)) return 'Video';
+  return 'File';
+}
+
+// A new file under $TMPDIR/claude-paste, as an NSURL.
+function fresh(extension) {
+  const dir = $.NSTemporaryDirectory().js + 'claude-paste';
+  $.NSFileManager.defaultManager
+    .createDirectoryAtPathWithIntermediateDirectoriesAttributesError(
+      dir, true, $(), null);
+  const stamp = $.NSUUID.UUID.UUIDString.js.slice(0, 8).toLowerCase();
+  return $.NSURL.fileURLWithPath(`${dir}/paste-${stamp}.${extension}`);
+}
+
+function run(argv) {
+  const maxLines = parseInt(argv[0] || '40', 10);
+  const maxChars = parseInt(argv[1] || '4000', 10);
+  const env = $.NSProcessInfo.processInfo.environment;
+  const name = env.objectForKey('CLAUDE_PASTE_BOARD');
+  const board = name.isNil() ? $.NSPasteboard.generalPasteboard
+    : $.NSPasteboard.pasteboardWithName(name);
+
+  // Files copied in Finder
+  const options = $({NSPasteboardURLReadingFileURLsOnly: true});
+  const urls = board.readObjectsForClassesOptions(
+    $.NSArray.arrayWithObject($.NSURL), options);
+  if (!urls.isNil() && urls.count > 0) {
+    const items = [];
+    for (let i = 0; i < urls.count; i++) {
+      // The clipboard often holds a file by reference, as
+      // file:///.file/id=..., which only macOS can follow. Turn it into
+      // the file's real location.
+      const url = urls.objectAtIndex(i).filePathURL;
+      if (url.isNil()) continue;
+      items.push({label: label(url.path.js), ref: url.absoluteString.js});
+    }
+    // A reference to a file that is gone falls through to the image or
+    // text that may be on the clipboard beside it.
+    if (items.length) return JSON.stringify({items: items});
+  }
+
+  // An image itself, such as a screenshot
+  let png = board.dataForType('public.png');
+  if (png.isNil()) {
+    const tiff = board.dataForType('public.tiff');
+    if (!tiff.isNil()) {
+      png = $.NSBitmapImageRep.imageRepWithData(tiff)
+        .representationUsingTypeProperties(
+          $.NSBitmapImageFileTypePNG, $.NSDictionary.dictionary);
+    }
+  }
+  if (!png.isNil()) {
+    const url = fresh('png');
+    png.writeToURLAtomically(url, true);
+    return JSON.stringify(
+      {items: [{label: 'Image', ref: url.absoluteString.js}]});
+  }
+
+  // Text
+  const string = board.stringForType('public.utf8-plain-text');
+  if (string.isNil()) return '{}';
+  const text = string.js;
+  if (text.split('\n').length > maxLines || text.length > maxChars) {
+    const url = fresh('txt');
+    string.writeToURLAtomicallyEncodingError(
+      url, true, $.NSUTF8StringEncoding, null);
+    return JSON.stringify(
+      {items: [{label: 'Text', ref: url.absoluteString.js}]});
+  }
+  return JSON.stringify({text: text});
+}

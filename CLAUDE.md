@@ -328,6 +328,15 @@ Follow the existing history:
     link highlighted and jumps on a right-click. The script tags the pane
     `@chat_view`, and tmux's `WheelUpPane`/`WheelDownPane` bindings send
     it `k`/`j`; clicks open links through `tmux_open`, drags select.
+  - Ctrl-V in the reply's buffer pastes through `bin/claude_paste` and
+    `vim/autoload/claudepaste.vim`. Ordinary text goes in as it is. A file
+    copied in Finder, an image on the clipboard, or text over 40 lines
+    goes in as a label, `[Image #1]`, with a line for it at the end of the
+    buffer: `[Image #1]: file:///path`. Labels count up by kind (Image,
+    Video, File, Text). Only text returns from the editor, so the path is
+    how the image reaches Claude, which opens it on reading the reply.
+    Clipboard images and long text are saved under `$TMPDIR/claude-paste`,
+    which macOS clears of files unused for three days.
   - It stays `less`, not bat: bat is not a pager and would run the same
     `less` underneath, and its markdown highlighting shows the markup
     that pandoc's rendering hides.

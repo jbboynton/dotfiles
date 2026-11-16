@@ -643,8 +643,13 @@ def edit(path, line, own, place, columns, source=None):
     # Wrap at the pane's width, in view and while typing, so a narrow pane
     # never scrolls sideways. zb: the reply at the bottom, as much of the
     # message above as fits.
+    # Ctrl-V pastes a file, an image or a long text as a label, with a
+    # line for it at the end of the buffer (vim/autoload/claudepaste.vim).
+    paste = ':call claudepaste#Paste()<CR>'
     cmd = vim + [f'+setlocal wrap linebreak textwidth={columns}',
-                 f'+call cursor({line}, 1)', '+normal! zb', path]
+                 f'+call cursor({line}, 1)', '+normal! zb',
+                 f'+inoremap <buffer> <C-v> <C-\\><C-o>{paste}',
+                 f'+nnoremap <buffer> <C-v> {paste}', path]
     if not place:
         subprocess.run(cmd)
         return
