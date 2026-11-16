@@ -241,7 +241,11 @@ Follow the existing history:
     as a plain `.`.
   - `allow-passthrough` stays off: it exists for desktop notifications,
     which Alacritty doesn't show.
-  - A click on an OSC 8 link opens it (`MouseDown1Pane`), http(s) only.
+  - A click (`MouseDown1Pane`) runs `bin/tmux_open`, which opens an OSC 8
+    link, a bare URL, or a path that exists: text files in vim in a new
+    window (`file:12` and `file#L12` jump to the line), the rest with
+    `open`. Anything else is ignored, and the click still reaches the
+    pane. A path that wraps onto a second row is not matched.
   - **Test tmux changes on a private server, never James's:**
     `tmux -L NAME -f CONF`, with the plugin lines stripped from the copy of
     `tmux.conf` (continuum would restore, then autosave over, his saved
