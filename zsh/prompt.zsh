@@ -9,11 +9,9 @@ autoload -Uz add-zsh-hook
 typeset -g prompt_git=''
 typeset -g prompt_git_dir=''
 
-# Load gitstatus after the prompt is up; it keeps a git daemon running so
-# each prompt only asks it, instead of running git
-zinit wait'0' lucid for \
-  atload'prompt_git_start' \
-    romkatv/gitstatus
+# gitstatus keeps a git daemon running, so each prompt only asks it instead
+# of running git. zshrc loads it after the prompt is up, ahead of the other
+# plugins, and then calls prompt_git_start.
 
 # Start the daemon, counting at most one file of each kind, since the prompt
 # only shows whether there are any
