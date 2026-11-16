@@ -133,6 +133,12 @@ loading.
   ahead of plugins that wrap widgets. A file in `zsh/` can declare its own
   turbo block; `zdharma-continuum/null` with `id-as`, `as'null'` and
   `atload` is the pattern for "run this function later".
+  - Turbo plugins load one at a time, in the order they are declared, and
+    `zicompinit` takes about 300 ms. gitstatus is therefore declared first,
+    in `zshrc`, though its functions are in `zsh/prompt.zsh`: declared
+    last, the prompt's git info took 700 ms to appear; first, 190 ms.
+    `wait'0a'` does not reorder it. `.ignored/tmux-tests/prompttime.sh`
+    measures both.
 - **Hard-coded values need a drift check.** When a value is written out
   instead of computed (Homebrew's variables, batman's `MANPAGER`),
   `bin/env_drift` compares it with what the tool reports.
