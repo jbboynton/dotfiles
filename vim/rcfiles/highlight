@@ -10,6 +10,8 @@ highlight FoldColumn ctermbg=darkgray
 
 highlight ColorColumn ctermbg=black
 highlight LineNr cterm=none ctermfg=blue ctermbg=black
+" The current line's number: same background as the rest, in white
+highlight CursorLineNr cterm=none ctermfg=white ctermbg=black
 
 highlight DiffAdd ctermfg=white ctermbg=darkgray
 highlight DiffDelete ctermfg=white ctermbg=darkgray
