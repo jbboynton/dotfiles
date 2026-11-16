@@ -6,7 +6,7 @@ Run it in a short split so you can watch the rest of the window change:
     bind S split-window -v -l 14 tmux-style
 
 Keys:
-  tab / 1-4   switch group        up/down, j/k   pick an option
+  tab / 1-5   switch group       up/down, j/k   pick an option
   left/right  cycle presets       e   type a value
   c           256-colour picker   r   revert this option
   R           revert everything   s   save changes to ~/.tmux/style.conf
@@ -35,10 +35,18 @@ def styles(fgs=COLORS, bgs=BGS, attrs=('',)):
 LABEL = ('#{?pane_active,#[reverse bold],}'
          ' #{pane_index}: #{pane_current_command} #[default]')
 
-# Groups of (option, scope, presets). Scope -g is global, -w this window.
+BAR = ('#{?pane_active,#[reverse],}#{pane_index}#[default] '
+       '"#{pane_title}"')
+BARS = [f'bg={b},fg={f},width={w},pad={p}'
+        for w, p in ((1, 0), (2, 0), (1, 1))
+        for b, f in (('colour236', 'colour245'), ('black', 'cyan'),
+                     ('default', 'colour8'), ('colour8', 'green'))]
+
+# Groups of (option, scope, presets). Scope -g is global, -w this window,
+# -s the server.
 GROUPS = [
     ('Status bar', [
-        ('status', '-g', ['on', 'off', '2']),
+        ('status', '-g', ['on', 'off', '2', '3']),
         ('status-position', '-g', ['bottom', 'top']),
         ('status-justify', '-g',
          ['left', 'centre', 'right', 'absolute-centre']),
@@ -48,6 +56,12 @@ GROUPS = [
         ('status-right', '-g', [' %a %d %b | %I:%M %p ', ' #H ', ' %H:%M ',
                                 ' #{pane_current_path} ', '']),
         ('status-right-style', '-g', styles()),
+        # Lines 2 and 3 of the status bar (status 2 or 3) list panes and
+        # sessions.
+        ('pane-status-style', '-g', styles()),
+        ('pane-status-current-style', '-g', styles(attrs=ATTRS)),
+        ('session-status-style', '-g', styles()),
+        ('session-status-current-style', '-g', styles(attrs=ATTRS)),
     ]),
     ('Windows', [
         ('window-status-format', '-g', [' #I:#W#F ', ' #I #W ', ' #W ']),
@@ -62,21 +76,44 @@ GROUPS = [
          ['default', 'bg=black', 'bg=colour234']),
     ]),
     ('Panes', [
-        ('pane-border-status', '-w', ['off', 'top', 'bottom']),
+        ('pane-border-status', '-w', ['off', 'top', 'bottom', 'top-floating',
+                                      'bottom-floating']),
         ('pane-border-lines', '-w',
          ['single', 'double', 'heavy', 'simple', 'number', 'spaces']),
         ('pane-border-indicators', '-w', ['colour', 'arrows', 'both', 'off']),
         ('pane-border-style', '-w', styles()),
         ('pane-active-border-style', '-w', styles(attrs=ATTRS[:2])),
-        ('pane-border-format', '-w', [LABEL, ' #{pane_title} ',
+        ('pane-border-format', '-w', [LABEL, BAR, ' #{pane_title} ',
                                       ' #{pane_current_path} ', ' #P ']),
+        ('pane-scrollbars', '-w', ['off', 'modal', 'on', 'auto-hide']),
+        ('pane-scrollbars-position', '-w', ['right', 'left']),
+        ('pane-scrollbars-style', '-w', BARS),
     ]),
-    ('Messages & modes', [
-        ('message-style', '-g', styles(bgs=NAMED[1:])),
+    ('Copy mode', [
         ('mode-style', '-g', styles(bgs=NAMED[1:])),
-        ('popup-border-lines', '-g',
+        ('copy-mode-line-numbers', '-w',
+         ['off', 'default', 'absolute', 'relative', 'hybrid']),
+        ('copy-mode-line-number-style', '-w', styles(attrs=ATTRS[:3])),
+        ('copy-mode-current-line-number-style', '-w',
+         styles(attrs=ATTRS[:2])),
+        ('copy-mode-current-line-style', '-w',
+         ['default', 'bg=colour236', 'bg=colour8', 'bold']),
+        ('copy-mode-match-style', '-w', styles(bgs=NAMED[1:])),
+        ('copy-mode-current-match-style', '-w', styles(bgs=NAMED[1:])),
+        ('copy-mode-mark-style', '-w', styles(bgs=NAMED[1:])),
+    ]),
+    ('Messages & menus', [
+        ('message-style', '-g', styles(bgs=NAMED[1:])),
+        ('popup-style', '-w', styles()),
+        ('popup-border-lines', '-w',
          ['single', 'rounded', 'double', 'heavy']),
-        ('popup-border-style', '-g', styles()),
+        ('popup-border-style', '-w', styles()),
+        ('menu-style', '-w', styles()),
+        ('menu-selected-style', '-w', styles(bgs=NAMED[1:])),
+        ('menu-border-lines', '-w',
+         ['single', 'rounded', 'double', 'heavy']),
+        ('menu-border-style', '-w', styles()),
+        ('theme', '-s', ['detect', 'terminal', 'dark', 'light']),
         ('clock-mode-colour', '-w', COLORS),
     ]),
 ]
@@ -266,9 +303,9 @@ def draw(scr, pal, opts, tab, sel, top, msg):
         y = row + 2
         put(scr, y, 0, '▶' if on else ' ', pal.pair(6, -1))
         put(scr, y, 2, '●' if dirty else ' ', pal.pair(3, -1))
-        put(scr, y, 4, f'{name:<29}',
+        put(scr, y, 4, f'{name:<36}',
             curses.A_BOLD if on else curses.A_NORMAL)
-        put(scr, y, 34, f' {val} ' if val else ' (empty) ',
+        put(scr, y, 41, f' {val} ' if val else ' (empty) ',
             pal.style(val) or (curses.A_REVERSE if on else 0))
     keys = ('←/→ cycle  e edit  c colour  r revert  R revert all  '
             's save  x snapshot  q quit')
@@ -293,7 +330,7 @@ def main(scr):
         k = scr.getch()
         name, scope, presets = items[sel]
         cur = opts.values[name]
-        if k in (9, curses.KEY_BTAB) or ord('1') <= k <= ord('4'):
+        if k in (9, curses.KEY_BTAB) or ord('1') <= k <= ord('9'):
             if k == 9:
                 tab = (tab + 1) % len(GROUPS)
             elif k == curses.KEY_BTAB:
