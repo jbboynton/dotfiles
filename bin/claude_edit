@@ -84,16 +84,23 @@ def transcript():
     return found[0] if found else None
 
 
-def messages(path):
-    """Yield (speaker, text) for what James and Claude said, in order.
+def read_messages(path, start=0):
+    """What James and Claude said from byte `start` of the transcript on.
 
-    Tool calls and their results, Claude's thinking, subagents' own
-    conversations and text the harness adds (it starts with a tag) are
-    left out.
+    Returns the (speaker, text) pairs in order, and the byte they end at:
+    the end of the last complete line, so a later call can carry on from
+    there. Tool calls and their results, Claude's thinking, subagents'
+    own conversations and text the harness adds (it starts with a tag)
+    are left out.
     """
+    said, end = [], start
     try:
-        with open(path) as f:
+        with open(path, 'rb') as f:
+            f.seek(start)
             for line in f:
+                if not line.endswith(b'\n'):
+                    break            # still being written
+                end += len(line)
                 try:
                     row = json.loads(line)
                 except ValueError:
@@ -112,9 +119,15 @@ def messages(path):
                     continue
                 text = '\n\n'.join(p for p in parts if p.strip()).strip()
                 if text and not (kind == 'user' and text.startswith('<')):
-                    yield ('You' if kind == 'user' else 'Claude'), text
+                    said.append(('You' if kind == 'user' else 'Claude',
+                                 text))
     except OSError:
-        return
+        pass
+    return said, end
+
+
+def messages(path):
+    return read_messages(path)[0]
 
 
 def last_message(path):
@@ -157,6 +170,10 @@ def pandoc_ansi(text, columns):
         return None
     out = re.sub(r'\033\[36m((?:\033\[[0-9;]*m)*\033\]8;;)',
                  '\033[96m\\1', r.stdout)
+    # pandoc ends a document by resetting the style and closing any link.
+    # Dropped, so text styled in several runs (see render_chat) reads the
+    # same as text styled in one.
+    out = re.sub(r'\033\[0m\033\]8;;\033\\(\n*)\Z', r'\1', out)
 
     return re.sub(r'((?:\033\[(?:1|22|23|3)m)*)\033\[31m\033\[47m'
                   r'((?:\033\[[0-9;]*m)*)(.*?)\033\[0m', code_span, out)
@@ -240,12 +257,13 @@ def wrap_styled(text, width):
     return lines
 
 
-def lift_tables(text, tables):
+def lift_tables(text, tables, base=0):
     """Replace each table in the markdown with a marker; collect them.
 
     A table is taken out so it can be drawn at the pane's width while the
     prose around it wraps at 80 columns. Each is kept as its rows of cells
-    and its columns' alignments.
+    and its columns' alignments. Markers are numbered from `base`, the
+    count of tables lifted on earlier runs.
     """
     lines, out, i, fenced = text.split('\n'), [], 0, False
     while i < len(lines):
@@ -269,7 +287,7 @@ def lift_tables(text, tables):
                   else 'centre' if m.endswith(':') else 'left'
                   for m in rows[1]]
         tables.append((rows[:1] + rows[2:], aligns))
-        out += ['', f'TABLE{MARK}{len(tables) - 1}', '']
+        out += ['', f'TABLE{MARK}{base + len(tables) - 1}', '']
         i = j
     return '\n'.join(out)
 
@@ -292,14 +310,16 @@ def column_widths(natural, least, room):
 
 
 def draw_tables(tables, room):
-    """Each table as lines of terminal text, at most `room` columns wide.
+    """Each table as lines of terminal text, at most `room` columns wide."""
+    return layout_tables(style_tables(tables), room)
 
-    Columns are as wide as their longest cell, with four spaces between
-    them; past `room`, cells wrap. The header is bold light blue on a
-    faint blue background, over a dim blue rule. Every second row below
-    it has a faint background of its own, so rows can be told apart
-    without lines or gaps, whatever their height. A space of padding sits
-    inside the table's left and right edges.
+
+def style_tables(tables):
+    """Each table as [rows of styled cells, alignments].
+
+    The slow half of drawing a table, pandoc styling every cell, which
+    does not depend on the pane's width and so can be kept (see
+    render_chat).
     """
     cells = [cell for rows, _ in tables for row in rows for cell in row]
     sep = f'CELL{MARK}'
@@ -315,11 +335,28 @@ def draw_tables(tables, room):
         else:
             part.append(line.strip())
     texts = iter(texts)
-    drawn = []
+    styled = []
     for rows, aligns in tables:
         grid = [[next(texts) for _ in row] for row in rows]
         count = len(aligns)
-        grid = [(row + [''] * count)[:count] for row in grid]
+        styled.append([[(row + [''] * count)[:count] for row in grid],
+                       aligns])
+    return styled
+
+
+def layout_tables(styled, room):
+    """Styled tables as lines of terminal text, at most `room` wide.
+
+    Columns are as wide as their longest cell, with four spaces between
+    them; past `room`, cells wrap. The header is bold light blue on a
+    faint blue background, over a dim blue rule. Every second row below
+    it has a faint background of its own, so rows can be told apart
+    without lines or gaps, whatever their height. A space of padding sits
+    inside the table's left and right edges.
+    """
+    drawn = []
+    for grid, aligns in styled:
+        count = len(aligns)
         natural = [max(max(shown(row[k]) for row in grid), 3)
                    for k in range(count)]
         # A space inside each edge of the table keeps text off the edge
@@ -367,6 +404,58 @@ def draw_tables(tables, room):
     return drawn
 
 
+# Raise when the styling of kept text changes (pandoc_ansi, style_tables),
+# so what was kept under the old styling is not used.
+CACHE = 1
+
+
+def cache_file(path, columns):
+    name = f'{os.path.basename(path)}.{columns}.v{CACHE}.json'
+    return os.path.join(tempfile.gettempdir(), 'claude-edit-cache', name)
+
+
+def tail_before(path, offset):
+    """The transcript's last bytes before `offset`, to recognize it by."""
+    try:
+        with open(path, 'rb') as f:
+            f.seek(max(offset - 64, 0))
+            return f.read(min(offset, 64)).hex()
+    except OSError:
+        return ''
+
+
+def load_cache(path, columns):
+    """The chat as styled so far, for text this wide, or a fresh start.
+
+    Kept under $TMPDIR, which macOS clears of files unused for three
+    days: `body`, pandoc's lines for every message up to byte `offset` of
+    the transcript; `tables`, their styled cells; `last`, who spoke last.
+    Used only if the transcript still reads the same just before
+    `offset`, so a rewritten or replaced transcript starts afresh.
+    """
+    try:
+        with open(cache_file(path, columns)) as f:
+            kept = json.load(f)
+        if kept['offset'] and kept['tail'] == tail_before(
+                path, kept['offset']):
+            return kept
+    except (OSError, ValueError, KeyError):
+        pass
+    return {'offset': 0, 'last': None, 'body': [], 'tables': []}
+
+
+def save_cache(path, columns, kept):
+    kept['tail'] = tail_before(path, kept['offset'])
+    name = cache_file(path, columns)
+    try:
+        os.makedirs(os.path.dirname(name), exist_ok=True)
+        with open(f'{name}.{os.getpid()}', 'w') as f:
+            json.dump(kept, f)
+        os.replace(f'{name}.{os.getpid()}', name)
+    except OSError:
+        pass
+
+
 def render_chat(path, width):
     """The whole chat as terminal text, laid out for a pane this wide.
 
@@ -381,22 +470,42 @@ def render_chat(path, width):
     lines above and below it, as there are above each speaker.
     Returns '' if there is nothing to show, and plain markdown if pandoc
     is missing.
+
+    pandoc takes half a second on a long chat, and what was said does not
+    change, so its output is kept (see load_cache): each call reads only
+    what the transcript has gained and has pandoc style only that. The
+    rest of the work, placing headings and fitting tables to the pane,
+    takes a few milliseconds and is done every time.
     """
-    parts, tables, last = [], [], None
-    for speaker, said in messages(path):
-        if speaker != last:
-            parts.append(f'SPEAKER{MARK}{speaker}')
-            last = speaker
-        parts.append(lift_tables(said, tables))
-    if not parts:
+    columns = min(width - 1, WIDTH) - 2
+    kept = load_cache(path, columns)
+    new, end = read_messages(path, kept['offset'])
+    if new:
+        parts, tables, last = [], [], kept['last']
+        for speaker, said in new:
+            if speaker != last:
+                parts.append(f'SPEAKER{MARK}{speaker}')
+                last = speaker
+            parts.append(lift_tables(said, tables, len(kept['tables'])))
+        doc = '\n\n'.join(parts)
+        body = pandoc_ansi(doc, columns)
+        if body is None:
+            return '\n\n'.join(
+                text if speaker == was else f'# {speaker}\n\n{text}'
+                for (speaker, text), (was, _) in zip(
+                    new, [(None, '')] + new))
+        if kept['body']:
+            kept['body'].append('')
+        kept['body'] += body.rstrip('\n').split('\n')
+        kept['tables'] += style_tables(tables) if tables else []
+        kept['last'] = last
+    if end != kept['offset']:
+        kept['offset'] = end
+        save_cache(path, columns, kept)
+    if not kept['body']:
         return ''
-    doc = '\n\n'.join(parts)
-    body = pandoc_ansi(doc, min(width - 1, WIDTH) - 2)
-    if body is None:
-        return doc.replace(f'SPEAKER{MARK}', '# ')
     inset = '    '
-    drawn = draw_tables(tables, max(width - 1 - len(inset), 20)) \
-        if tables else []
+    drawn = layout_tables(kept['tables'], max(width - 1 - len(inset), 20))
     lines = []
 
     def space(count):
@@ -407,7 +516,7 @@ def render_chat(path, width):
             lines.extend([''] * count)
 
     after_table = False
-    for line in body.rstrip('\n').split('\n'):
+    for line in kept['body']:
         plain = SGR.sub('', line).strip()
         if after_table and plain:
             space(2)
@@ -438,15 +547,20 @@ def wrap(text, columns):
 
 
 def panes(window):
-    """Tiled panes of a window: id -> (left, top, width, height)."""
+    """Tiled panes of a window: id -> (left, top, width, height).
+
+    `window` can be one of its panes. The window's @claude_edit_pane is
+    returned too, read in the same call to tmux.
+    """
     fmt = ('#{pane_id} #{pane_floating_flag} #{pane_left} #{pane_top} '
-           '#{pane_width} #{pane_height}')
-    found = {}
+           '#{pane_width} #{pane_height} #{@claude_edit_pane}')
+    found, chosen = {}, ''
     for row in run('tmux', 'list-panes', '-t', window, '-F', fmt).split('\n'):
-        pid, floating, *box = row.split()
+        pid, floating, left, top, width, height, *rest = row.split()
+        chosen = rest[0] if rest else ''
         if floating != '1':
-            found[pid] = tuple(map(int, box))
-    return found
+            found[pid] = (int(left), int(top), int(width), int(height))
+    return found, chosen
 
 
 def slot(own):
@@ -456,10 +570,8 @@ def slot(own):
     below Claude's. With neither, the pane is None and the editor gets a
     new split, as wide as Claude's pane.
     """
-    window = run('tmux', 'display', '-p', '-t', own, '#{window_id}')
-    found = panes(window)
+    found, target = panes(own)
     left, top, width, height = found[own]
-    target = run('tmux', 'show', '-wqv', '-t', own, '@claude_edit_pane')
     if target and target != own and target in found:
         return target, found[target][2]
     best, most = None, 0
@@ -608,7 +720,7 @@ class Backdrop:
         self.ticks += 1
         if self.pager.poll() is not None:
             self.start()
-        elif not self.ticks % 5 and self.pane_width() != self.width:
+        elif not self.ticks % 25 and self.pane_width() != self.width:
             # Find the reader's place before the old pager is gone.
             place = self.on_screen()
             self.pager.terminate()
@@ -643,7 +755,12 @@ class Backdrop:
                 pass
 
 
-def edit(path, line, own, place, columns, source=None):
+def edit(path, line, own, place, columns, source=None, sent=None):
+    """Run vim on the reply; True if it was left with :wq.
+
+    `sent` is called as soon as that is known, before the panes are put
+    back, so the reply's sender is ready by the time Claude Code has it.
+    """
     vim = shlex.split(os.environ.get('CLAUDE_EDIT_VIM', 'vim'))
     # Wrap at the pane's width, in view and while typing, so a narrow pane
     # never scrolls sideways. zb: the reply at the bottom, as much of the
@@ -659,31 +776,47 @@ def edit(path, line, own, place, columns, source=None):
         subprocess.run(cmd)
         return False
     target = place[0]
-    made = ['-P', '-F', '#{pane_id}', '-c', os.getcwd(), shlex.join(cmd)]
+    # vim's pane says when vim is done, on a tmux channel, so its exit is
+    # seen at once without asking tmux over and over.
+    done = f'claude-edit-{os.getpid()}'
+    waiter = subprocess.Popen(['tmux', 'wait-for', done])
+    shell = f'{shlex.join(cmd)}; s=$?; tmux wait-for -S {done}; exit $s'
+    made = ['-P', '-F', '#{pane_id}', '-c', os.getcwd(), shell]
     if target:
         # Start vim in a window of its own, then trade places with the
         # target: vim lands in the target's exact spot, no pane changes
         # size, and the target waits in that window until vim is done.
         pane = run('tmux', 'new-window', '-d', '-n', 'parked', *made)
-        run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on')
-        run('tmux', 'swap-pane', '-d', '-s', pane, '-t', target)
+        run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on', ';',
+            'swap-pane', '-d', '-s', pane, '-t', target, ';',
+            'select-pane', '-t', pane)
     else:
         pane = run('tmux', 'split-window', '-v', '-l', '40%', '-t', own,
                    *made)
-        run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on')
+        run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on', ';',
+            'select-pane', '-t', pane)
     if not pane:
+        waiter.kill()
         subprocess.run(cmd)
         return False
-    run('tmux', 'select-pane', '-t', pane)
     backdrop = Backdrop(own, source)
     saved = False
     try:
-        # Claude Code waits on this process, so wait on vim's pane.
-        while alive().get(pane):
-            time.sleep(0.1)
+        # Claude Code waits on this process, so wait on vim's pane. A
+        # pane that is killed never signals; that is looked for twice a
+        # second.
+        ticks = 0
+        while waiter.poll() is None:
+            time.sleep(0.02)
+            ticks += 1
             backdrop.keep_up()
+            if not ticks % 25 and not alive().get(pane):
+                break
         saved = left_cleanly(pane)
+        if saved and sent:
+            sent()
     finally:
+        waiter.kill()
         # Also reached when Claude's pane is closed mid-reply (main turns
         # the hangup into an exit): stop the pager, bring the target back.
         backdrop.close()
@@ -705,20 +838,99 @@ def left_cleanly(pane):
                '#{pane_dead_status}') == '0'
 
 
-def send_soon(own):
+def send_soon(own, reply):
     """Press Enter in Claude's pane, once Claude Code has the reply back.
 
     Claude Code only puts the editor's text in its prompt; sending it is a
-    second step. It reads the file after this process exits, so the key
-    is sent by tmux a moment later.
+    second step. It reads the file after this process exits, and drops an
+    Enter that arrives before then, so a process of its own outlives this
+    one and presses the key (see send).
     """
-    run('tmux', 'run-shell', '-b',
-        f'sleep 0.6; tmux send-keys -t {shlex.quote(own)} Enter')
+    first = reply.strip().split('\n')[0].strip()[:20].rstrip()
+    subprocess.Popen(
+        [sys.executable, os.path.abspath(__file__), '--send', own, first],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def prompt_text(pane):
+    """What Claude Code's prompt holds, or None if it is not on screen.
+
+    The prompt is the row that starts with `❯` under a rule; a message
+    already sent has the `❯` but no rule above it.
+    """
+    rows = run('tmux', 'capture-pane', '-p', '-t', pane).split('\n')
+    found = None
+    for above, row in zip(rows, rows[1:]):
+        if above.strip().startswith('─') and row.lstrip().startswith('❯'):
+            found = row.lstrip()[1:].strip()
+    return found
+
+
+def send(pane, first):
+    """Press Enter in Claude's pane the moment its prompt has the reply.
+
+    The pane is read every few milliseconds until the prompt starts with
+    the reply's first words, which takes about a tenth of a second. Then
+    Enter, and again if the reply is still there a moment later. If the
+    prompt cannot be found or never shows those words (Claude Code's
+    screen has changed, or the reply starts with `!` or `/`, which
+    changes the prompt), Enter is pressed once after 0.6 seconds, which
+    was the fixed wait before.
+    """
+    log = os.environ.get('CLAUDE_EDIT_LOG')
+    start, pressed = time.time(), 0
+
+    def press(why):
+        nonlocal pressed
+        run('tmux', 'send-keys', '-t', pane, 'Enter')
+        pressed += 1
+        if log:
+            with open(log, 'a') as f:
+                f.write(f'{why} at {(time.time() - start) * 1000:.0f} ms\n')
+
+    while time.time() - start < 2 and pressed < 3:
+        text = prompt_text(pane)
+        if first and text is not None and text.startswith(first):
+            press('reply in the prompt')
+            # Give Claude Code a moment to take it before looking again.
+            until = time.time() + 0.15
+            while time.time() < until and prompt_text(pane) == text:
+                time.sleep(0.01)
+        elif pressed:
+            return
+        elif time.time() - start > 0.6:
+            press('prompt not recognized')
+            return
+        else:
+            time.sleep(0.005)
+
+
+def warm():
+    """Style what the chat has gained, ahead of the next Ctrl-G.
+
+    Run by a Claude Code hook when Claude finishes its turn, with the
+    hook's JSON on stdin naming the transcript. Prints nothing and never
+    fails: a hook that does either can change what Claude does.
+    """
+    try:
+        path = json.load(sys.stdin).get('transcript_path')
+        own = os.environ.get('TMUX_PANE')
+        width = int(own and os.environ.get('TMUX') and run(
+            'tmux', 'display', '-p', '-t', own, '#{pane_width}') or 200)
+        if path:
+            render_chat(os.path.expanduser(path), width)
+    except Exception:
+        pass
 
 
 def main():
     # EDITOR set for Claude Code also reaches what it runs, such as git.
     # Anything but a Claude prompt file gets plain vim.
+    if sys.argv[1:2] == ['--send'] and len(sys.argv) == 4:
+        return send(sys.argv[2], sys.argv[3])
+    if sys.argv[1:] == ['--warm']:
+        return warm()
     name = os.path.basename(sys.argv[-1]) if len(sys.argv) == 2 else ''
     if not (name.startswith('claude-prompt-') and name.endswith('.md')):
         os.execvp('vim', ['vim', *sys.argv[1:]])
@@ -758,19 +970,27 @@ def main():
     elif own_block:
         with open(path, 'w') as f:
             f.write(draft)
-    saved = edit(path, line, own, place, columns, source)
-    with open(path) as f:
-        body = f.read()
-    if quote and MARKER in body:
-        body = body.split(MARKER, 1)[1].lstrip('\n')
+    def reply():
+        with open(path) as f:
+            body = f.read()
+        if quote and MARKER in body:
+            body = body.split(MARKER, 1)[1].lstrip('\n')
+        return body
+
+    def sent():
+        # :wq on a reply that was written or changed sends it. :cq, or
+        # leaving the draft as it was, goes back to Claude's prompt with
+        # nothing sent.
+        body = reply()
+        if (body.strip() and body.strip() != draft.strip()
+                and os.environ.get('CLAUDE_EDIT_SEND') != '0'):
+            send_soon(own, body)
+
+    edit(path, line, own, place, columns, source, sent)
     if quote or own_block:
+        body = reply()
         with open(path, 'w') as f:
             f.write(own_block + body)
-    # :wq on a reply that was written or changed sends it. :cq, or leaving
-    # the draft as it was, goes back to Claude's prompt with nothing sent.
-    if (saved and body.strip() and body.strip() != draft.strip()
-            and os.environ.get('CLAUDE_EDIT_SEND') != '0'):
-        send_soon(own)
 
 
 if __name__ == '__main__':

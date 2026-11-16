@@ -317,10 +317,31 @@ Follow the existing history:
     also marks out a row whose cells wrap onto several lines; the header
     has a different, bluish one. A space of padding sits inside the left
     and right edges. No column is narrower than its longest word.
-  - `:wq` sends the reply if it was written or changed: tmux presses
-    Enter in Claude's pane just after the script exits. `:cq`, a kill, or
+  - `:wq` sends the reply if it was written or changed. `:cq`, a kill, or
     an unchanged draft sends nothing and leaves the text in Claude's
     prompt. `CLAUDE_EDIT_SEND=0` turns sending off.
+    - Claude Code drops an Enter that arrives before it has read the
+      reply back, about 100 ms after the script exits. So a process the
+      script leaves behind reads Claude's pane every few milliseconds and
+      presses Enter once the prompt (the `❯` row under a rule) starts
+      with the reply. If it never sees that, it presses Enter at 0.6
+      seconds, the fixed wait this replaced. It depends on how Claude
+      Code draws its prompt; `.ignored/tmux-tests/realsend.py` checks it
+      against a real Claude Code.
+  - Speed is the point; James feels 200 ms. Measured with
+    `.ignored/tmux-tests/opentime.py` on a 150-message chat: vim starts
+    about 110 ms after Ctrl-G and the chat is on screen by 130 ms (850 ms
+    before the cache); the reply is sent about 135 ms after `:wq`.
+    - pandoc takes half a second on a long chat, so its output is kept
+      under `$TMPDIR/claude-edit-cache`, per transcript and text width.
+      Each Ctrl-G styles only what the transcript has gained. Table
+      layout is not kept; it takes milliseconds, so resizing is cheap
+      too. A Stop hook in `~/.claude/settings.json` runs
+      `claude_edit --warm` when Claude finishes a turn, so the cache is
+      usually complete before Ctrl-G. Raise `CACHE` in the script when
+      the styling of kept text changes.
+    - vim's pane signals its exit on a tmux channel (`wait-for`); the
+      script does not poll tmux for it.
   - `q` in that pane resets it after a stray key or click: the pager
     quits and the script starts it again at the end, laid out afresh. A
     change in the pane's width lays it out afresh unasked (less swallows
