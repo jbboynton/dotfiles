@@ -3,6 +3,8 @@ set autoread                    " reload files modified outside vim
 set backspace=2                 " enable this handy key
 set clipboard=unnamed           " copy/paste using the system clipboard
 set colorcolumn=80              " show column 80
+set cursorline                  " mark the current line...
+set cursorlineopt=number        " ...in the number column only
 set diffopt+=vertical           " diff options
 set directory=/var/tmp          " create swap files in /var/tmp
 set encoding=utf-8              " self explanatory
@@ -28,6 +30,7 @@ set modeline                    " enable modelines
 set nojoinspaces                " only insert one space after a period
 set noshowmode                  " don't show the mode of operation
 set nowrap                      " don't wrap long lines
+set number                      " show the current line's own number
 set numberwidth=5               " width of line number column
 set relativenumber              " show relative line numbers
 set ruler                       " show cursor position
