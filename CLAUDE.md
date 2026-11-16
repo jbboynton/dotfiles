@@ -232,7 +232,23 @@ Follow the existing history:
   the current Space instead (a new window at the old one's frame, the tmux
   client moved over, the old window closed; macOS has no way to move another
   app's window between Spaces).
-- **tmux** passes Alacritty's truecolor through (`terminal-features`).
+- **tmux** passes Alacritty's truecolor, OSC 8 links, underline styles and
+  extended keys through (`terminal-features`). A feature reaches a client
+  only when it attaches: reload, then detach and reattach.
+  - `extended-keys` is `always` with the `csi-u` format. With `on`, tmux
+    honors only xterm's request (`CSI > 4 ; n m`), which neither vim nor a
+    kitty-protocol program sends, so Alacritty's Ctrl-> binding reached vim
+    as a plain `.`.
+  - `allow-passthrough` stays off: it exists for desktop notifications,
+    which Alacritty doesn't show.
+  - A click on an OSC 8 link opens it (`MouseDown1Pane`), http(s) only.
+  - **Test tmux changes on a private server, never James's:**
+    `tmux -L NAME -f CONF`, with the plugin lines stripped from the copy of
+    `tmux.conf` (continuum would restore, then autosave over, his saved
+    sessions). For a real client, run it under `script -q FILE env
+    TERM=alacritty tmux -L NAME ... new-session CMD` and pipe keys and
+    SGR mouse clicks into its stdin; `FILE` then holds what tmux sent the
+    terminal. Kill the server afterwards.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
