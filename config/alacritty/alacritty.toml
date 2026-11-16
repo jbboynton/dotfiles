@@ -98,13 +98,15 @@ chars = "\n"
 # have no control code for Ctrl-Shift-Period, so send CSI-u sequences
 # ('>' is 62, '<' is 60, modifier 5 is Control). Vim reads these as
 # <F13>/<F14> via a set <F13>= line in after/ftplugin/markdown.vim.
+# The key is named by what it types with Shift held: ">" and "<". Alacritty
+# accepts "Period" or "." here without complaint and never matches them.
 [[keyboard.bindings]]
-key = "Period"
+key = ">"
 mods = "Control|Shift"
 chars = "\u001b[62;5u"
 
 [[keyboard.bindings]]
-key = "Comma"
+key = "<"
 mods = "Control|Shift"
 chars = "\u001b[60;5u"
 
