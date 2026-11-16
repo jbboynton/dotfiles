@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Record what a Claude Code session is doing, on its tmux pane, so tmux can
+# show which chats need James. Run by
+# Claude Code's hooks (~/.claude/settings.json) and, for `wants`, by an
+# agent itself.
+#
+# Usage: agent_state working | blocked | idle | prompt | clear
+#        agent_state wants [QUESTION]
+#
+#   working  Claude is working (a prompt was sent, a tool ran)
+#   blocked  Claude cannot go on until James acts: a permission prompt or
+#            a direct question
+#   idle     Claude finished its turn
+#   prompt   James sent a message: working, and any `wants` is answered
+#   wants    Claude has a question but keeps working. Stays set until
+#            James next sends that chat a message.
+#   clear    The session ended
+#
+# The pane options: @agent_state and @agent_since (epoch seconds, when the
+# state last changed), @agent_wants (the question) and @agent_wants_since.
+#
+# A hook must never slow Claude down or change what it does, so this
+# prints nothing, never fails, and does nothing outside tmux.
+
+pane="${TMUX_PANE:-}"
+{ [ -n "$pane" ] && [ -n "${TMUX:-}" ]; } || exit 0
+
+{
+  now="$(date +%s)"
+  current="$(tmux display -p -t "$pane" '#{@agent_state}|#{@agent_wants}')"
+  state="${current%%|*}"
+  wants="${current#*|}"
+
+  case "${1:-}" in
+    working|blocked|idle)
+      [ "$state" = "$1" ] && exit 0
+      tmux set -p -t "$pane" @agent_state "$1" \; \
+        set -p -t "$pane" @agent_since "$now"
+      ;;
+    prompt)
+      [ "$state" = working ] && [ -z "$wants" ] && exit 0
+      tmux set -p -t "$pane" @agent_state working \; \
+        set -p -t "$pane" @agent_since "$now" \; \
+        set -p -u -t "$pane" @agent_wants \; \
+        set -p -u -t "$pane" @agent_wants_since
+      ;;
+    wants)
+      shift
+      tmux set -p -t "$pane" @agent_wants "${*:-a question}"
+      [ -n "$wants" ] || tmux set -p -t "$pane" @agent_wants_since "$now"
+      ;;
+    clear)
+      for option in @agent_state @agent_since @agent_wants \
+        @agent_wants_since; do
+        tmux set -p -u -t "$pane" "$option"
+      done
+      ;;
+    *) exit 0 ;;
+  esac
+} > /dev/null 2>&1
+
+exit 0

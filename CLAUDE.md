@@ -284,6 +284,17 @@ Follow the existing history:
     undocumented and may move.
   - Claude Code's own `externalEditorContext` does the same as `#` lines,
     unwrapped. Leave it off; the script copes if it is on.
+- **Chat state.** Claude Code hooks in `~/.claude/settings.json` (global,
+  not in this repo) run `bin/agent_state`, which records on the chat's
+  tmux pane whether Claude is `working`, `blocked` (a permission prompt or
+  a direct question) or `idle`. An agent with a question that can wait
+  runs `agent_state wants QUESTION` itself. The status bar puts a red dot
+  after a window's name for each blocked chat in it, a yellow one for each
+  that wants input.
+  - The hooks are `async`, print nothing and always exit 0: a hook that
+    prints or fails can change what Claude does.
+  - No hook fires when James denies a permission prompt; the state
+    corrects itself at the next tool call or the end of the turn.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
