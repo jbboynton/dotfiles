@@ -1,0 +1,393 @@
+#!/usr/bin/env python3
+"""Line up the Claude chats that need James, in the bullpen's pm window.
+
+The window is laid out as
+
+    +-----------+-----------+
+    |           | C     | D |     A  the current chat: the coordinator,
+    |     A     +-----------+        or the chat being replied to
+    |           |     E     |     B  James's terminal, or the reply
+    +-----------+-----------+        being written (bin/claude_edit)
+    |     B     |     F     |     C..F  the queue
+    +-----------+-----------+
+
+The queue holds, top to bottom:
+
+  1. the coordinator, whenever another chat has taken A;
+  2. chats with a reply left half written (D is that reply);
+  3. blocked chats, longest wait first;
+  4. chats that want input but are still working, longest wait first.
+
+A chat's state comes from the pane options bin/agent_state sets. A queued
+chat is moved here from its own window (dev, qa) and sent back when it no
+longer needs James. Chats that don't fit stay where they are until there
+is room; @queue_min_height on the window (default 12) sets how many fit.
+With an empty queue the right-hand column is gone and A and B are full
+width.
+
+Usage: claude_queue sync [--wait]  arrange the window (run on every change)
+       claude_queue on | off | toggle
+                                   start; send every chat home and stop
+       claude_queue status         print the plan without moving anything
+       claude_queue promote PANE   bring PANE's half-written reply back to
+                                   A and B
+       claude_queue width PANE     columns a reply to PANE's chat will get
+       claude_queue current        the pm window, the pane in A, and the
+                                   pane to type in
+
+A reply is a pane whose @reply_for names its chat's pane; the newest
+(@reply_seq) is the one in B, and its chat is in A.
+
+It only ever acts on a session that has a window named pm holding a pane
+whose @role is coordinator, and only once that window's @queue option is
+"on" (`claude_queue on`). Until then, and anywhere else, it does nothing.
+"""
+import os
+import subprocess
+import sys
+import time
+
+FIELDS = ['pane_id', 'session_id', 'window_id', 'window_name', '@role',
+          '@agent_state', '@agent_since', '@agent_wants',
+          '@agent_wants_since', '@reply_for', '@reply_seq', 'pane_dead',
+          '@queue_home', '@queue_slot', 'pane_width', 'pane_height']
+HOLD = 'parked'
+MIN_HEIGHT = 12
+LOCK = '/tmp/claude_queue-%d.lock' % os.getuid()
+
+
+def tmux(*args):
+    r = subprocess.run(['tmux', *args], capture_output=True, text=True)
+    return r.stdout.rstrip('\n')
+
+
+def number(text, default=0):
+    try:
+        return int(text)
+    except (TypeError, ValueError):
+        return default
+
+
+class Pane(dict):
+    __getattr__ = dict.get
+
+    @property
+    def id(self):
+        return self['pane_id']
+
+    @property
+    def role(self):
+        return self['@role']
+
+    @property
+    def live(self):
+        return self['pane_dead'] != '1'
+
+
+def all_panes():
+    fmt = '\t'.join('#{%s}' % f for f in FIELDS)
+    rows = tmux('list-panes', '-a', '-F', fmt).split('\n')
+    return [Pane(zip(FIELDS, r.split('\t'))) for r in rows if r]
+
+
+class Bullpen:
+    """The session's panes, and where each belongs."""
+
+    def __init__(self, extra_reply=None):
+        panes = all_panes()
+        coord = next((p for p in panes if p.role == 'coordinator'
+                      and (p.window_name == 'pm' or p['@queue_home'])), None)
+        self.ok = coord is not None
+        if not self.ok:
+            return
+        self.session = coord.session_id
+        self.panes = {p.id: p for p in panes if p.session_id == self.session}
+        self.coord = coord
+        self.pm = next((p.window_id for p in self.panes.values()
+                        if p.window_name == 'pm'), None)
+        self.ok = self.pm is not None
+        if not self.ok:
+            return
+        self.off = tmux('show', '-wqv', '-t', self.pm, '@queue') != 'on'
+        size = tmux('display', '-p', '-t', self.pm,
+                    '#{window_width} #{window_height}').split()
+        self.width, self.height = int(size[0]), int(size[1])
+        self.min_height = number(
+            tmux('show', '-wqv', '-t', self.pm, '@queue_min_height'),
+            MIN_HEIGHT)
+        self.terminal = self.find_terminal()
+        self.plan(extra_reply)
+
+    def find_terminal(self):
+        """James's terminal for slot B: the one that started in pm."""
+        terms = [p for p in self.panes.values() if p.role == 'terminal']
+        for p in terms:
+            if p['@queue_slot'] == 'B':
+                return p
+        for p in terms:
+            if p.window_id == self.pm:
+                tmux('set', '-p', '-t', p.id, '@queue_slot', 'B')
+                return p
+        return None
+
+    def plan(self, extra_reply=None):
+        chats = self.panes
+        replies = [p for p in chats.values()
+                   if p['@reply_for'] in chats and p.live]
+        replies.sort(key=lambda p: number(p['@reply_seq']), reverse=True)
+        active = replies[0] if replies else None
+        self.current = chats[active['@reply_for']] if active else self.coord
+        if extra_reply in chats:
+            self.current = chats[extra_reply]
+        self.bottom = active or self.terminal
+        self.active = active
+
+        rows, placed = [], {self.current.id}
+
+        def add(chat, reply=None):
+            if chat.id not in placed:
+                placed.add(chat.id)
+                rows.append((chat, reply))
+
+        if self.off:
+            self.current, self.bottom = self.coord, self.terminal
+            placed = {self.coord.id}
+        else:
+            add(self.coord)
+            for reply in replies[1:]:
+                add(chats[reply['@reply_for']], reply)
+            agents = [p for p in chats.values() if p.role
+                      and p.role not in ('terminal', 'coordinator')
+                      and p.live]
+            blocked = [p for p in agents if p['@agent_state'] == 'blocked']
+            blocked.sort(key=lambda p: number(p['@agent_since']))
+            wants = [p for p in agents if p['@agent_wants']]
+            wants.sort(key=lambda p: number(p['@agent_wants_since']))
+            for chat in blocked + wants:
+                add(chat)
+        depth = max(1, self.height // max(self.min_height, 3))
+        self.rows = rows[:depth]
+        self.waiting = rows[depth:]
+
+        # Panes that live in pm and are none of the above (the liaison)
+        # keep a row at the bottom of the queue.
+        used = {self.current.id} | {c.id for c, _ in self.rows}
+        used |= {r.id for _, r in self.rows if r}
+        if self.bottom:
+            used.add(self.bottom.id)
+        for p in chats.values():
+            if (p.window_id == self.pm and p.id not in used and p.live
+                    and p.role != 'terminal' and not p['@queue_home']
+                    and not p['@reply_for']):
+                self.rows.append((p, None))
+                used.add(p.id)
+        self.members = used
+
+    # --- geometry -------------------------------------------------------
+
+    def columns(self):
+        """Widths of the left and right columns; right is 0 if unused."""
+        if not self.rows:
+            return self.width, 0
+        left = (self.width - 1) // 2
+        return left, self.width - 1 - left
+
+    def layout(self):
+        """The window's layout string, and its panes in layout order."""
+        W, H = self.width, self.height
+        left, right = self.columns()
+        order = [self.current.id]
+
+        def leaf(w, h, x, y):
+            return f'{w}x{h},{x},{y},{len(order)}'
+
+        if self.bottom:
+            bh = max(8, H * 35 // 100)
+            ah = H - 1 - bh
+            a = leaf(left, ah, 0, 0)
+            order.append(self.bottom.id)
+            col = f'{left}x{H},0,0[{a},{leaf(left, bh, 0, ah + 1)}]'
+        else:
+            col = leaf(left, H, 0, 0)
+        if not right:
+            return col, order
+
+        x0, n, cells, y = left + 1, len(self.rows), [], 0
+        for i, (chat, reply) in enumerate(self.rows):
+            h = H - y if i == n - 1 else (H - (n - 1)) // n
+            order.append(chat.id)
+            if reply:
+                dw = max(20, right * 30 // 100)
+                cw = right - 1 - dw
+                c = leaf(cw, h, x0, y)
+                order.append(reply.id)
+                d = leaf(dw, h, x0 + cw + 1, y)
+                cells.append(f'{right}x{h},{x0},{y}{{{c},{d}}}')
+            else:
+                cells.append(leaf(right, h, x0, y))
+            y += h + 1
+        queue = cells[0] if n == 1 else \
+            f'{right}x{H},{x0},0[{",".join(cells)}]'
+        return f'{W}x{H},0,0{{{col},{queue}}}', order
+
+    # --- moving panes ---------------------------------------------------
+
+    def window_named(self, name):
+        rows = tmux('list-windows', '-t', self.session, '-F',
+                    '#{window_id} #{window_name}').split('\n')
+        return next((r.split()[0] for r in rows
+                     if r.split()[1:] == [name]), None)
+
+    def biggest(self, window, but=None):
+        rows = tmux('list-panes', '-t', window, '-F',
+                    '#{pane_id} #{pane_width} #{pane_height}').split('\n')
+        best = max((r.split() for r in rows if r and r.split()[0] != but),
+                   key=lambda r: int(r[1]) * int(r[2]), default=None)
+        return best[0] if best else None
+
+    def send(self, pane, name):
+        """Move a pane to the window called name, making it if need be."""
+        window = self.window_named(name)
+        target = self.biggest(window, pane) if window else None
+        if target:
+            tmux('join-pane', '-d', '-s', pane, '-t', target)
+            tmux('select-layout', '-t', window, 'tiled')
+        else:
+            tmux('break-pane', '-d', '-s', pane, '-n', name)
+
+    def apply(self):
+        here = {p.id for p in self.panes.values() if p.window_id == self.pm}
+        # Bring in what belongs here.
+        for pid in self.members - here:
+            pane = self.panes[pid]
+            if not pane['@reply_for'] and not pane['@queue_slot']:
+                tmux('set', '-p', '-t', pid, '@queue_home',
+                     pane.window_name)
+            tmux('join-pane', '-d', '-s', pid, '-t',
+                 self.biggest(self.pm, pid))
+        # Send away what doesn't.
+        for pid in here - self.members:
+            pane = self.panes[pid]
+            if pane['@reply_for']:
+                tmux('kill-pane', '-t', pid)
+            elif pane['@queue_home']:
+                self.send(pid, pane['@queue_home'])
+                tmux('set', '-p', '-u', '-t', pid, '@queue_home')
+            else:
+                self.send(pid, HOLD)
+        # Put the panes in layout order, then lay the window out.
+        layout, order = self.layout()
+        for i, want in enumerate(order):
+            now = tmux('list-panes', '-t', self.pm, '-F',
+                       '#{pane_id}').split('\n')
+            if i < len(now) and now[i] != want:
+                tmux('swap-pane', '-d', '-s', want, '-t', now[i])
+        tmux('select-layout', '-t', self.pm, checksum(layout) + ',' + layout)
+
+    def describe(self):
+        def name(p):
+            return f'{p.role or "pane"} {p.id}'
+        out = [f'A  {name(self.current)}',
+               f'B  {name(self.bottom) if self.bottom else "(none)"}'
+               + (' (reply)' if self.active else '')]
+        for chat, reply in self.rows:
+            why = ('reply in progress' if reply else
+                   chat['@agent_state'] == 'blocked' and 'blocked' or
+                   chat['@agent_wants'] and 'wants input' or
+                   chat.role == 'coordinator' and 'displaced' or
+                   'resident')
+            out.append(f'Q  {name(chat)}  {why}')
+        out += [f'-  {name(c)}  waiting for room' for c, _ in self.waiting]
+        return '\n'.join(out)
+
+
+def checksum(layout):
+    total = 0
+    for ch in layout:
+        total = (total >> 1) + ((total & 1) << 15)
+        total = (total + ord(ch)) & 0xffff
+    return '%04x' % total
+
+
+def locked(work, wait=False):
+    """One sync at a time.
+
+    A sync asked for while another runs is done by that one, right after
+    its own; with wait, the caller instead waits its turn, so the window
+    is arranged by the time it returns.
+    """
+    again = LOCK + '.again'
+    while True:
+        try:
+            os.mkdir(LOCK)
+            break
+        except FileExistsError:
+            # A lock this old was left by a sync that died.
+            if time.time() - os.path.getmtime(LOCK) > 30:
+                break
+            if not wait:
+                open(again, 'w').close()
+                return
+            time.sleep(0.05)
+    try:
+        while True:
+            if os.path.exists(again):
+                os.remove(again)
+            work()
+            if not os.path.exists(again):
+                break
+    finally:
+        os.rmdir(LOCK)
+
+
+def sync():
+    pen = Bullpen()
+    if pen.ok and not pen.off:
+        pen.apply()
+
+
+def main():
+    if not os.environ.get('TMUX'):
+        return
+    cmd = sys.argv[1] if len(sys.argv) > 1 else 'status'
+    arg = sys.argv[2] if len(sys.argv) > 2 else ''
+    if cmd == 'sync':
+        locked(sync, wait=arg == '--wait')
+    elif cmd in ('off', 'on', 'toggle'):
+        pen = Bullpen()
+        if pen.ok:
+            if cmd == 'toggle':
+                cmd = 'on' if pen.off else 'off'
+            tmux('set', '-w', '-t', pen.pm, '@queue', cmd)
+            # Turning it off sends every chat home, once.
+            locked(lambda: Bullpen().apply(), wait=True)
+            tmux('display-message', f'Claude queue {cmd}')
+    elif cmd == 'width':
+        # Nothing printed means PANE is not a bullpen chat: no queue.
+        pen = Bullpen(extra_reply=arg)
+        chat = pen.ok and not pen.off and pen.panes.get(arg)
+        if chat and chat.role and chat.role != 'terminal':
+            print(pen.columns()[0])
+    elif cmd == 'current':
+        pen = Bullpen()
+        if pen.ok:
+            focus = pen.active.id if pen.active else pen.current.id
+            print(pen.pm, pen.current.id, focus)
+    elif cmd == 'promote':
+        # Make PANE's half-written reply (PANE is the chat or the reply)
+        # the one in A and B again.
+        pen = Bullpen()
+        if pen.ok:
+            for p in pen.panes.values():
+                if p['@reply_for'] and arg in (p.id, p['@reply_for']):
+                    tmux('set', '-p', '-t', p.id, '@reply_seq',
+                         str(time.time_ns() // 1000000))
+                    locked(sync, wait=True)
+                    tmux('select-pane', '-t', p.id)
+    else:
+        pen = Bullpen()
+        print(pen.describe() if pen.ok else 'no bullpen pm window here')
+
+
+if __name__ == '__main__':
+    main()
