@@ -23,7 +23,7 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>'/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.menubar.7' '--drop' '^(License|Device|Updates|Status)$' '/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist' 'Library/Preferences/com.bjango.istatmenus.menubar.7.plist.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.status' '--drop' '^(NSStatusItem|Zarya)' '/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist' 'Library/Preferences/com.bjango.istatmenus.status.plist.bak'</string>
+    <string>'/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.menubar.7' '--drop' '^(License|Device|Updates|Status)$' '/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist' 'Library/Preferences/com.bjango.istatmenus.menubar.7.plist.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.status' '--drop' '^(NSStatusItem|Zarya|Item\.Visibility$)' '/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist' 'Library/Preferences/com.bjango.istatmenus.status.plist.bak'</string>
   </array>
   <key>WatchPaths</key>
   <array>
