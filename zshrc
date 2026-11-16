@@ -61,8 +61,7 @@ zinit wait'0' lucid for \
     zdharma-continuum/fast-syntax-highlighting \
   atload'bind_history_substring_search' \
     zsh-users/zsh-history-substring-search \
-  blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions \
-  htlsne/zinit-rbenv
+  blockf atpull'zinit creinstall -q .' zsh-users/zsh-completions
 
 # Custom completions
 zinit wait'0' lucid for \
