@@ -48,6 +48,8 @@ MARKER = ('<!-- Reply below this line. '
           'It and everything above are removed on save. -->')
 BUILTIN = 'Write your reply below this line'
 HOME = os.path.expanduser('~/.claude')
+QUEUE = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                     'claude_queue')
 WIDTH = 80
 # Columns a pane needs beyond the text, for vim's line numbers.
 GUTTER = 6
@@ -587,13 +589,60 @@ class Backdrop:
                 pass
 
 
-def edit(path, line, own, place, columns, source=None):
+def queue_width(own):
+    """Columns the reply gets in the bullpen's queue layout, else None.
+
+    None means this pane is not a bullpen chat (see bin/claude_queue).
+    """
+    out = run(QUEUE, 'width', own)
+    return int(out) if out.isdigit() else None
+
+
+def edit_queued(cmd, own, source=None):
+    """Reply from a bullpen chat: claude_queue places everything.
+
+    The reply's pane is tagged with its chat. claude_queue then moves the
+    chat to the top left of the pm window, the reply below it, and James's
+    terminal out of the way; when the reply's pane is gone it puts them
+    back.
+    """
+    session = run('tmux', 'display', '-p', '-t', own, '#{session_id}')
+    pane = run('tmux', 'new-window', '-d', '-n', 'parked', '-t', session + ':',
+               '-P', '-F', '#{pane_id}', '-c', os.getcwd(), shlex.join(cmd))
+    if not pane:
+        subprocess.run(cmd)
+        return
+    run('tmux', 'set', '-p', '-t', pane, 'remain-on-exit', 'on')
+    run('tmux', 'set', '-p', '-t', pane, '@reply_for', own)
+    run('tmux', 'set', '-p', '-t', pane, '@reply_seq',
+        str(time.time_ns() // 1000000))
+    run(QUEUE, 'sync', '--wait')
+    window = run(QUEUE, 'current').split()[0]
+    run('tmux', 'select-window', '-t', window)
+    run('tmux', 'select-pane', '-t', pane)
+    backdrop = Backdrop(own, source)
+    try:
+        while alive().get(pane):
+            time.sleep(0.1)
+            backdrop.keep_up()
+    finally:
+        backdrop.close()
+        run('tmux', 'kill-pane', '-t', pane)
+        run(QUEUE, 'sync', '--wait')
+    run('tmux', 'select-pane', '-t', run(QUEUE, 'current').split()[-1])
+
+
+def edit(path, line, own, place, columns, source=None,
+         queued=False):
     vim = shlex.split(os.environ.get('CLAUDE_EDIT_VIM', 'vim'))
     # Wrap at the pane's width, in view and while typing, so a narrow pane
     # never scrolls sideways. zb: the reply at the bottom, as much of the
     # message above as fits.
     cmd = vim + [f'+setlocal wrap linebreak textwidth={columns}',
                  f'+call cursor({line}, 1)', '+normal! zb', path]
+    if queued:
+        edit_queued(cmd, own, source)
+        return
     if not place:
         subprocess.run(cmd)
         return
@@ -657,15 +706,18 @@ def main():
             draft = '\n'.join(lines[i + 1:]).lstrip('\n')
             break
     own = os.environ.get('TMUX_PANE')
-    place = slot(own) if os.environ.get('TMUX') and own else None
+    in_tmux = bool(os.environ.get('TMUX') and own)
+    queued = queue_width(own) if in_tmux else None
+    place = slot(own) if in_tmux and not queued else None
     # A narrow pane gets narrower text, so nothing runs off its edge.
-    columns = min(WIDTH, place[1] - GUTTER) if place else WIDTH
+    width = queued or (place[1] if place else None)
+    columns = min(WIDTH, width - GUTTER) if width else WIDTH
     source = transcript()
     # In tmux the whole chat is on show in Claude's pane (Backdrop), so the
     # buffer holds only the draft. Without tmux, vim takes over Claude's
     # pane, and the last message goes above the draft instead.
     quote = ''
-    if source and not place:
+    if source and not in_tmux:
         quote = wrap(last_message(source), max(columns, 30))
     line = 1
     if quote:
@@ -676,7 +728,7 @@ def main():
     elif own_block:
         with open(path, 'w') as f:
             f.write(draft)
-    edit(path, line, own, place, columns, source)
+    edit(path, line, own, place, columns, source, bool(queued))
     with open(path) as f:
         body = f.read()
     if quote and MARKER in body:
