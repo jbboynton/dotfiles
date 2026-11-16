@@ -2,7 +2,7 @@
 <!--
   Backup of the com.bjango.istatmenus.status preferences, saved as XML by
   ~/.dotfiles/bin/snapshot_config every time the app rewrites it.
-  Keys matching ^(NSStatusItem|Zarya) are left out.
+  Keys matching ^(NSStatusItem|Zarya|Item\.Visibility$) are left out.
 
   This file is still a valid plist. To restore, quit the app first, then:
 
@@ -11,29 +11,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Item.Visibility</key>
-	<dict>
-		<key>CPU</key>
-		<dict>
-			<key>state</key>
-			<integer>0</integer>
-		</dict>
-		<key>Memory</key>
-		<dict>
-			<key>state</key>
-			<integer>0</integer>
-		</dict>
-		<key>Network</key>
-		<dict>
-			<key>state</key>
-			<integer>0</integer>
-		</dict>
-		<key>Sensors</key>
-		<dict>
-			<key>state</key>
-			<integer>0</integer>
-		</dict>
-	</dict>
 	<key>Notifications.State</key>
 	<dict>
 		<key>status</key>
