@@ -15,6 +15,9 @@
 # --drop REGEX leaves out top-level keys that match, for noise (window frames,
 # update checks) and anything private (licenses).
 #
+# Commits always go to main (SNAPSHOT_BRANCH), even while a feature branch
+# is checked out, so a snapshot never lands in the middle of other work.
+#
 # --keychain names a Keychain item (by service) whose value must never be
 # committed. The repo is public: if any listed value turns up in the copy,
 # nothing is written or committed, and a notification says why.
@@ -43,6 +46,8 @@ done
 src="$1"
 rel="$2"
 repo="${DOTFILES:-$HOME/.dotfiles}"
+# Snapshots are always committed here, never to a feature branch
+branch="${SNAPSHOT_BRANCH:-main}"
 dest="$repo/$rel"
 name="$(basename "$src")"
 end_marker="// end of backup header"
@@ -119,10 +124,32 @@ else
   } > "$tmp"
 fi
 
-# Whether git has the copy committed as it is now
+# Whether the snapshot branch has the copy committed as it is now
 committed() {
-  git -C "$repo" ls-files --error-unmatch -- "$rel" > /dev/null 2>&1 &&
-    git -C "$repo" diff --quiet HEAD -- "$rel"
+  local have
+  have="$(git -C "$repo" rev-parse -q --verify "$branch:$rel")" &&
+    [ "$have" = "$(git -C "$repo" hash-object -- "$dest")" ]
+}
+
+# Commit the copy to the snapshot branch while another branch is checked
+# out, without touching that branch, the index or any other file: build
+# the commit from the snapshot branch's tree with this one file replaced,
+# then move the branch to it, provided nothing else moved it meanwhile.
+commit_elsewhere() {
+  local index="$repo/.git/snapshot_config.index" blob tree old new
+  rm -f "$index"
+  old="$(git -C "$repo" rev-parse --verify "refs/heads/$branch")" &&
+    blob="$(git -C "$repo" hash-object -w -- "$dest")" &&
+    GIT_INDEX_FILE="$index" git -C "$repo" read-tree "$old" &&
+    GIT_INDEX_FILE="$index" git -C "$repo" update-index --add \
+      --cacheinfo "100644,$blob,$rel" &&
+    tree="$(GIT_INDEX_FILE="$index" git -C "$repo" write-tree)" &&
+    new="$(git -C "$repo" commit-tree -S -p "$old" -m "Snapshot $name" \
+      "$tree")" &&
+    git -C "$repo" update-ref "refs/heads/$branch" "$new" "$old"
+  local status=$?
+  rm -f "$index"
+  return $status
 }
 
 # The header never changes, so an identical, committed copy means nothing to
@@ -179,10 +206,16 @@ done
 # seconds. Any other failure (no signing key unlocked, a rebase in
 # progress) leaves the copy for a manual commit and says so; backdating it
 # makes the next run try again instead of taking the cheap exit.
+#
+# Snapshots belong to the snapshot branch, whatever is checked out. On a
+# feature branch the copy then shows as modified until that branch is
+# rebased onto the snapshot branch, which already has it.
 for _ in $(seq 20); do
-  if out="$(git -C "$repo" add -- "$rel" 2>&1 &&
-    git -C "$repo" commit -q -m "Snapshot $name" -- "$rel" 2>&1)"; then
-    exit 0
+  if [ "$(git -C "$repo" symbolic-ref -q --short HEAD)" = "$branch" ]; then
+    out="$(git -C "$repo" add -- "$rel" 2>&1 &&
+      git -C "$repo" commit -q -m "Snapshot $name" -- "$rel" 2>&1)" && exit 0
+  else
+    out="$(commit_elsewhere 2>&1)" && exit 0
   fi
 
   case "$out" in
