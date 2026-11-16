@@ -36,6 +36,13 @@ zinit lucid for \
   zdharma-continuum/z-a-rust \
   zdharma-continuum/zinit-annex-bin-gem-node
 
+# The prompt's git status (zsh/prompt.zsh), declared first: plugins load
+# after the prompt in the order they are declared, one at a time, and the
+# completion system below takes a third of a second
+zinit wait'0' lucid for \
+  atload'prompt_git_start' \
+    romkatv/gitstatus
+
 # Installation of Rust compiler environment via the z-a-rust annex
 zinit id-as"rust" as=null sbin="bin/*" wait'0' lucid rustup for \
   atload=" \
