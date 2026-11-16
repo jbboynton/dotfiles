@@ -457,12 +457,15 @@ Maestro and its Engine, then run the `plutil` command in the copy's header.
 
 As of November 16, 2026:
 
-- The tmux work is in two parts. Part 1 (PR 31, `tmux-quality-of-life`)
-  is to land first. Part 2 (PR 32, `tmux-quality-of-life-2`) is
-  `claude_queue`, a queue in the bullpen's `pm` window of the chats that
-  need James: built and tested on a fake bullpen, never run on the real
-  one, and paused until part 1 is in use. Its state, James's decisions and
-  what is left are in `.ignored/handoff-tmux-queue.md` and in PR 32.
+- The tmux work is in two parts. Part 1 (PR 31) landed on November 16.
+  Part 2 (PR 32, `tmux-quality-of-life-2`) is `claude_queue`, a queue in
+  the bullpen's `pm` window of the chats that need James: built and
+  tested on a fake bullpen, never run on the real one, and paused until
+  part 1 has been in use for a while. Its state, James's decisions and
+  what is left are in `.ignored/handoff-tmux-queue.md` and in PR 32. Its
+  branch predates part 1's last commit (the chat cache and the faster
+  send) and must be rebased onto `main` first; expect conflicts in
+  `bin/claude_edit`.
 
 - The spell file (`vim/spell/en.utf-8.add`) gains words almost every time
   James writes prose in vim, which leaves the repo permanently dirty. Plan:
