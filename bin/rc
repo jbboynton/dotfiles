@@ -176,8 +176,10 @@ committed_before() {
   local rel="$1" file="$2" hash
 
   hash="$(git -C "$repo" hash-object -- "$file" 2>/dev/null)" || return 1
+  # Not grep -q: it quits at the first match, git dies writing to the
+  # closed pipe, and pipefail then reports a match as a failure.
   git -C "$repo" log --all --format= --raw --no-abbrev -- "$rel" 2>/dev/null |
-    grep -q " $hash "
+    grep " $hash " > /dev/null
 }
 
 # What `rc link` would do with one rcm entry: ok, new, stale (an untouched
