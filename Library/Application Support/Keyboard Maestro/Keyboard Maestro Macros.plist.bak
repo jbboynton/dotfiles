@@ -8748,9 +8748,9 @@ WHERE is_read = 0
 	<key>MacroPreferencesVersion</key>
 	<integer>102</integer>
 	<key>PreferenceSaveUUID</key>
-	<string>DFB60D77-707A-4186-B2AF-182E125D75D5</string>
+	<string>1EB2BC09-408B-4414-BE0B-02A504ED830C</string>
 	<key>PreferenceSavedDate</key>
-	<string>2026_11_15</string>
+	<string>2026_11_17</string>
 	<key>Version</key>
 	<string>11.1</string>
 </dict>
