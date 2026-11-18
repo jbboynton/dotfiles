@@ -206,7 +206,7 @@ title() {
 }
 
 add_generated_html() {
-  marked -i "$note" >> "$html_output"
+  pandoc -f gfm -t html "$note" >> "$html_output"
 }
 
 add_tail() {
@@ -231,7 +231,7 @@ open_html() {
 }
 
 build_pdf() {
-  wkhtmltopdf --enable-local-file-access "$html_output" "$pdf_output"
+  weasyprint --quiet "$html_output" "$pdf_output"
   # if command -v note_pdf; then
   #   note_pdf "$note"
   # fi
