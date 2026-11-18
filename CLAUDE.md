@@ -108,6 +108,11 @@ agents can fire at once), and waits out a git lock James is holding. A
 failed commit leaves the copy for a manual commit and notifies; the next run
 tries again.
 
+A run of changes to one file leaves one commit: a snapshot takes the
+place of the last commit on `main` when that commit is a snapshot of
+the same file, is not pushed, and no other branch is built on it. An
+afternoon in iStat Menus' settings once left 43 commits.
+
 Snapshots are always committed to `main`, whatever is checked out. On a
 feature branch the commit is built without touching the branch, the index
 or the working tree, so a snapshot never lands in the middle of other work.

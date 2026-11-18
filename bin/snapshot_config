@@ -131,25 +131,78 @@ committed() {
     [ "$have" = "$(git -C "$repo" hash-object -- "$dest")" ]
 }
 
+# Whether this snapshot can take the place of the last commit on the
+# snapshot branch, so that a run of changes to one file (an afternoon in
+# an app's settings) leaves one commit, not dozens. Only when that commit
+# is a snapshot of this same file, has not been pushed, and nothing else
+# is built on it: no other branch holds it.
+replaces_last() {
+  local tip="refs/heads/$branch" upstream="refs/remotes/origin/$branch"
+
+  [ "$(git -C "$repo" log -1 --format=%s "$tip" 2>/dev/null)" = \
+    "Snapshot $name" ] || return 1
+  git -C "$repo" rev-parse -q --verify "$tip^" >/dev/null || return 1
+
+  if git -C "$repo" rev-parse -q --verify "$upstream" >/dev/null &&
+    git -C "$repo" merge-base --is-ancestor "$tip" "$upstream"; then
+    return 1
+  fi
+
+  [ "$(git -C "$repo" for-each-ref --contains "$tip" refs/heads |
+    wc -l)" -eq 1 ]
+}
+
 # Commit the copy to the snapshot branch while another branch is checked
 # out, without touching that branch, the index or any other file: build
 # the commit from the snapshot branch's tree with this one file replaced,
 # then move the branch to it, provided nothing else moved it meanwhile.
+# The commit goes on top of the last one, or in its place (replaces_last).
+# In its place, a file that is back to what it was before that commit
+# needs no commit at all: the branch goes back to the one before.
 commit_elsewhere() {
-  local index="$repo/.git/snapshot_config.index" blob tree old new
+  local index="$repo/.git/snapshot_config.index" blob tree old new parent
   rm -f "$index"
   old="$(git -C "$repo" rev-parse --verify "refs/heads/$branch")" &&
     blob="$(git -C "$repo" hash-object -w -- "$dest")" &&
     GIT_INDEX_FILE="$index" git -C "$repo" read-tree "$old" &&
     GIT_INDEX_FILE="$index" git -C "$repo" update-index --add \
       --cacheinfo "100644,$blob,$rel" &&
-    tree="$(GIT_INDEX_FILE="$index" git -C "$repo" write-tree)" &&
-    new="$(git -C "$repo" commit-tree -S -p "$old" -m "Snapshot $name" \
-      "$tree")" &&
+    tree="$(GIT_INDEX_FILE="$index" git -C "$repo" write-tree)" && {
+      parent=$old
+      ! replaces_last ||
+        parent="$(git -C "$repo" rev-parse --verify "$old^")"
+    } && {
+      if [ "$tree" = "$(git -C "$repo" rev-parse "$parent^{tree}")" ]; then
+        new=$parent
+      else
+        new="$(git -C "$repo" commit-tree -S -p "$parent" \
+          -m "Snapshot $name" "$tree")"
+      fi
+    } &&
     git -C "$repo" update-ref "refs/heads/$branch" "$new" "$old"
   local status=$?
   rm -f "$index"
   return $status
+}
+
+# The same with the snapshot branch checked out: commit only this file,
+# on top of the last commit or in its place
+commit_here() {
+  git -C "$repo" add -- "$rel" || return
+
+  if replaces_last; then
+    # Back to what it was before that commit: the commit goes, and
+    # nothing else moves (the index already holds the file as it is)
+    if git -C "$repo" diff --cached --quiet HEAD^ -- "$rel"; then
+      git -C "$repo" reset -q --soft HEAD^
+    else
+      git -C "$repo" commit -q --amend -m "Snapshot $name" -- "$rel"
+    fi
+
+    return
+  fi
+
+  git -C "$repo" commit -q -m "Snapshot $name" -- "$rel"
 }
 
 # The header never changes, so an identical, committed copy means nothing to
@@ -212,8 +265,7 @@ done
 # rebased onto the snapshot branch, which already has it.
 for _ in $(seq 20); do
   if [ "$(git -C "$repo" symbolic-ref -q --short HEAD)" = "$branch" ]; then
-    out="$(git -C "$repo" add -- "$rel" 2>&1 &&
-      git -C "$repo" commit -q -m "Snapshot $name" -- "$rel" 2>&1)" && exit 0
+    out="$(commit_here 2>&1)" && exit 0
   else
     out="$(commit_elsewhere 2>&1)" && exit 0
   fi
