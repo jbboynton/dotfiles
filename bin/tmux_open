@@ -12,7 +12,9 @@ tmux.conf binds a click to this, with what tmux knows about the spot:
   --x     the column clicked, counted from the pane's left edge
   --cwd   the pane's working directory, for relative paths
 
-A web link opens in the browser. A path opens only if it exists: a text
+A web link opens in the browser. A file link ending in #alt=URL opens
+its path on a click and the URL on an Option-click. A path opens only if
+it exists: a text
 file in vim in a new tmux window (at the line, for `file:12` or
 `file#L12`), anything else with `open`. A click on anything else does
 nothing, so the binding can run this on every click.
@@ -95,6 +97,14 @@ def main():
         return
     if link.startswith('file://'):
         url = urllib.parse.urlparse(link)
+        # A link with two targets: the path on a click, the address
+        # after #alt= on an Option-click (claude_statusline's projects)
+        if url.fragment.startswith('alt='):
+            if in_vim and re.match(r'https?://', url.fragment[4:]):
+                act('open', url.fragment[4:])
+            else:
+                open_path(urllib.parse.unquote(url.path), None, cwd)
+            return
         m = re.fullmatch(r'L?(\d+).*', url.fragment)
         open_path(urllib.parse.unquote(url.path), m and m.group(1), cwd,
                   in_vim)
