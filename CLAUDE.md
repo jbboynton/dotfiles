@@ -202,7 +202,7 @@ reference implementation (`out`, `err`, `gap`, `item`, `heading`, `tally`).
   the prompt sits a line below the last thing printed. Errors too.
 - **Color sets the hierarchy, subtly, the way Homebrew does.** Headings are
   a blue `☞` with bold text; errors start with a bold red `‼︎`; notes with
-  a yellow `Ꙫ!`. Bold picks out the one thing to notice (a
+  a yellow `⚇!`. Bold picks out the one thing to notice (a
   command to run, a summary label). Cyan is for changes and secondary
   labels. Green means success, yellow a warning or a skip, red an error.
 - **Per-file lines lead with a colored marker,** padded to two columns so

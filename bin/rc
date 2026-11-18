@@ -100,7 +100,7 @@ fi
 # Icons for headings, errors and notes
 icon_heading="☞"
 icon_error="‼︎"
-icon_note="Ꙫ!"
+icon_note="⚇!"
 
 # One line about one file, led by a colored marker. Callers pass a short
 # code; one-character markers are padded so every path lines up:
