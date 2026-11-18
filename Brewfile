@@ -48,7 +48,7 @@ brew 'pandoc'
 brew 'php'
 brew 'pipx'
 brew 'ponysay'
-brew 'postgresql@18'
+brew 'postgresql@18', link: true
 brew 'potrace'
 brew 'prettier'
 brew 'python'
