@@ -114,7 +114,7 @@ cask 'soundsource'
 cask 'spotify'
 cask 'tailscale-app'
 cask 'thaw@beta' # until Thaw 3 is stable; `env_drift` warns
-cask 'ultimate-vocal-remover'
+cask 'jbboynton/tap/ultimate-vocal-remover'
 cask 'ungoogled-chromium'
 cask 'vanilla'
 cask 'vlc'
