@@ -162,6 +162,7 @@ loading.
 | `fzf-tab.zsh` | fzf-tab settings. Tab accepts the highlighted completion. |
 | `homebrew.zsh` | Homebrew's completions on `fpath`. |
 | `keybindings.zsh` | Every key binding, history search included, in one place. |
+| `mise.zsh` | What `mise activate zsh --shims` prints, written out (checked by `env_drift`): mise's shims first on `PATH`, so `node` and `npm` are the version a project pins (`.nvmrc`) and the system's elsewhere. The North Foster Farm repo pins Node and its npm refuses any other. |
 | `rbenv.zsh` | What `rbenv init -` prints, written out (checked by `env_drift`). It replaced a plugin that ran rbenv in every new shell, about 80 ms; James rarely runs Ruby but wants it to keep working. |
 | `prompt.zsh` | Path plus git status from gitstatus. gitstatus keeps a daemon, and the prompt waits at most 10 ms before updating in the background. |
 | `functions/` | One function per file. |
