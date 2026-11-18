@@ -84,6 +84,22 @@ if [[ -x $rbenv ]]; then
   fi
 fi
 
+# mise: the shims folder its `activate --shims` adds, compared with ours
+mise="$HOMEBREW_PREFIX/bin/mise"
+
+if [[ -x $mise ]]; then
+  expected=$(env -i HOME=$HOME PATH=/usr/bin:/bin /bin/zsh -fc '
+    eval "$("$1" activate zsh --shims)" || exit 1
+    print -r -- "$path[1]"
+  ' zsh "$mise")
+
+  if [[ -z $expected ]]; then
+    problems+=("mise activate failed; run \`mise activate zsh --shims\` to see why")
+  elif [[ ":$PATH:" != *":$expected:"* ]]; then
+    problems+=("$expected missing from PATH; set in ~/.dotfiles/zsh/mise.zsh")
+  fi
+fi
+
 # Thaw: on the beta until Thaw 3, which macOS 27 needs, reaches the stable cask
 if [[ -x $brew && -d $HOMEBREW_PREFIX/Caskroom/thaw@beta ]]; then
   stable=$("$brew" info --cask --json=v2 thaw 2>/dev/null | python3 -c '
