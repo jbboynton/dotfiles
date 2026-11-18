@@ -121,13 +121,9 @@ cask 'zoom'
 
 # QuickLook plugins
 cask 'apparency'
-cask 'qlcolorcode'
-cask 'qlimagesize'
 cask 'qlmarkdown'
-cask 'qlstephen'
-cask 'qlzipinfo'
-cask 'quicklook-json'
 cask 'quicklook-video'
+cask 'syntax-highlight'
 cask 'suspicious-package'
 
 # Fonts
