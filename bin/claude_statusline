@@ -67,8 +67,8 @@
 # The repositories are the one the session is in or, outside one, each
 # repository directly inside the folder; then any added with /add-dir.
 # A last line holds Claude's task list (done/all and the step in
-# progress) and the background shells and agents still running, when
-# there are any.
+# progress) and the background agents still running, when there are
+# any.
 #
 # Everything that can be clicked is underlined.
 #
@@ -991,30 +991,19 @@ steps_group() {
   fi
 }
 
-# Background shells and agents still running, as scan left them
+# Background agents still running, as scan left them. Not the shells:
+# Claude Code counts those itself, next to the permission mode
 tasks_group() {
-  local id kind shells=0 agents=0
+  local id kind agents=0
 
   while read -r id kind; do
-    case $kind in
-      shell) shells=$(( shells + 1 )) ;;
-      agent) agents=$(( agents + 1 )) ;;
-    esac
+    [ "$kind" = agent ] && agents=$(( agents + 1 ))
   done <<< "$open"
 
-  (( shells || agents )) || return
+  (( agents )) || return
   bar
-
-  if (( shells )); then
-    count "$shells" shell
-    word "$blue" "$REPLY"
-  fi
-
-  if (( agents )); then
-    count "$agents" agent
-    (( shells )) && put "$blue" ','
-    word "$blue" "$REPLY"
-  fi
+  count "$agents" agent
+  word "$blue" "$REPLY"
 }
 
 # Print a line: LEFT at the left edge and the part, as the right group,
