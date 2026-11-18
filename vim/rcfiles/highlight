@@ -18,10 +18,19 @@ highlight DiffDelete ctermfg=white ctermbg=darkgray
 highlight DiffChange ctermfg=white ctermbg=darkgray
 highlight DiffText ctermfg=yellow ctermbg=darkgray
 
-highlight SpellBad cterm=bold,italic ctermfg=red ctermbg=none
-highlight SpellCap cterm=underline ctermfg=red ctermbg=none
-highlight SpellLocal cterm=underline ctermfg=yellow ctermbg=none
-highlight SpellRare cterm=underline ctermfg=red ctermbg=none
+" Spelling and lint errors: a curly underline in the error's color, under
+" text that keeps its own (t_Cs and t_AU in rcfiles/general)
+highlight SpellBad cterm=undercurl ctermfg=none ctermbg=none ctermul=red
+highlight SpellCap cterm=undercurl ctermfg=none ctermbg=none ctermul=red
+highlight SpellLocal cterm=undercurl ctermfg=none ctermbg=none ctermul=yellow
+highlight SpellRare cterm=undercurl ctermfg=none ctermbg=none ctermul=red
+
+highlight ALEError cterm=undercurl ctermfg=none ctermbg=none ctermul=red
+highlight ALEStyleError cterm=undercurl ctermfg=none ctermbg=none ctermul=red
+highlight ALEWarning cterm=undercurl ctermfg=none ctermbg=none ctermul=yellow
+highlight ALEStyleWarning cterm=undercurl ctermfg=none ctermbg=none
+      \ ctermul=yellow
+highlight ALEInfo cterm=undercurl ctermfg=none ctermbg=none ctermul=blue
 
 highlight Comment cterm=italic
 highlight Define cterm=none ctermfg=blue

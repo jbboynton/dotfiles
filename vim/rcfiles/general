@@ -58,6 +58,13 @@ set wildmode=longest,full       " completion mode
 let &t_ZH="\e[3m"
 let &t_ZR="\e[23m"
 
+" Curly underlines, and underlines in a color of their own (spelling and
+" lint errors in rcfiles/highlight). Vim finds neither in terminfo. tmux
+" passes both to Alacritty (usstyle in tmux.conf).
+let &t_Cs="\e[4:3m"
+let &t_Ce="\e[4:0m"
+let &t_AU="\e[58:5:%dm"
+
 " Disable ex mode
 map Q <Nop>
 

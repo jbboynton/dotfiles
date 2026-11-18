@@ -46,7 +46,8 @@ let g:ale_fixers = {
 let g:ale_ruby_rubocop_options = "--rails"
 let g:ale_yaml_yamllint_options = "-d relaxed"
 
-let g:ale_set_highlights = 0
+" Underline the text an error or warning is about (rcfiles/highlight)
+let g:ale_set_highlights = 1
 
 highlight SignColumn ctermbg=236
 highlight ALEErrorSign ctermfg=red ctermbg=236
