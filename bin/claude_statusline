@@ -30,8 +30,9 @@
 #   3 PRs             without a release, the open pull requests
 #
 #   build, test, ci, e2e   whether each passes for the code as it is now:
-#                     ✓ passed, ✕ failed, – nothing to report, … running
-#                     (ci counts its checks done/all). Each has two
+#                     ✓ passed, ✕ failed, – nothing to report, and a
+#                     turning ◜ while running (ci adds its checks,
+#                     done/all). Each has two
 #                     sources: the last run here, which bin/report_run
 #                     recorded, and GitHub's checks on the commit,
 #                     sorted by name (checks_build, checks_test and
@@ -96,6 +97,10 @@ cache=${XDG_CACHE_HOME:-$HOME/.cache}/claude_statusline/v3
 aliases=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/aliases
 one_line=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/one-line
 now=${EPOCHSECONDS:-$(date +%s)}
+
+# The sign of a mark that is running: one frame a second, so it turns
+# a quarter clockwise in each render a second after the last
+spinner=◜◝◞◟
 sep=$'\x1f'
 
 git_ttl=10         # seconds until unstaged and untracked are checked again
@@ -818,8 +823,8 @@ mark() {
     ok) sign=✓ tint=$green ;;
     fail) sign=✕ tint=$red ;;
     running)
-      sign=… tint=$yellow
-      [ "$name" = ci ] && (( h_all )) && sign=$h_done/$h_all
+      sign=${spinner:now % 4:1} tint=$yellow
+      [ "$name" = ci ] && (( h_all )) && sign+=" $h_done/$h_all"
       ;;
     *) sign=– tint=$gray ;;
   esac
