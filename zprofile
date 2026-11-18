@@ -58,6 +58,6 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.bin/sass_embedded:$PATH"
 
 # Add Python to path
-export PATH="/opt/homebrew/opt/python@3.14/libexec/bin:$PATH"
+export PATH="/opt/homebrew/opt/python/libexec/bin:$PATH"
 
 # vim:ft=zsh
