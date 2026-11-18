@@ -1,3 +1,4 @@
+tap 'jbboynton/tap'
 tap 'roots/tap'
 tap 'teamookla/speedtest'
 
@@ -106,7 +107,7 @@ cask 'mailmate'
 cask 'mattermost'
 cask 'nvidia-geforce-now'
 cask 'obs'
-cask 'qview'
+cask 'jbboynton/tap/qview'
 cask 'reaper'
 cask 'rectangle'
 cask 'soundsource'
