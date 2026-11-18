@@ -1,6 +1,5 @@
 tap 'heroku/brew'
 tap 'teamookla/speedtest'
-tap 'thoughtbot/formulae'
 
 brew 'age'
 brew 'aspell'
@@ -45,7 +44,6 @@ brew 'neofetch'
 brew 'nmap'
 brew 'pandoc'
 brew 'pipx'
-brew 'ponysay'
 brew 'postgresql@18'
 brew 'potrace'
 brew 'prettier'
@@ -109,7 +107,6 @@ cask 'michaelvillar-timer'
 cask 'nvidia-geforce-now'
 cask 'obs'
 cask 'origin'
-cask 'presentify'
 cask 'qview'
 cask 'reaper'
 cask 'rectangle'
@@ -184,6 +181,7 @@ mas 'Exporter', id: 1099120373
 mas 'FreeScaler', id: 6443796196
 mas 'Gapplin', id: 768053424
 mas 'Pixelmator Pro', id: 1289583905
+mas 'Presentify', id: 1507246666
 mas 'ShapeScript', id: 1441135869
 mas 'Slack', id: 803453959
 mas 'Text Compare', id: 1552247688
