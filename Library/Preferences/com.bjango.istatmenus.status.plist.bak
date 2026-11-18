@@ -11,6 +11,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>Location-Last</key>
+	<dict>
+		<key>altitude</key>
+		<real>0.0</real>
+		<key>country</key>
+		<string>United States</string>
+		<key>countrycode</key>
+		<string>US</string>
+		<key>geocode</key>
+		<true/>
+		<key>latitude</key>
+		<real>41.836612268298005</real>
+		<key>longitude</key>
+		<real>-71.46885032886422</real>
+		<key>name</key>
+		<string>17 Woonasquatucket Ave</string>
+		<key>region</key>
+		<string>Providence County</string>
+		<key>state</key>
+		<string>RI</string>
+		<key>time</key>
+		<real>1794986090.12226</real>
+	</dict>
 	<key>Notifications.State</key>
 	<dict>
 		<key>status</key>
