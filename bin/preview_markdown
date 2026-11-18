@@ -52,7 +52,7 @@ echo "$html_head" >> "$html_output"
 }
 
 generate_html() {
-  marked -o "$tmp_output" < "$md_file"
+  pandoc -f gfm -t html "$md_file" > "$tmp_output"
 }
 
 add_generated_html() {
@@ -76,7 +76,7 @@ build_html() {
 }
 
 build_pdf() {
-  wkhtmltopdf "$html_output" "$pdf_output"
+  weasyprint --quiet "$html_output" "$pdf_output"
 }
 
 open_html() {

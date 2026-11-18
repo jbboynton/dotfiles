@@ -180,7 +180,7 @@ title() {
 }
 
 generate_html() {
-  marked > "$tmp_output" < "$note"
+  pandoc -f gfm -t html "$note" > "$tmp_output"
 }
 
 add_generated_html() {
@@ -207,7 +207,7 @@ build_html() {
 }
 
 build_pdf() {
-  wkhtmltopdf --enable-local-file-access "$html_output" "$pdf_output"
+  weasyprint --quiet "$html_output" "$pdf_output"
 
   rm "$html_output"
 }
