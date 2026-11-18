@@ -399,6 +399,34 @@ function! s:Replace(err, new) abort
   call cursor(a:err.lnum, l:s + 1)
 endfunction
 
+" Fix capitalization in the lines the last insert touched, and the line
+" after them, which a new period can turn into a sentence start. Only
+" what was just typed: text that was already there, or pasted, is marked
+" and left for <Tab>.
+"
+" `u` takes a fix back, and the word then shows as an error that <Esc>
+" ignores. The tick check keeps an insert that typed nothing from fixing
+" it again: after an undo, '[ and '] sit on the undone lines.
+"
+" Set g:spellmenu_autocaps to 0 to turn this off.
+function! spellmenu#AutoCaps() abort
+  if !&spell || !&modifiable || !get(g:, 'spellmenu_autocaps', 1)
+        \ || get(b:, 'spellmenu_typed', b:changedtick) == b:changedtick
+    return
+  endif
+
+  let l:first = max([line("'["), 1])
+  let l:last = min([line("']") + 1, line('$')])
+
+  for l:lnum in range(l:first, l:last)
+    for l:e in s:LineCaps(l:lnum)
+      let l:line = getline(l:lnum)
+      call setline(l:lnum, strpart(l:line, 0, l:e.col - 1)
+            \ . toupper(l:line[l:e.col - 1]) . strpart(l:line, l:e.col))
+    endfor
+  endfor
+endfunction
+
 " ---------------------------------------------------------------------
 " Key handling
 " ---------------------------------------------------------------------
