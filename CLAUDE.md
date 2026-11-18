@@ -470,9 +470,9 @@ Follow the existing history:
   not in this repo) run `bin/agent_state`, which records on the chat's
   tmux pane whether Claude is `working`, `blocked` (a permission prompt or
   a direct question) or `idle`. An agent with a question that can wait
-  runs `agent_state wants QUESTION` itself. The status bar puts a red dot
-  after a window's name for each blocked chat in it, a yellow one for each
-  that wants input.
+  runs `agent_state wants QUESTION` itself. The status bar puts a red `✕`
+  after a window's name for each blocked chat in it, and a yellow `...`
+  right after the name when a chat in it wants input.
   - The hooks are `async`, print nothing and always exit 0: a hook that
     prints or fails can change what Claude does.
   - No hook fires when James denies a permission prompt; the state
