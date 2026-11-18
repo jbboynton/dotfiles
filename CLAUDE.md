@@ -375,6 +375,13 @@ Follow the existing history:
     undocumented and may move.
   - Claude Code's own `externalEditorContext` does the same as `#` lines,
     unwrapped. Leave it off; the script copes if it is on.
+- **Vim's spelling** is `vim/autoload/spellmenu.vim` and
+  `vim/rcfiles/spelling`. Capitalization at the start of a sentence is
+  fixed on leaving insert mode, in the lines just typed only; `u` takes
+  a fix back. Spelling and ALE errors are curly underlines in the
+  error's color (`t_Cs`, `t_AU` in `vim/rcfiles/general`). Vim's word
+  list is `vim/spell/en.utf-8.add`; `config/aspell/personal.en.pws` is
+  aspell's, empty and unused by Vim.
 - **Chat state.** Claude Code hooks in `~/.claude/settings.json` (global,
   not in this repo) run `bin/agent_state`, which records on the chat's
   tmux pane whether Claude is `working`, `blocked` (a permission prompt or

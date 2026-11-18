@@ -18,6 +18,11 @@ augroup spellmenu
   autocmd Syntax,BufWinEnter * call spellmenu#Syntax()
 
   autocmd CursorMoved * call spellmenu#Hint()
+
+  " Capitalize what was just typed. Before Refresh, which then finds
+  " nothing left to mark.
+  autocmd InsertEnter * let b:spellmenu_typed = b:changedtick
+  autocmd InsertLeave * call spellmenu#AutoCaps()
   autocmd BufWinEnter,TextChanged,InsertLeave,BufWritePost *
         \ call spellmenu#Refresh()
 augroup END
