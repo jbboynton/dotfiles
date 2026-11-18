@@ -544,7 +544,7 @@
 								<key>useroptions</key>
 								<dict>
 									<key>width</key>
-									<integer>20</integer>
+									<integer>4</integer>
 								</dict>
 							</dict>
 							<dict>
@@ -558,15 +558,6 @@
 								<dict>
 									<key>display</key>
 									<integer>1</integer>
-								</dict>
-							</dict>
-							<dict>
-								<key>source</key>
-								<integer>15</integer>
-								<key>useroptions</key>
-								<dict>
-									<key>width</key>
-									<integer>4</integer>
 								</dict>
 							</dict>
 						</array>
@@ -613,7 +604,7 @@
 								<key>useroptions</key>
 								<dict>
 									<key>width</key>
-									<integer>12</integer>
+									<integer>4</integer>
 								</dict>
 							</dict>
 						</array>
@@ -639,7 +630,7 @@
 								<key>useroptions</key>
 								<dict>
 									<key>width</key>
-									<integer>10</integer>
+									<integer>6</integer>
 								</dict>
 							</dict>
 						</array>
@@ -655,6 +646,15 @@
 						<array>
 							<dict>
 								<key>source</key>
+								<integer>15</integer>
+								<key>useroptions</key>
+								<dict>
+									<key>width</key>
+									<integer>6</integer>
+								</dict>
+							</dict>
+							<dict>
+								<key>source</key>
 								<integer>7</integer>
 								<key>subtype</key>
 								<integer>8</integer>
@@ -667,7 +667,7 @@
 								<key>useroptions</key>
 								<dict>
 									<key>width</key>
-									<integer>10</integer>
+									<integer>4</integer>
 								</dict>
 							</dict>
 						</array>
@@ -738,7 +738,32 @@
 					<key>Menubar</key>
 					<dict>
 						<key>Enabled</key>
-						<integer>0</integer>
+						<integer>1</integer>
+						<key>Items</key>
+						<array>
+							<dict>
+								<key>source</key>
+								<integer>15</integer>
+								<key>useroptions</key>
+								<dict>
+									<key>width</key>
+									<integer>8</integer>
+								</dict>
+							</dict>
+							<dict>
+								<key>source</key>
+								<integer>11</integer>
+								<key>subtype</key>
+								<integer>6</integer>
+								<key>type</key>
+								<integer>7</integer>
+								<key>useroptions</key>
+								<dict>
+									<key>value</key>
+									<string>temperature</string>
+								</dict>
+							</dict>
+						</array>
 					</dict>
 				</dict>
 			</dict>
@@ -761,6 +786,26 @@
 					<string>0.6675000190734863 0.9695000052452087 1 1</string>
 				</dict>
 			</dict>
+			<key>Launcher</key>
+			<array>
+				<dict>
+					<key>key</key>
+					<string>disabled</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>disabled</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>disabled</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>disabled</string>
+				</dict>
+				<dict/>
+			</array>
 		</dict>
 		<key>Menubar</key>
 		<dict>
@@ -886,6 +931,96 @@
 					<string>🇦🇺 WillyWeather (BoM)</string>
 				</dict>
 			</array>
+			<key>Provider</key>
+			<string>apple</string>
+		</dict>
+		<key>Menu</key>
+		<dict>
+			<key>Forecasts</key>
+			<dict>
+				<key>Date</key>
+				<integer>1</integer>
+				<key>Size</key>
+				<integer>0</integer>
+			</dict>
+			<key>Launcher</key>
+			<array>
+				<dict/>
+				<dict/>
+				<dict/>
+				<dict/>
+				<dict/>
+			</array>
+			<key>Order</key>
+			<array>
+				<dict>
+					<key>key</key>
+					<string>weather-conditions</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>weather-forecast</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>weather-hourly</string>
+				</dict>
+				<dict>
+					<key>key</key>
+					<string>weather-launcher</string>
+				</dict>
+			</array>
+			<key>State</key>
+			<array>
+				<dict>
+					<key>enabled</key>
+					<true/>
+					<key>key</key>
+					<string>weather-conditions</string>
+				</dict>
+				<dict>
+					<key>enabled</key>
+					<true/>
+					<key>key</key>
+					<string>weather-hourly</string>
+				</dict>
+				<dict>
+					<key>enabled</key>
+					<true/>
+					<key>key</key>
+					<string>weather-forecast</string>
+				</dict>
+				<dict>
+					<key>enabled</key>
+					<false/>
+					<key>key</key>
+					<string>weather-launcher</string>
+				</dict>
+			</array>
+		</dict>
+		<key>Menubar</key>
+		<dict>
+			<key>Mode</key>
+			<dict>
+				<key>SingleValue</key>
+				<dict>
+					<key>Font</key>
+					<dict>
+						<key>Name</key>
+						<string>default</string>
+						<key>Size</key>
+						<integer>0</integer>
+					</dict>
+					<key>Value</key>
+					<dict>
+						<key>Dark</key>
+						<dict>
+							<key>Text</key>
+							<dict/>
+						</dict>
+					</dict>
+				</dict>
+			</dict>
 		</dict>
 	</dict>
 </dict>
