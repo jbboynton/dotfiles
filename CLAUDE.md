@@ -389,11 +389,13 @@ Follow the existing history:
   `statusLine` in `~/.claude/settings.json` (not in this repo). Its header
   documents every mark. The layout is James's: two lines per
   repository. The first is `project | agent/lane ‹branch› marks` at
-  the left and, for the first repository, `model effort ＊` at the
-  right. The second is `build test ci e2e merge` at the left and the
-  pull requests or the release at the right. A blank line ends the
-  output; Claude Code drops a line that is empty or only spaces, so
-  it holds a blank braille cell (U+2800). The project name is yellow,
+  the left and the pull requests or the release at the right. The
+  second is `build | test | ci | e2e | merge`. A rule the width of the status
+  line, in plain gray (dim was too faint, Claude Code's own rule
+  gray too strong), sits between
+  repositories and under the last. Below it the last line holds
+  `model effort ＊` at the right, where it belongs to no repository,
+  and Claude's tasks at the left. The project name is yellow,
   like the prompt's path. James chose to drop the environment.
   - `claude_statusline --alias NAME [DIR]` shows a repository under
     another name (an empty NAME undoes it). The aliases are in
@@ -403,6 +405,19 @@ Follow the existing history:
     line (marks, pull requests, release), for projects that do not
     need it, such as this one; `--lines 2` brings it back. The list
     is `~/.config/claude_statusline/one-line`.
+  - `claude_statusline --hide [DIR]` leaves a repository out, and its
+    linked worktrees with it; `--show` brings it back. The folder
+    stands in when every repository is hidden. The list is
+    `~/.config/claude_statusline/hidden`.
+  - `claude_statusline --order [DIR...]` shows those repositories
+    first, in that order, ahead of the rest; with no DIR the order
+    goes back to names. The list is
+    `~/.config/claude_statusline/order`.
+  - The status line cannot redraw more than once a second:
+    `refreshInterval` is in whole seconds with a minimum of 1, and
+    Claude Code shows the output only when the script exits. Claude's
+    own spinner steps about every 115 ms (measured from a recording,
+    2026-11-18), so the marks' spinner cannot match it.
   - Commits ahead and behind are `￪2 ￬1` in gray. Not green and red,
     which read as lines added and removed, and not subscript digits,
     which were too hard to read.
@@ -442,9 +457,14 @@ Follow the existing history:
     Untracked files do not count. The trees
     come from staging everything in a copy of the index (`add -u`,
     `write-tree`); the real index is never touched.
+  - A run going in a lane also spins on the line of the repository
+    the lane was cut from, so the coordinator's pane shows it. Only
+    the spinner travels: a lane's pass or failure stays in the lane.
   - Each name has its own color (blue, cyan, magenta, plain, navy), dim
     until it has a result for this code, and a failure is red
-    throughout. A failure in any one resets the rest to `–`:
+    throughout. A running mark's sign (`⟢` and `⟣` by turns) and
+    ci's count of checks take the name's color, at James's request,
+    so they read as belonging to it. A failure in any one resets the rest to `–`:
     `report_run` deletes the other records, and the status line hides
     a pass while something is failing.
   - Cost, measured 2026-11-18: a render takes 26 ms. Refreshing a

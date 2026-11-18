@@ -3,10 +3,13 @@
 # (zsh/prompt.zsh) and the tmux bar. It uses the terminal's 16 colors
 # only, so it follows Alacritty's theme.
 #
-# Two lines per repository, each with a left and a right group:
+# Two lines per repository, a rule between each and the next, then a
+# rule and a last line for the session itself:
 #
-#   site | cart ‹lane/cart› * ￪2                          Fable 5.2 med ＊
-#   build ✓ test ✓ ci ✕ e2e – merge ✓      #512 release #567 (16 ✔︎ 43 ✕)
+#   site | cart ‹lane/cart› * ￪2          #512 release #567 (16 ✔︎ 43 ✕)
+#   build ✓ | test ✓ | ci ✕ | e2e – | merge ✓
+#   ──────────────────────────────────────────────────────────────────
+#   2/5 Write the tests | 1 agent                        Fable 5.2 med ＊
 #
 #   project   the repository's name, or the alias given to it with
 #             --alias. A click opens its folder in Finder, an
@@ -31,7 +34,7 @@
 #
 #   build, test, ci, e2e   whether each passes for the code as it is now:
 #                     ✓ passed, ✕ failed, – nothing to report, and a
-#                     turning ◜ while running (ci adds its checks,
+#                     ⟢ or ⟣ while running (ci adds its checks,
 #                     done/all). Each has two
 #                     sources: the last run here, which bin/report_run
 #                     recorded, and GitHub's checks on the commit,
@@ -54,22 +57,21 @@
 #                     about the release, not this checkout: it neither
 #                     resets the other marks nor is reset by them.
 #
-#   The first repository's first line ends with the session's own:
+#   The last line is the session's own, so that it reads as belonging
+#   to no repository. At the right:
 #   model, effort     as Claude Code reports them ("med" for medium)
 #   ＊                a newer Claude Code has been released
+#   At the left, when there are any: Claude's task list (done/all and
+#   the step in progress) and the background agents still running.
 #
-#   A repository set to one line with --lines has no second line: no
-#   marks, pull requests or release.
+#   A repository set to one line with --lines has its name line only:
+#   no marks, pull requests or release.
 #
 #   A later repository has a second line only when it has a mark
-#   other than – or pull requests to show. The output ends with a blank
-#   line.
+#   other than –.
 #
 # The repositories are the one the session is in or, outside one, each
 # repository directly inside the folder; then any added with /add-dir.
-# A last line holds Claude's task list (done/all and the step in
-# progress) and the background agents still running, when there are
-# any.
 #
 # Everything that can be clicked is underlined.
 #
@@ -79,6 +81,13 @@
 #                                     an empty NAME removes the alias
 #        claude_statusline --lines 1|2 [DIR]   show DIR's repository
 #                                     on one line, or on two again
+#        claude_statusline --hide [DIR]  leave DIR's repository out;
+#                                     with every one hidden, the
+#                                     folder stands in
+#        claude_statusline --show [DIR]  show it again
+#        claude_statusline --order [DIR...]  show these repositories
+#                                     first, in this order; with no
+#                                     DIR, in the order of their names
 #        claude_statusline --git DIR  refresh DIR's git cache
 #        claude_statusline --gh DIR   refresh DIR's GitHub cache
 #        claude_statusline --update all  refresh the latest version
@@ -96,11 +105,14 @@ config=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/claude_statusline/v3
 aliases=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/aliases
 one_line=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/one-line
+hidden=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/hidden
+order=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/order
 now=${EPOCHSECONDS:-$(date +%s)}
 
-# The sign of a mark that is running: one frame a second, so it turns
-# a quarter clockwise in each render a second after the last
-spinner=◜◝◞◟
+# The sign of a mark that is running: one frame a second, so it flips
+# in each render a second after the last. Two frames, James's choice:
+# the status line redraws once a second at most, too slow to spin.
+spinner=⟢⟣
 sep=$'\x1f'
 
 git_ttl=10         # seconds until unstaged and untracked are checked again
@@ -644,17 +656,115 @@ repo_of() {
   REPLY=${REPLY%/.git}
 }
 
-# Whether FOLDER is set to show on one line
-on_one_line() {
+# Whether FOLDER is in the list kept in FILE
+listed_in() {
   local folder
 
-  [ -f "$one_line" ] || return 1
+  [ -f "$1" ] || return 1
 
   while IFS= read -r folder; do
-    [ "$folder" = "$1" ] && return 0
-  done < "$one_line"
+    [ "$folder" = "$2" ] && return 0
+  done < "$1"
 
   return 1
+}
+
+# Whether FOLDER is set to show on one line
+on_one_line() {
+  listed_in "$one_line" "$1"
+}
+
+# Whether the repository at DIR is hidden. A linked worktree is hidden
+# with the repository it was cut from. Costs nothing with none hidden.
+is_hidden() {
+  local root=$1
+
+  [ -s "$hidden" ] || return 1
+
+  git_read "$1"
+  (( g_linked )) && [[ $g_gitdir == */.git/worktrees/* ]] &&
+    root=${g_gitdir%/.git/worktrees/*}
+
+  listed_in "$hidden" "$root"
+}
+
+# Put the repositories in $dirs that --order names first, in the order
+# it gave them; the others keep theirs. Costs nothing with none named.
+reorder() {
+  local want have front=() rest=()
+
+  [ -s "$order" ] || return 0
+
+  while IFS= read -r want; do
+    for have in "${dirs[@]}"; do
+      [ "$have" = "$want" ] && front+=("$have")
+    done
+  done < "$order"
+
+  for have in "${dirs[@]}"; do
+    listed_in "$order" "$have" || rest+=("$have")
+  done
+
+  dirs=("${front[@]}" "${rest[@]}")
+}
+
+# Show the repositories the DIRs are in first, in the order given. With
+# no DIR, go back to the order of their names.
+order_set() {
+  local dir kept='' shown=''
+
+  for dir; do
+    repo_of "$dir"
+
+    if [ -z "$REPLY" ]; then
+      printf 'Usage: claude_statusline --order [DIR...]\n' >&2
+      printf '%s is not in a git repository.\n\n' "$dir" >&2
+      return 64
+    fi
+
+    [[ $kept == *"$REPLY"$'\n'* ]] && continue
+    kept+=$REPLY$'\n'
+    shown+="  ${REPLY/#$HOME/\~}"$'\n'
+  done
+
+  mkdir -p "${order%/*}"
+  printf '%s' "$kept" > "$order.$$" && mv "$order.$$" "$order"
+
+  if [ -n "$kept" ]; then
+    printf 'Shown first, in this order:\n%s\n' "$shown"
+  else
+    printf 'Repositories are shown in the order of their names.\n\n'
+  fi
+}
+
+# Hide the repository DIR is in (HOW is hide), or show it again (show)
+hide_set() {
+  local how=$1 root kept='' line
+
+  repo_of "${2:-}"
+  root=$REPLY
+
+  if [ -z "$root" ]; then
+    printf 'Usage: claude_statusline --hide|--show [DIR]\n' >&2
+    printf 'DIR must be in a git repository.\n\n' >&2
+    return 64
+  fi
+
+  if [ -f "$hidden" ]; then
+    while IFS= read -r line; do
+      [ "$line" = "$root" ] || kept+=$line$'\n'
+    done < "$hidden"
+  fi
+
+  [ "$how" = show ] || kept+=$root$'\n'
+  mkdir -p "${hidden%/*}"
+  printf '%s' "$kept" > "$hidden.$$" && mv "$hidden.$$" "$hidden"
+
+  if [ "$how" = hide ]; then
+    printf '%s is now hidden.\n\n' "${root/#$HOME/\~}"
+  else
+    printf '%s is shown.\n\n' "${root/#$HOME/\~}"
+  fi
 }
 
 # Show the repository DIR is in on COUNT lines, 1 or 2
@@ -788,6 +898,26 @@ run_state() {
 # fail, running or empty). GitHub's is old while there are changes to
 # commit. A failure wins, then a run under way, then a pass; a result
 # for other code counts only when there is none for this.
+# A run still going in one of the repository's lanes (its linked
+# worktrees, left in $lanes by marks_group) shows on the repository
+# too: REPLY becomes running unless KIND failed here
+lane_state() {
+  local lane file state at
+
+  [ "$REPLY" = fail ] && return
+
+  for lane in "${lanes[@]}"; do
+    file="$cache/run-$1-${lane//[^A-Za-z0-9]/_}"
+    [ -f "$file" ] || continue
+    IFS=$sep read -r state at _ < "$file"
+
+    if [ "$state" = running ] && (( now - at < run_ttl_running )); then
+      REPLY=running
+      return
+    fi
+  done
+}
+
 state_of() {
   local remote=${2:-none} each
 
@@ -823,7 +953,10 @@ mark() {
     ok) sign=✓ tint=$green ;;
     fail) sign=✕ tint=$red ;;
     running)
-      sign=${spinner:now % 4:1} tint=$yellow
+      # In the name's own color, so the sign and ci's count read as
+      # belonging to it. Alacritty draws ⟢ and ⟣ wider than their one
+      # column, over the next, so a space of their own follows them.
+      sign="${spinner:now % ${#spinner}:1} " tint=$hue
       [ "$name" = ci ] && (( h_all )) && sign+=" $h_done/$h_all"
       ;;
     *) sign=– tint=$gray ;;
@@ -839,6 +972,7 @@ mark() {
     hue=$red
   fi
 
+  bar
   word "$hue" "$name" "$url"
   put "$tint" " $sign"
   [ "$state" = none ] || marked=1
@@ -848,11 +982,22 @@ mark() {
 # DIR: build, test, CI and end-to-end. marked is set when any has
 # something to report.
 marks_group() {
-  local dir=$1 build test e2e ci failed='' checks=''
+  local dir=$1 build test e2e ci failed='' checks='' lanes=() file lane
 
-  run_state build "$dir"; state_of "$REPLY" "$h_build"; build=$REPLY
-  run_state test "$dir"; state_of "$REPLY" "$h_test"; test=$REPLY
-  run_state e2e "$dir"; state_of "$REPLY" "$h_e2e"; e2e=$REPLY
+  # The lanes cut from this checkout, as git lists them in its folder
+  if (( ! g_linked )); then
+    for file in "$g_gitdir"/worktrees/*/gitdir; do
+      [ -f "$file" ] && read -r lane < "$file" &&
+        lanes+=("${lane%/.git}")
+    done
+  fi
+
+  run_state build "$dir"; lane_state build
+  state_of "$REPLY" "$h_build"; build=$REPLY
+  run_state test "$dir"; lane_state test
+  state_of "$REPLY" "$h_test"; test=$REPLY
+  run_state e2e "$dir"; lane_state e2e
+  state_of "$REPLY" "$h_e2e"; e2e=$REPLY
   state_of none "$h_ci"; ci=$REPLY
   [ -z "$g_slug" ] || checks=https://github.com/$g_slug/commit/$g_oid/checks
 
@@ -872,7 +1017,7 @@ marks_group() {
   mark merge "${h_ff:-none}" "$h_ship_url"
 }
 
-# The right group of the second line, for the repository gh_read just
+# The right group of the first line, for the repository gh_read just
 # loaded: the branch's pull request, then the release or the count of
 # open pull requests
 pulls_group() {
@@ -911,7 +1056,7 @@ pulls_group() {
   return 0
 }
 
-# What the session itself runs on, at the right of the first line
+# What the session itself runs on, at the right of the last line
 session_group() {
   local effort=$2
 
@@ -1011,6 +1156,16 @@ tasks_group() {
   word "$blue" "$REPLY"
 }
 
+# Print a rule across WIDTH columns. Plain gray is James's choice: dim
+# gray was too hard to see, and the gray of Claude Code's own rules
+# (38;5;244) too strong.
+rule_line() {
+  local rule
+
+  printf -v rule '%*s' "$1" ''
+  printf '%s%s%s\n' "$gray" "${rule// /─}" "$reset"
+}
+
 # Print a line: LEFT at the left edge and the part, as the right group,
 # at the right edge of WIDTH columns
 print_line() {
@@ -1025,8 +1180,8 @@ print_line() {
 
 render() {
   local cwd model effort version agent added role='' pane=0 width=116
-  local dir dirs=() extra have listed=0 first=1 left left_plain marked=0
-  local root
+  local dir dirs=() extra have first=1 left left_plain marked=0
+  local root rule
 
   IFS=$sep read -r cwd session transcript model effort version agent \
     added < <(
@@ -1057,20 +1212,26 @@ render() {
   # inside it; then the ones added to the session
   find_root "$cwd"
   if [ -n "$REPLY" ]; then
-    dirs=("$REPLY")
+    is_hidden "$REPLY" || dirs=("$REPLY")
   else
     for dir in "$cwd"/*/; do
       dir=${dir%/}
       [ -e "$dir/.git" ] || continue
-      (( ++listed > repos_max )) && break
+      is_hidden "$dir" && continue
       dirs+=("$dir")
     done
+
+    reorder
+    dirs=("${dirs[@]:0:repos_max}")
   fi
 
   IFS=$'\x1e' read -ra extra <<< "$added"
   for dir in "${extra[@]}"; do
     find_root "$dir"
     [ -n "$REPLY" ] || continue
+    dir=$REPLY
+    is_hidden "$dir" && continue
+    REPLY=$dir
 
     for have in "${dirs[@]}"; do
       [ "$have" = "$REPLY" ] && continue 2
@@ -1078,6 +1239,7 @@ render() {
     dirs+=("$REPLY")
   done
 
+  reorder
   scan
 
   # Not in a repository, and none here: the folder stands in for one
@@ -1086,12 +1248,12 @@ render() {
     put "$yellow" "$REPLY" "file://${cwd// /%20}"
     [ -z "${role:-$agent}" ] || { bar; word "$magenta" "${role:-$agent}"; }
     left=$part left_plain=$plain part='' plain=''
-
-    session_group "$model" "$effort" "$version"
     print_line "$left" "$left_plain" "$width"
   fi
 
   for dir in "${dirs[@]}"; do
+    (( first )) || rule_line "$width"
+
     git_read "$dir"
     gh_read "$dir"
 
@@ -1102,43 +1264,48 @@ render() {
     fi
     left=$part left_plain=$plain part='' plain=''
 
-    if (( first )); then
-      session_group "$model" "$effort" "$version"
-    fi
-
-    print_line "$left" "$left_plain" "$width"
-
-    # One line is all some repositories are set to show
+    # One line is all some repositories are set to show: no pull
+    # requests, no release, no marks
     root=$dir
     (( g_linked )) && [[ $g_gitdir == */.git/worktrees/* ]] &&
       root=${g_gitdir%/.git/worktrees/*}
 
     if on_one_line "$root"; then
+      print_line "$left" "$left_plain" "$width"
       first=0
       continue
     fi
 
-    marks_group "$dir"
-    left=$part left_plain=$plain part='' plain=''
     pulls_group
+    print_line "$left" "$left_plain" "$width"
 
     # A later repository's second line needs something to say
-    if (( first )) || (( marked )) || [ -n "$plain" ]; then
+    marks_group "$dir"
+    left=$part left_plain=$plain part='' plain=''
+
+    if (( first )) || (( marked )); then
       print_line "$left" "$left_plain" "$width"
     else
-      part='' plain='' wide=0
+      wide=0
     fi
 
     first=0
   done
 
+  # The last line is the session's own, under a rule that sets it off
+  # from the repositories: Claude's tasks at the left; the model, the
+  # effort and the update mark at the right
+  rule_line "$width"
   steps_group
   tasks_group
-  [ -z "$plain" ] || printf '%s\n' "$part"
+  left=$part left_plain=$plain part='' plain=''
+  session_group "$model" "$effort" "$version"
 
-  # A blank last line, as James asked. Claude Code drops a line that is
-  # empty or only spaces, so this one holds a blank braille cell.
-  printf '%s\n' '⠀'
+  # Claude Code drops a line that is empty or only spaces, and the
+  # spaces a line starts with, so a blank braille cell stands at the
+  # left when nothing else does
+  [ -n "$left_plain" ] || left='⠀' left_plain=' '
+  print_line "$left" "$left_plain" "$width"
 }
 
 mkdir -p "$cache"
@@ -1146,6 +1313,8 @@ mkdir -p "$cache"
 case ${1:-} in
   --alias) alias_set "${2:-}" "${3:-}" ;;
   --lines) lines_set "${2:-}" "${3:-}" ;;
+  --hide | --show) hide_set "${1#--}" "${2:-}" ;;
+  --order) shift; order_set "$@" ;;
   --git | --gh | --update)
     "${1#--}_refresh" "$2"
     rm -f "$cache/lock-${1#--}-${2//[^A-Za-z0-9]/_}"
