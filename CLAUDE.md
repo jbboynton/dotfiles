@@ -375,6 +375,90 @@ Follow the existing history:
     undocumented and may move.
   - Claude Code's own `externalEditorContext` does the same as `#` lines,
     unwrapped. Leave it off; the script copes if it is on.
+- **Claude Code's status line** is `bin/claude_statusline`, set as
+  `statusLine` in `~/.claude/settings.json` (not in this repo). Its header
+  documents every mark. The layout is James's: two lines per
+  repository. The first is `project | agent/lane ‹branch› marks` at
+  the left and, for the first repository, `model effort ＊` at the
+  right. The second is `build test ci e2e merge` at the left and the
+  pull requests or the release at the right. A blank line ends the
+  output; Claude Code drops a line that is empty or only spaces, so
+  it holds a blank braille cell (U+2800). The project name is yellow,
+  like the prompt's path. James chose to drop the environment.
+  - `claude_statusline --alias NAME [DIR]` shows a repository under
+    another name (an empty NAME undoes it). The aliases are in
+    `~/.config/claude_statusline/aliases`, outside this public repo
+    because they name private projects.
+  - `claude_statusline --lines 1 [DIR]` drops a repository's second
+    line (marks, pull requests, release), for projects that do not
+    need it, such as this one; `--lines 2` brings it back. The list
+    is `~/.config/claude_statusline/one-line`.
+  - Commits ahead and behind are `￪2 ￬1` in gray. Not green and red,
+    which read as lines added and removed, and not subscript digits,
+    which were too hard to read.
+  - The script is live in every open session the moment it is saved.
+    Edit a copy, test it with sample JSON on stdin, then copy it over.
+  - Everything clickable is an underlined OSC 8 link. The project name's
+    link is `file://FOLDER#alt=GITHUB_URL`: `tmux_open` opens the folder
+    on a click and the part after `alt=` on an Option-click.
+  - Links do not respond to hover inside tmux: with `mouse on`, tmux
+    takes the mouse and has no hover event. Alacritty highlights a link
+    under the pointer only while Shift is held.
+  - The agent is the pane's `@role` (the bullpen sets it; `terminal`
+    counts as none), else the `--agent` name. The lane is the folder
+    name of a linked git worktree, and the project is then the
+    repository it was cut from.
+  - `build`, `test` and `e2e` come from records that `bin/report_run`
+    writes, not from what an agent says: running, passed or failed,
+    with the time and the commit, one per repository. `npmrc` sets it
+    as npm's `script-shell`, so every `npm test`, `npm run e2e` and
+    `npm run build` on this Mac is recorded whoever runs it, and no
+    project's `package.json` names it (CI does not have the script).
+    Other npm scripts go straight to `/bin/sh`. For anything that is
+    not an npm script: `report_run test -- COMMAND`. Every run is
+    also a line in `~/.local/state/claude_statusline/runs.tsv`, with
+    how long it took; `report_run --log [DAYS]` adds them up.
+  - Each of the four marks is `✓` passed, `✕` failed or `–` nothing to
+    report, and has two sources: the run `report_run` recorded here,
+    and GitHub's checks on the commit, sorted by name (`checks_e2e`,
+    `checks_build` and `checks_test` at the top of the script; `ci`
+    is the rest). A failure in either wins.
+  - A result belongs to code, not to a commit. `report_run` records
+    the tree of the tracked files, and the status line compares it
+    with the tree now, so an edit dims the mark's name and committing
+    what was tested does not. GitHub's checks are dim while there
+    are changes to commit. The sign keeps its color either way: James
+    wanted a pass to read green and a failure red at a glance.
+    Untracked files do not count. The trees
+    come from staging everything in a copy of the index (`add -u`,
+    `write-tree`); the real index is never touched.
+  - Each name has its own color (blue, cyan, magenta, plain, navy), dim
+    until it has a result for this code, and a failure is red
+    throughout. A failure in any one resets the rest to `–`:
+    `report_run` deletes the other records, and the status line hides
+    a pass while something is failing.
+  - Cost, measured 2026-11-18: a render takes 26 ms. Refreshing a
+    repository's git cache takes 60 ms, or 85 to 95 ms with changes to
+    commit; it runs inside a render only when HEAD or the index has
+    changed, otherwise behind it. `report_run` adds 56 ms to a run it
+    records and 9 ms to any other npm script.
+  - `merge` says whether the release pull request can be merged: no
+    conflicts. It is about the release, not the checkout, so it takes
+    no part in the reset. Being behind `main` does not fail it: James
+    cares about conflicts, and being behind is not one.
+    `release_linear` in the script adds that stricter check.
+  - `release #567 (16 ✔︎ 43 ✕)` is the open release pull request, into
+    `main` from `staging` or a `release/` branch. James's rule for the
+    counts: only pull requests that its description lists count,
+    green when every check on their last commit passed, red
+    otherwise. Issues, labels and milestones are not trusted. The
+    bullpen's release descriptions have listed issues so far, which
+    count for nothing.
+  - `＊` means a newer Claude Code is out. Claude Code's own "Update
+    available!" notice is turned off with `DISABLE_AUTOUPDATER` under
+    `env` in `~/.claude/settings.json`, which also stops its version
+    check, so the script asks `downloads.claude.ai` itself every six
+    hours. Homebrew installs the updates either way.
 - **Vim's spelling** is `vim/autoload/spellmenu.vim` and
   `vim/rcfiles/spelling`. Capitalization at the start of a sentence is
   fixed on leaving insert mode, in the lines just typed only; `u` takes

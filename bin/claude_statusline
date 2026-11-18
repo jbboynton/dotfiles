@@ -1,0 +1,1160 @@
+#!/usr/bin/env bash
+# Claude Code's status line, in the marks and colors of the zsh prompt
+# (zsh/prompt.zsh) and the tmux bar. It uses the terminal's 16 colors
+# only, so it follows Alacritty's theme.
+#
+# Two lines per repository, each with a left and a right group:
+#
+#   site | cart ‹lane/cart› * ￪2                          Fable 5.2 med ＊
+#   build ✓ test ✓ ci ✕ e2e – merge ✓      #512 release #567 (16 ✔︎ 43 ✕)
+#
+#   project   the repository's name, or the alias given to it with
+#             --alias. A click opens its folder in Finder, an
+#             Option-click its page on GitHub.
+#   agent     the bullpen role of this pane (tmux's @role) or the agent
+#             Claude was started as, then the lane: the name of a linked
+#             git worktree. One name when both are the same.
+#   ‹branch› S * ??   as in the prompt; [branch|action] during a rebase
+#                     or merge
+#   ￪2 ￬1             commits ahead of and behind upstream
+#
+#   #512              the branch's pull request, then draft, merged,
+#                     approved or changes, and "2 to review" when pull
+#                     requests wait on me
+#   release #567 (16 ✔︎ 43 ✕)   the open release pull request (into main
+#                     from staging or a release/ branch). The counts are
+#                     of the pull requests its description lists: those
+#                     whose checks are all green, and the rest. A listed
+#                     issue counts for nothing, nor does a pull request
+#                     that was closed unmerged.
+#   3 PRs             without a release, the open pull requests
+#
+#   build, test, ci, e2e   whether each passes for the code as it is now:
+#                     ✓ passed, ✕ failed, – nothing to report, … running
+#                     (ci counts its checks done/all). Each has two
+#                     sources: the last run here, which bin/report_run
+#                     recorded, and GitHub's checks on the commit,
+#                     sorted by name (checks_build, checks_test and
+#                     checks_e2e below; ci is the rest). A failure in
+#                     either wins. A ✓ is always green and a ✕ red.
+#                     Each name has a color of its own, dim until it
+#                     has a result for this code; a failure is red,
+#                     name and all. A result is for other code, and its
+#                     name stays dim, when tracked files have changed
+#                     since the run, or since the commit GitHub
+#                     checked. A failure resets the others: they show –
+#                     until they run again.
+#
+#   merge             whether the release pull request can be merged:
+#                     ✓ when GitHub finds no conflicts, ✕ when it does,
+#                     – without a release. With release_linear set, it
+#                     must also hold every commit of the branch it goes
+#                     into, so that it lands as a fast-forward. It is
+#                     about the release, not this checkout: it neither
+#                     resets the other marks nor is reset by them.
+#
+#   The first repository's first line ends with the session's own:
+#   model, effort     as Claude Code reports them ("med" for medium)
+#   ＊                a newer Claude Code has been released
+#
+#   A repository set to one line with --lines has no second line: no
+#   marks, pull requests or release.
+#
+#   A later repository has a second line only when it has a mark
+#   other than – or pull requests to show. The output ends with a blank
+#   line.
+#
+# The repositories are the one the session is in or, outside one, each
+# repository directly inside the folder; then any added with /add-dir.
+# A last line holds Claude's task list (done/all and the step in
+# progress) and the background shells and agents still running, when
+# there are any.
+#
+# Everything that can be clicked is underlined.
+#
+# Usage: claude_statusline            Claude Code pipes its JSON to stdin
+#        claude_statusline --alias NAME [DIR]  show DIR's repository
+#                                     (default: this one) as NAME;
+#                                     an empty NAME removes the alias
+#        claude_statusline --lines 1|2 [DIR]   show DIR's repository
+#                                     on one line, or on two again
+#        claude_statusline --git DIR  refresh DIR's git cache
+#        claude_statusline --gh DIR   refresh DIR's GitHub cache
+#        claude_statusline --update all  refresh the latest version
+#
+# A render never waits on the network. GitHub's answers and the latest
+# version come from a cache (~/.cache/claude_statusline) that a detached
+# copy of this script refreshes. Git status is cached until HEAD or the
+# index changes. The transcript is read from where the last render
+# stopped, so a long session costs the same as a short one.
+
+export LC_ALL=en_US.UTF-8
+
+self=$0
+config=${CLAUDE_CONFIG_DIR:-$HOME/.claude}
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/claude_statusline/v3
+aliases=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/aliases
+one_line=${XDG_CONFIG_HOME:-$HOME/.config}/claude_statusline/one-line
+now=${EPOCHSECONDS:-$(date +%s)}
+sep=$'\x1f'
+
+git_ttl=10         # seconds until unstaged and untracked are checked again
+gh_ttl=120         # seconds a GitHub answer stays fresh
+gh_ttl_running=30  # the same while checks are running
+update_ttl=21600   # seconds until the latest version is asked for again
+run_ttl=28800      # seconds a build or test result is shown
+run_ttl_running=900  # the same for one that never reported back
+scan_max=8388608   # bytes read from the end of a transcript not seen before
+repos_max=6        # repositories listed when the folder is not in one
+
+# Which mark a check on GitHub counts toward, by its name in lower
+# case, written "workflow / check". The first that matches, in this
+# order: e2e, build, test. The rest are ci.
+checks_e2e='^e2e|playwright'
+checks_build='/ build$|netlify|deploy'
+checks_test='test'
+
+# A release pull request goes into this branch, from the other or from
+# a release/ branch
+release_base=main
+release_branch=staging
+
+# Whether the merge mark also fails a release that is behind the
+# branch it goes into. Off: James cares about conflicts, and being
+# behind is not one.
+release_linear=false
+
+# Where the newest release's version is published, as plain text
+update_url=https://downloads.claude.ai/claude-code-releases/latest
+
+reset=$'\e[0m'
+red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' magenta=$'\e[35m'
+cyan=$'\e[36m' gray=$'\e[90m' blue=$'\e[94m'
+dim=$'\e[2m' navy=$'\e[34m'
+
+# Everything asked of GitHub about one repository, in one request
+gh_query='
+query($owner: String!, $name: String!, $branch: String!, $sha: String!,
+    $review: String!, $base: String!, $staging: String!) {
+  repository(owner: $owner, name: $name) {
+    open: pullRequests(states: OPEN) { totalCount }
+    recent: pullRequests(states: OPEN, first: 30,
+        orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes { number url body headRefName baseRefName mergeable }
+    }
+    base: ref(qualifiedName: $base) {
+      compare(headRef: $staging) { behindBy }
+    }
+    pr: pullRequests(headRefName: $branch, states: OPEN, first: 1,
+        orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }
+    merged: pullRequests(headRefName: $branch, states: MERGED, first: 1,
+        orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ...pr } }
+    head: object(expression: $sha) { ... on Commit { ...checks } }
+  }
+  review: search(query: $review, type: ISSUE) { issueCount }
+}
+fragment pr on PullRequest {
+  number isDraft reviewDecision url headRefOid
+  commits(last: 1) { nodes { commit { ...checks } } }
+}
+fragment checks on Commit {
+  statusCheckRollup {
+    contexts(first: 100) {
+      nodes {
+        __typename
+        ... on CheckRun {
+          name status conclusion
+          checkSuite { workflowRun { workflow { name } } }
+        }
+        ... on StatusContext { context state }
+      }
+    }
+  }
+}'
+
+# That answer as the fields gh_read reads. A merged pull request counts
+# only while the branch still sits on the commit that was merged. The
+# checks are the local commit's when GitHub has it, the pull request's
+# otherwise: each sorted into e2e, build, test or ci, and each group
+# fail, running or ok (skipped checks aside), or empty with none.
+# The release pull request is an open one into the branch releases
+# ship to, from the staging branch or a release/ branch. The last two
+# fields are for gh_refresh: whether the release can be merged (ok,
+# fail, or running while GitHub works it out), and the
+# numbers its description mentions, to look up.
+gh_fields='
+def sorted:
+  [(.statusCheckRollup.contexts.nodes // [])[]
+    | if .__typename == "CheckRun" then
+        {label: "\(.checkSuite.workflowRun.workflow.name // "") / \(.name)",
+         state: (if .status != "COMPLETED" then "running"
+           elif .conclusion == "SUCCESS" then "ok"
+           elif (.conclusion | IN("SKIPPED", "NEUTRAL", "STALE")) then "skip"
+           else "fail" end)}
+      else
+        {label: (.context // ""),
+         state: (if .state == "SUCCESS" then "ok"
+           elif (.state | IN("PENDING", "EXPECTED")) then "running"
+           else "fail" end)}
+      end
+    | select(.state != "skip")
+    | .label |= ascii_downcase
+    | .group = (if .label | test($e2e) then "e2e"
+        elif .label | test($build) then "build"
+        elif .label | test($test) then "test" else "ci" end)];
+def of($group):
+  [.[] | select(.group == $group) | .state]
+  | if any(. == "fail") then "fail" elif any(. == "running") then "running"
+    elif length > 0 then "ok" else "" end;
+def checks:
+  if .statusCheckRollup == null then null else
+    sorted
+    | [of("ci"),
+       ([.[] | select(.group == "ci" and .state != "running")] | length),
+       ([.[] | select(.group == "ci")] | length),
+       of("build"), of("test"), of("e2e")]
+  end;
+select(.data.repository != null)
+| .data.repository as $repo
+| $repo.pr.nodes[0] as $open
+| ($repo.merged.nodes[0] | if .headRefOid? == $sha then . else null end)
+    as $merged
+| ($open // $merged) as $pr
+| ((($repo.head // {}) | checks)
+    // (($pr.commits.nodes[0].commit? // {}) | checks)
+    // ["", 0, 0, "", "", ""]) as $ci
+| ([$repo.recent.nodes[]?
+    | select(.baseRefName == $base
+        and (.headRefName == $staging
+          or (.headRefName | startswith("release/"))))][0]) as $ship
+| [$repo.open.totalCount, .data.review.issueCount,
+   $pr.number // "",
+   (if $pr == null then "" elif $open == null then "merged"
+    elif $pr.isDraft then "draft" else "open" end),
+   $pr.reviewDecision // "", $pr.url // ""] + $ci
+  + [$ship.number // "", $ship.url // "",
+     (if $ship == null then ""
+      elif $ship.mergeable == "CONFLICTING" then "fail"
+      elif $linear and $ship.headRefName == $staging
+        and ($repo.base.compare.behindBy // 0) > 0 then "fail"
+      elif $ship.mergeable == "UNKNOWN" then "running"
+      else "ok" end),
+     ([($ship.body // "") | scan("(?<![\\w/])#([0-9]+)\\b") | .[0]]
+       | unique | map(select(. != ($ship.number // 0 | tostring)))
+       | .[0:90] | join(" "))]
+| map(tostring) | join("\u001f")'
+
+# What new transcript lines say, one event a line.
+#
+# Background work: "+ ID KIND" when a shell or an agent goes to the
+# background, "- ID" when it ends or is stopped. The notice that one
+# ended is recorded in any of three places.
+transcript_events='
+def ended:
+  strings
+  | select(startswith("<task-notification>"))
+  | select(test("<status>(?!running<)"))
+  | capture("<task-id>(?<id>[A-Za-z0-9_-]+)</task-id>")
+  | "- \(.id)";
+def tasks($at):
+  if .type == "user" and (.toolUseResult | type) == "object" then
+    .toolUseResult
+    | if (.task_id | type) == "string" then "- \(.task_id)"
+      elif $since > 0 and $at * 1000 < $since then empty
+      elif (.backgroundTaskId | type) == "string" then
+        "+ \(.backgroundTaskId) shell"
+      elif .isAsync == true and (.agentId | type) == "string" then
+        "+ \(.agentId) agent"
+      else empty end
+  elif .type == "user" then
+    .message.content | (., (arrays | .[] | .text?)) | ended
+  elif .type == "queue-operation" then .content | ended
+  elif .type == "attachment" then .attachment.prompt? | ended
+  else empty end;
+fromjson?
+| ((.timestamp // "") | sub("\\.[0-9]+Z$"; "Z")
+    | (try fromdateiso8601 catch 0)) as $at
+| tasks($at)'
+
+# Claude's task list as done, all and the step in progress
+step_fields='
+[.[] | select(type == "object" and .status != "deleted")]
+| [(map(select(.status == "completed")) | length), length,
+   (map(select(.status == "in_progress"))[0]
+     | .activeForm // .subject // "")]
+| map(tostring) | join("\u001f")'
+
+# Run a command, giving up after SECONDS where coreutils is installed
+bounded() {
+  local seconds=$1
+  shift
+
+  if command -v timeout > /dev/null; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
+# Replace FILE with one line of FIELDS, all at once
+write() {
+  local file=$1 IFS=$sep
+  shift
+
+  printf '%s\n' "$*" > "$file.$$" && mv "$file.$$" "$file"
+}
+
+# Refresh a cache (git or gh for a folder, update for all) in a copy of
+# this script that outlives the render. Its own process group keeps it
+# alive when Claude Code cancels the render. The lock keeps sessions
+# from all asking at once.
+detach() {
+  local lock="$cache/lock-$1-${2//[^A-Za-z0-9]/_}" since=''
+
+  [ -f "$lock" ] && read -r since < "$lock"
+  (( now - ${since:-0} < 30 )) && return
+
+  echo "$now" > "$lock"
+  ( set -m; "$self" "--$1" "$2" < /dev/null > /dev/null 2>&1 & ) 2> /dev/null
+}
+
+# The repository DIR is in, or nothing
+find_root() {
+  REPLY=$1
+
+  while [ -n "$REPLY" ] && [ ! -e "$REPLY/.git" ]; do
+    REPLY=${REPLY%/*}
+  done
+}
+
+# Load a git cache file into the g_ variables
+git_fields() {
+  g_at=0 g_gitdir='' g_head='' g_oid='' g_ahead=0 g_behind=0 g_staged=0
+  g_unstaged=0 g_untracked=0 g_action='' g_linked=0 g_slug=''
+  g_tree='' g_committed=''
+
+  [ -f "$1" ] || return
+  IFS=$sep read -r g_at g_gitdir g_head g_oid g_ahead g_behind g_staged \
+    g_unstaged g_untracked g_action g_linked g_slug g_tree g_committed \
+    < "$1"
+}
+
+# Write DIR's git cache: where its git folder is, branch, commit, marks,
+# any rebase or merge under way, its GitHub owner/name, and the tree of
+# its tracked files as they are now and as HEAD has them. The two
+# trees differ while there are changes to commit. bin/report_run
+# records the first with each run, the same way.
+git_refresh() {
+  local dir=$1 gitdir head='' oid='' ahead=0 behind=0 staged=0 unstaged=0
+  local untracked=0 action='' linked=0 slug='' status line url
+  local tree committed scratch
+
+  if [ -d "$dir/.git" ]; then
+    gitdir=$dir/.git
+  else
+    # A linked worktree's .git is a file naming its real git folder
+    read -r _ gitdir < "$dir/.git" || return
+    [[ $gitdir == /* ]] || gitdir=$dir/$gitdir
+    linked=1
+  fi
+
+  status=$(bounded 5 git -C "$dir" --no-optional-locks status \
+    --porcelain=v2 --branch 2> /dev/null) || return
+
+  while IFS= read -r line; do
+    case $line in
+      '# branch.oid '*) oid=${line#\# branch.oid } ;;
+      '# branch.head '*) head=${line#\# branch.head } ;;
+      '# branch.ab '*)
+        read -r _ _ ahead behind <<< "$line"
+        ahead=${ahead#+} behind=${behind#-}
+        ;;
+      [12]' '*)
+        [ "${line:2:1}" = . ] || staged=1
+        [ "${line:3:1}" = . ] || unstaged=1
+        ;;
+      'u '*) unstaged=1 ;;
+      '? '*) untracked=1 ;;
+    esac
+
+    # The prompt shows whether there are any, not how many
+    (( staged && unstaged && untracked )) && break
+  done <<< "$status"
+
+  [ "$head" = '(detached)' ] && head=''
+
+  if [ -d "$gitdir/rebase-merge" ] || [ -d "$gitdir/rebase-apply" ]; then
+    action=rebase
+
+    # A rebase detaches HEAD; these keep the name of the branch
+    for line in "$gitdir"/rebase-{merge,apply}/head-name; do
+      [ -f "$line" ] && read -r head < "$line"
+    done
+    head=${head#refs/heads/}
+  elif [ -f "$gitdir/MERGE_HEAD" ]; then
+    action=merge
+  elif [ -f "$gitdir/CHERRY_PICK_HEAD" ]; then
+    action=cherry-pick
+  elif [ -f "$gitdir/REVERT_HEAD" ]; then
+    action=revert
+  elif [ -f "$gitdir/BISECT_LOG" ]; then
+    action=bisect
+  fi
+
+  url=$(git -C "$dir" config --get remote.origin.url 2> /dev/null)
+  if [[ $url =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then
+    slug=${BASH_REMATCH[1]}/${BASH_REMATCH[2]%.git}
+  fi
+
+  committed=$(git -C "$dir" rev-parse 'HEAD^{tree}' 2> /dev/null)
+  tree=$committed
+
+  if (( staged || unstaged )); then
+    # Stage every tracked change in a copy of the index, and name the
+    # tree that makes. The real index is not touched.
+    scratch=$cache/index-$$
+    command cp -f "$gitdir/index" "$scratch" 2> /dev/null &&
+      tree=$(GIT_INDEX_FILE=$scratch git -C "$dir" add -u 2> /dev/null &&
+        GIT_INDEX_FILE=$scratch git -C "$dir" write-tree 2> /dev/null)
+    rm -f "$scratch" "$scratch.lock"
+  fi
+
+  write "$cache/git-${dir//[^A-Za-z0-9]/_}" "$now" "$gitdir" "$head" \
+    "$oid" "$ahead" "$behind" "$staged" "$unstaged" "$untracked" \
+    "$action" "$linked" "$slug" "$tree" "$committed"
+}
+
+# Load DIR's git cache. A change to HEAD or the index refreshes it first;
+# age alone refreshes it behind the render.
+git_read() {
+  local dir=$1 file="$cache/git-${1//[^A-Za-z0-9]/_}"
+
+  git_fields "$file"
+
+  if [ ! -f "$file" ] || [ "$g_gitdir/HEAD" -nt "$file" ] ||
+    [ "$g_gitdir/index" -nt "$file" ]; then
+    git_refresh "$dir"
+    git_fields "$file"
+  elif (( now - g_at > git_ttl )); then
+    detach git "$dir"
+  fi
+}
+
+# Write DIR's GitHub cache: the branch and commit asked about, then the
+# answer. A failed request leaves the answer empty until the next try.
+# The listed pull requests of a release, as "ready waiting": those whose
+# last commit has every check green, and the others that are open or
+# merged. Numbers that are issues, or missing, count for nothing.
+release_counts='
+[.data.repository // {} | .[]
+  | select(.__typename? == "PullRequest" and .state != "CLOSED")
+  | .commits.nodes[0].commit.statusCheckRollup.state == "SUCCESS"]
+| "\(map(select(.)) | length) \(map(select(. | not)) | length)"'
+
+gh_refresh() {
+  local dir=$1 answer refs ff number asked='' ready='' waiting=''
+
+  git_fields "$cache/git-${dir//[^A-Za-z0-9]/_}"
+  [ -n "$g_slug" ] && [ -n "$g_oid" ] || return
+
+  answer=$(bounded 20 gh api graphql -f query="$gh_query" \
+    -f owner="${g_slug%/*}" -f name="${g_slug#*/}" \
+    -f branch="${g_head:-HEAD}" -f sha="$g_oid" \
+    -f review="repo:$g_slug is:pr is:open review-requested:@me" \
+    -f base="refs/heads/$release_base" -f staging="$release_branch" \
+    2> /dev/null |
+    jq -r --arg sha "$g_oid" --arg staging "$release_branch" \
+      --arg base "$release_base" --argjson linear "$release_linear" \
+      --arg e2e "$checks_e2e" \
+      --arg build "$checks_build" --arg test "$checks_test" \
+      "$gh_fields" 2> /dev/null)
+
+  # A second request, for the pull requests the release lists
+  refs=${answer##*"$sep"}
+  answer=${answer%"$sep"*}
+  ff=${answer##*"$sep"}
+  answer=${answer%"$sep"*}
+
+  for number in $refs; do
+    asked+="n$number: issueOrPullRequest(number: $number) {
+      __typename
+      ... on PullRequest {
+        state
+        commits(last: 1) {
+          nodes { commit { statusCheckRollup { state } } }
+        }
+      }
+    } "
+  done
+
+  if [ -n "$asked" ]; then
+    read -r ready waiting < <(
+      bounded 20 gh api graphql -f owner="${g_slug%/*}" \
+        -f name="${g_slug#*/}" -f query="
+        query(\$owner: String!, \$name: String!) {
+          repository(owner: \$owner, name: \$name) { $asked }
+        }" 2> /dev/null | jq -r "$release_counts" 2> /dev/null
+    )
+  fi
+
+  [ -z "$answer" ] || answer+=$sep${ready:-0}$sep${waiting:-0}$sep$ff
+  write "$cache/gh-${dir//[^A-Za-z0-9]/_}" "$now" "$g_head" "$g_oid" \
+    "$answer"
+
+  # Drop what ended sessions and removed worktrees left behind
+  find "$cache" -type f -mtime +7 -delete 2> /dev/null
+}
+
+# Load DIR's GitHub cache into the h_ variables for the branch and commit
+# git_read just loaded, and ask for a refresh when it is old or about
+# another commit
+gh_read() {
+  local dir=$1 file="$cache/gh-${1//[^A-Za-z0-9]/_}" ttl=$gh_ttl
+
+  h_at=0 h_head='' h_oid='' h_open='' h_review='' h_pr='' h_state=''
+  h_decision='' h_url='' h_ci='' h_done='' h_all='' h_build=''
+  h_test='' h_e2e=''
+  h_ship='' h_ship_url='' h_ready='' h_waiting='' h_ff=''
+  [ -n "$g_slug" ] && [ -n "$g_oid" ] || return 0
+
+  [ -f "$file" ] && IFS=$sep read -r h_at h_head h_oid h_open h_review \
+    h_pr h_state h_decision h_url h_ci h_done h_all h_build h_test \
+    h_e2e \
+    h_ship h_ship_url h_ready h_waiting h_ff < "$file"
+
+  [[ $h_ci$h_build$h_test$h_e2e$h_ff == *running* ]] &&
+    ttl=$gh_ttl_running
+
+  if [ "$h_head" != "$g_head" ] || [ "$h_oid" != "$g_oid" ] ||
+    (( now - h_at > ttl )); then
+    detach gh "$dir"
+  fi
+
+  # Another branch's pull request, or another commit's checks, are not
+  # this one's
+  [ "$h_head" = "$g_head" ] || h_pr=''
+  [ "$h_head" = "$g_head" ] && [ "$h_oid" = "$g_oid" ] ||
+    h_ci='' h_build='' h_test='' h_e2e=''
+}
+
+# Write the newest release's version to the cache. A failed request
+# leaves it empty until the next try.
+update_refresh() {
+  local latest
+
+  latest=$(bounded 10 curl -fsS --max-time 8 "$update_url" 2> /dev/null)
+  [[ $latest =~ ^[0-9]+(\.[0-9]+)*$ ]] || latest=''
+
+  write "$cache/update" "$now" "$latest"
+}
+
+# Whether a release newer than VERSION is out, asking again when the
+# cached answer is old
+update_ready() {
+  local at=0 latest='' ours theirs i
+
+  [ -f "$cache/update" ] && IFS=$sep read -r at latest < "$cache/update"
+  (( now - at > update_ttl )) && detach update all
+
+  [ -n "$latest" ] && [ -n "$1" ] || return 1
+  IFS=. read -ra theirs <<< "$latest"
+  IFS=. read -ra ours <<< "$1"
+
+  for i in 0 1 2; do
+    (( 10#${theirs[i]:-0} > 10#${ours[i]:-0} )) && return 0
+    (( 10#${theirs[i]:-0} < 10#${ours[i]:-0} )) && return 1
+  done
+
+  return 1
+}
+
+# A group is built in the part, kept with and without its escape codes:
+# the plain copy is what gets measured. Characters two columns wide are
+# counted in wide.
+part='' plain='' wide=0
+
+# Add TEXT in COLOR to the part; given a URL, as an underlined link
+# (OSC 8, which tmux passes on to Alacritty)
+put() {
+  local text=$2
+
+  [ -z "${3:-}" ] ||
+    text=$'\e]8;;'"$3"$'\e\\\e[4m'"$2"$'\e[24m\e]8;;\e\\'
+  part+="$1$text$reset"
+  plain+=$2
+}
+
+# The same, after a space
+word() {
+  [ -z "$plain" ] || put '' ' '
+  put "$@"
+}
+
+# A | before whatever comes next, when something came before
+bar() {
+  [ -z "$plain" ] || put "$gray" ' |'
+}
+
+# "1 shell", "2 shells"
+count() {
+  REPLY="$1 $2"
+  (( $1 == 1 )) || REPLY+=s
+}
+
+# A folder as the prompt shows it (%3~): ~ for home, the last three parts
+short_path() {
+  local path=$1 bits last
+
+  case $path in
+    "$HOME") path='~' ;;
+    "$HOME"/*) path="~${path#"$HOME"}" ;;
+  esac
+
+  IFS=/ read -ra bits <<< "$path"
+  last=${#bits[@]}
+  if (( last > 3 )); then
+    path="${bits[last - 3]}/${bits[last - 2]}/${bits[last - 1]}"
+  fi
+
+  REPLY=$path
+}
+
+# The name FOLDER goes by: its alias, or its own name
+alias_of() {
+  local name folder
+
+  REPLY=${1##*/}
+  [ -f "$aliases" ] || return 0
+
+  while IFS=$'\t' read -r name folder; do
+    [ "$folder" = "$1" ] && [ -n "$name" ] && REPLY=$name
+  done < "$aliases"
+}
+
+# The repository DIR is in, in REPLY: for a lane, the one it was cut
+# from. Empty outside a repository.
+repo_of() {
+  REPLY=$(cd "${1:-$PWD}" 2> /dev/null &&
+    git rev-parse --path-format=absolute --git-common-dir 2> /dev/null)
+  REPLY=${REPLY%/.git}
+}
+
+# Whether FOLDER is set to show on one line
+on_one_line() {
+  local folder
+
+  [ -f "$one_line" ] || return 1
+
+  while IFS= read -r folder; do
+    [ "$folder" = "$1" ] && return 0
+  done < "$one_line"
+
+  return 1
+}
+
+# Show the repository DIR is in on COUNT lines, 1 or 2
+lines_set() {
+  local count=$1 root kept='' line
+
+  repo_of "${2:-}"
+  root=$REPLY
+
+  if [ -z "$root" ] || [[ $count != [12] ]]; then
+    printf 'Usage: claude_statusline --lines 1|2 [DIR]\n' >&2
+    printf 'DIR must be in a git repository.\n\n' >&2
+    return 64
+  fi
+
+  if [ -f "$one_line" ]; then
+    while IFS= read -r line; do
+      [ "$line" = "$root" ] || kept+=$line$'\n'
+    done < "$one_line"
+  fi
+
+  (( count == 2 )) || kept+=$root$'\n'
+  mkdir -p "${one_line%/*}"
+  printf '%s' "$kept" > "$one_line.$$" && mv "$one_line.$$" "$one_line"
+
+  if (( count == 1 )); then
+    printf '%s is now shown on one line.\n\n' "${root/#$HOME/\~}"
+  else
+    printf '%s is shown on two lines.\n\n' "${root/#$HOME/\~}"
+  fi
+}
+
+# Give the repository DIR is in the alias NAME, or none when it is empty
+alias_set() {
+  local name=$1 root kept='' line
+
+  repo_of "${2:-}"
+  root=$REPLY
+
+  if [ -z "$root" ] || [[ $name == *$'\t'* ]]; then
+    printf 'Usage: claude_statusline --alias NAME [DIR]\n' >&2
+    printf 'DIR must be in a git repository.\n\n' >&2
+    return 64
+  fi
+
+  if [ -f "$aliases" ]; then
+    while IFS= read -r line; do
+      [ "${line#*$'\t'}" = "$root" ] || kept+=$line$'\n'
+    done < "$aliases"
+  fi
+
+  [ -z "$name" ] || kept+=$name$'\t'$root$'\n'
+  mkdir -p "${aliases%/*}"
+  printf '%s' "$kept" > "$aliases.$$" && mv "$aliases.$$" "$aliases"
+
+  if [ -n "$name" ]; then
+    printf '%s is now shown as %s.\n\n' "${root/#$HOME/\~}" "$name"
+  else
+    printf '%s is shown by its own name.\n\n' "${root/#$HOME/\~}"
+  fi
+}
+
+# The left group for the repository git_read just loaded from DIR: its
+# name, WHO is working in it, and its branch and marks
+left_group() {
+  local dir=$1 name who=${2:-} lane='' web='' where
+
+  # A linked worktree is a lane of the repository it was cut from
+  if (( g_linked )) && [[ $g_gitdir == */.git/worktrees/* ]]; then
+    lane=${dir##*/}
+    alias_of "${g_gitdir%/.git/worktrees/*}"
+  else
+    alias_of "$dir"
+  fi
+  name=$REPLY
+
+  # tmux_open opens the folder on a click, the part after alt= on an
+  # Option-click
+  [ -z "$g_slug" ] || web="#alt=https://github.com/$g_slug"
+  put "$yellow" "$name" "file://${dir// /%20}$web"
+
+  if [ -n "$lane" ] && [ "$lane" != "$who" ]; then
+    who=${who:+$who/}$lane
+  fi
+
+  [ -n "$g_oid" ] || [ -n "$who" ] || return 0
+  bar
+  [ -z "$who" ] || word "$magenta" "$who"
+  [ -n "$g_oid" ] || return 0
+
+  where=${g_head:-${g_oid:0:7}}
+  if [ -n "$g_action" ]; then
+    word "$magenta" '['
+    put "$green" "$where"
+    put "$yellow" '|'
+    put "$red" "$g_action"
+    put "$magenta" ']'
+  else
+    # Braces: macOS's bash 3.2 reads the first byte of › into the name
+    word "$green" "‹${where}›"
+    (( g_staged )) && word "$green" S
+    (( g_unstaged )) && word "$yellow" '*'
+    (( g_untracked )) && word "$red" '??'
+  fi
+
+  (( g_ahead )) && word "$gray" "￪$g_ahead"
+  (( g_behind )) && word "$gray" "￬$g_behind"
+  return 0
+}
+
+# How the last KIND (build, test or e2e) run in DIR went, from
+# bin/report_run's record of it: ok, fail, running or none in REPLY,
+# with "old " in front when the tracked files have changed since
+run_state() {
+  local file="$cache/run-$1-${2//[^A-Za-z0-9]/_}" state='' at=0 oid=''
+  local tree=''
+
+  REPLY=none
+  [ -f "$file" ] && IFS=$sep read -r state at oid tree < "$file"
+
+  case $state in
+    running) (( now - at < run_ttl_running )) && REPLY=running ;;
+    ok | fail) (( now - at < run_ttl )) && REPLY=$state ;;
+  esac
+
+  [ "$REPLY" = none ] || [ "$tree" = "$g_tree" ] || REPLY="old $REPLY"
+}
+
+# The state of one mark in REPLY, from the run recorded here (LOCAL, as
+# run_state gives it) and GitHub's checks on the commit (REMOTE: ok,
+# fail, running or empty). GitHub's is old while there are changes to
+# commit. A failure wins, then a run under way, then a pass; a result
+# for other code counts only when there is none for this.
+state_of() {
+  local remote=${2:-none} each
+
+  [ "$remote" = none ] || [ "$g_tree" = "$g_committed" ] ||
+    remote="old $remote"
+
+  for each in fail running ok 'old fail' 'old running' 'old ok'; do
+    REPLY=$each
+    [ "$1" = "$each" ] || [ "$remote" = "$each" ] && return
+  done
+
+  REPLY=none
+}
+
+# Add NAME's mark for STATE, linked to URL: the name in its own color,
+# then the sign in the state's. With FAILED set, something else failed:
+# a pass no longer counts, and shows as nothing to report.
+mark() {
+  local name=$1 state=$2 url=${3:-} old='' hue sign tint
+
+  [ -n "$failed" ] && [[ $state == *ok ]] && state=none
+  [[ $state == old\ * ]] && old=1 state=${state#old }
+
+  case $name in
+    build) hue=$blue ;;
+    test) hue=$cyan ;;
+    ci) hue=$magenta ;;
+    merge) hue=$navy ;;
+    *) hue='' ;;
+  esac
+
+  case $state in
+    ok) sign=✓ tint=$green ;;
+    fail) sign=✕ tint=$red ;;
+    running)
+      sign=… tint=$yellow
+      [ "$name" = ci ] && (( h_all )) && sign=$h_done/$h_all
+      ;;
+    *) sign=– tint=$gray ;;
+  esac
+
+  # A result for other code keeps its sign's color, so a pass still
+  # reads green; its name is dim
+  if [ "$state" = none ]; then
+    hue=$dim$hue tint=$gray
+  elif [ -n "$old" ]; then
+    hue=$dim$hue
+  elif [ "$state" = fail ]; then
+    hue=$red
+  fi
+
+  word "$hue" "$name" "$url"
+  put "$tint" " $sign"
+  [ "$state" = none ] || marked=1
+}
+
+# The marks for the repository git_read and gh_read just loaded from
+# DIR: build, test, CI and end-to-end. marked is set when any has
+# something to report.
+marks_group() {
+  local dir=$1 build test e2e ci failed='' checks=''
+
+  run_state build "$dir"; state_of "$REPLY" "$h_build"; build=$REPLY
+  run_state test "$dir"; state_of "$REPLY" "$h_test"; test=$REPLY
+  run_state e2e "$dir"; state_of "$REPLY" "$h_e2e"; e2e=$REPLY
+  state_of none "$h_ci"; ci=$REPLY
+  [ -z "$g_slug" ] || checks=https://github.com/$g_slug/commit/$g_oid/checks
+
+  # Only a failure of this code resets the rest
+  for REPLY in "$build" "$test" "$e2e" "$ci"; do
+    [ "$REPLY" = fail ] && failed=1
+  done
+
+  marked=0
+  mark build "$build" "$checks"
+  mark test "$test" "$checks"
+  mark ci "$ci" "$checks"
+  mark e2e "$e2e" "$checks"
+
+  # The release's own mark: no part of the reset
+  failed=''
+  mark merge "${h_ff:-none}" "$h_ship_url"
+}
+
+# The right group of the second line, for the repository gh_read just
+# loaded: the branch's pull request, then the release or the count of
+# open pull requests
+pulls_group() {
+  local web=https://github.com/$g_slug
+
+  [ -n "$g_slug" ] || return 0
+
+  if [ -n "$h_pr" ]; then
+    word "$magenta" "#$h_pr" "$h_url"
+    case $h_state:$h_decision in
+      merged:*) word "$magenta" merged ;;
+      draft:*) word "$gray" draft ;;
+      *:APPROVED) word "$green" approved ;;
+      *:CHANGES_REQUESTED) word "$red" changes ;;
+    esac
+  fi
+
+  if (( h_review )); then
+    word "$yellow" "$h_review to review" "$web/pulls/review-requested/@me"
+  fi
+
+  if [ -n "$h_ship" ]; then
+    word "$gray" release
+    word "$magenta" "#$h_ship" "$h_ship_url"
+    word "$gray" '('
+    put "$green" "${h_ready:-0} ✔︎"
+    word "$red" "${h_waiting:-0} ✕"
+    put "$gray" ')'
+    # ✔︎ carries a selector that takes no column
+    wide=$(( wide - 1 ))
+  elif [ -z "$h_pr" ] && (( h_open )); then
+    count "$h_open" PR
+    word "$gray" "$REPLY" "$web/pulls"
+  fi
+
+  return 0
+}
+
+# What the session itself runs on, at the right of the first line
+session_group() {
+  local effort=$2
+
+  [ "$effort" = medium ] && effort=med
+  [ -z "$1" ] || word '' "$1"
+  [ -z "$effort" ] || word "$gray" "$effort"
+
+  if update_ready "$3"; then
+    word "$yellow" '＊'
+    wide=$(( wide + 1 ))
+  fi
+}
+
+# Read what the transcript has gained since the last render. A small
+# file remembers how far that render read and what is still open: the
+# background shells and agents (left in $open for tasks_group).
+scan() {
+  local state="$cache/bg-$session" pid=${CLAUDE_PID:-0} was='' offset=0
+  local size since=0 line op id kind
+
+  open=''
+  [ -f "$transcript" ] || return
+  size=$(( $(wc -c < "$transcript") ))
+
+  if [ -f "$state" ]; then
+    {
+      read -r was offset
+      while read -r line; do
+        open+="$line"$'\n'
+      done
+    } < "$state"
+  fi
+
+  if [ -z "$was" ]; then
+    # Not seen before: read only the end of it, and count only the
+    # background work this Claude process started
+    (( size > scan_max )) && offset=$(( size - scan_max ))
+    since=$(jq -r '.startedAt // 0' "$config/sessions/$pid.json" \
+      2> /dev/null)
+  elif [ "$was" != "$pid" ] || (( size < offset )); then
+    # Resumed by a new Claude process: the old one's work died with it
+    open='' offset=$size
+  fi
+
+  (( size > offset )) || return
+
+  while read -r op id kind; do
+    case $op in
+      +) [[ $open == *"$id "* ]] || open+="$id $kind"$'\n' ;;
+      -)
+        open=${open//"$id shell"$'\n'/}
+        open=${open//"$id agent"$'\n'/}
+        ;;
+    esac
+  done < <(
+    tail -c "+$(( offset + 1 ))" "$transcript" |
+      jq -Rr --argjson since "${since:-0}" "$transcript_events" \
+        2> /dev/null
+  )
+
+  printf '%s %s\n%s' "$pid" "$size" "$open" > "$state.$$" &&
+    mv "$state.$$" "$state"
+}
+
+# Claude's task list, when the session keeps one
+steps_group() {
+  local list=${CLAUDE_CODE_TASK_LIST_ID:-$session} finished=0 all=0 doing=''
+
+  set -- "$config/tasks/${list//[^A-Za-z0-9_-]/-}"/*.json
+  [ -e "$1" ] || return
+
+  IFS=$sep read -r finished all doing < <(
+    jq -rs "$step_fields" "$@" 2> /dev/null
+  )
+  (( all )) || return
+
+  if (( finished == all )); then
+    word "$green" "$finished/$all"
+  else
+    word "$blue" "$finished/$all"
+    [ -z "$doing" ] || word '' "${doing:0:48}"
+  fi
+}
+
+# Background shells and agents still running, as scan left them
+tasks_group() {
+  local id kind shells=0 agents=0
+
+  while read -r id kind; do
+    case $kind in
+      shell) shells=$(( shells + 1 )) ;;
+      agent) agents=$(( agents + 1 )) ;;
+    esac
+  done <<< "$open"
+
+  (( shells || agents )) || return
+  bar
+
+  if (( shells )); then
+    count "$shells" shell
+    word "$blue" "$REPLY"
+  fi
+
+  if (( agents )); then
+    count "$agents" agent
+    (( shells )) && put "$blue" ','
+    word "$blue" "$REPLY"
+  fi
+}
+
+# Print a line: LEFT at the left edge and the part, as the right group,
+# at the right edge of WIDTH columns
+print_line() {
+  local gap=$(( $3 - ${#2} - ${#plain} - wide ))
+
+  (( gap < 2 )) && gap=2
+  [ -n "$plain" ] || gap=0
+
+  printf '%s%*s%s\n' "$1" "$gap" '' "$part"
+  part='' plain='' wide=0
+}
+
+render() {
+  local cwd model effort version agent added role='' pane=0 width=116
+  local dir dirs=() extra have listed=0 first=1 left left_plain marked=0
+  local root
+
+  IFS=$sep read -r cwd session transcript model effort version agent \
+    added < <(
+    jq -r '[.workspace.current_dir // .cwd // "", .session_id // "",
+      .transcript_path // "", .model.display_name // "",
+      .effort.level // "", .version // "", .agent.name // "",
+      ((.workspace.added_dirs // []) | join("\u001e"))]
+      | join("\u001f")' 2> /dev/null
+  )
+  [ -n "$cwd" ] || cwd=$PWD
+
+  # The pane's bullpen role and, should Claude Code not say, its width
+  if [ -n "${TMUX_PANE:-}" ]; then
+    IFS=$sep read -r pane role < <(
+      tmux display -p -t "$TMUX_PANE" "#{pane_width}$sep#{@role}" \
+        2> /dev/null
+    )
+    [ "$role" = terminal ] && role=''
+  fi
+
+  if (( ${COLUMNS:-0} > 20 )); then
+    width=$(( COLUMNS - 4 ))
+  elif (( ${pane:-0} > 20 )); then
+    width=$(( pane - 4 ))
+  fi
+
+  # The repository the folder is in or, outside one, those directly
+  # inside it; then the ones added to the session
+  find_root "$cwd"
+  if [ -n "$REPLY" ]; then
+    dirs=("$REPLY")
+  else
+    for dir in "$cwd"/*/; do
+      dir=${dir%/}
+      [ -e "$dir/.git" ] || continue
+      (( ++listed > repos_max )) && break
+      dirs+=("$dir")
+    done
+  fi
+
+  IFS=$'\x1e' read -ra extra <<< "$added"
+  for dir in "${extra[@]}"; do
+    find_root "$dir"
+    [ -n "$REPLY" ] || continue
+
+    for have in "${dirs[@]}"; do
+      [ "$have" = "$REPLY" ] && continue 2
+    done
+    dirs+=("$REPLY")
+  done
+
+  scan
+
+  # Not in a repository, and none here: the folder stands in for one
+  if (( ${#dirs[@]} == 0 )); then
+    short_path "$cwd"
+    put "$yellow" "$REPLY" "file://${cwd// /%20}"
+    [ -z "${role:-$agent}" ] || { bar; word "$magenta" "${role:-$agent}"; }
+    left=$part left_plain=$plain part='' plain=''
+
+    session_group "$model" "$effort" "$version"
+    print_line "$left" "$left_plain" "$width"
+  fi
+
+  for dir in "${dirs[@]}"; do
+    git_read "$dir"
+    gh_read "$dir"
+
+    if (( first )); then
+      left_group "$dir" "${role:-$agent}"
+    else
+      left_group "$dir"
+    fi
+    left=$part left_plain=$plain part='' plain=''
+
+    if (( first )); then
+      session_group "$model" "$effort" "$version"
+    fi
+
+    print_line "$left" "$left_plain" "$width"
+
+    # One line is all some repositories are set to show
+    root=$dir
+    (( g_linked )) && [[ $g_gitdir == */.git/worktrees/* ]] &&
+      root=${g_gitdir%/.git/worktrees/*}
+
+    if on_one_line "$root"; then
+      first=0
+      continue
+    fi
+
+    marks_group "$dir"
+    left=$part left_plain=$plain part='' plain=''
+    pulls_group
+
+    # A later repository's second line needs something to say
+    if (( first )) || (( marked )) || [ -n "$plain" ]; then
+      print_line "$left" "$left_plain" "$width"
+    else
+      part='' plain='' wide=0
+    fi
+
+    first=0
+  done
+
+  steps_group
+  tasks_group
+  [ -z "$plain" ] || printf '%s\n' "$part"
+
+  # A blank last line, as James asked. Claude Code drops a line that is
+  # empty or only spaces, so this one holds a blank braille cell.
+  printf '%s\n' '⠀'
+}
+
+mkdir -p "$cache"
+
+case ${1:-} in
+  --alias) alias_set "${2:-}" "${3:-}" ;;
+  --lines) lines_set "${2:-}" "${3:-}" ;;
+  --git | --gh | --update)
+    "${1#--}_refresh" "$2"
+    rm -f "$cache/lock-${1#--}-${2//[^A-Za-z0-9]/_}"
+    ;;
+  *) render ;;
+esac

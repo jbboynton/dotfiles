@@ -1,0 +1,3 @@
+# npm runs package.json scripts through this, which records builds and
+# tests for Claude Code's status line and hands the rest to /bin/sh
+script-shell=${HOME}/.bin/report_run

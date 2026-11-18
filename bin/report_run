@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Run a build, a test or an end-to-end test and record how it went,
+# for Claude Code's status line (bin/claude_statusline) to show in
+# every session on that repository: running, passed or failed, when,
+# at which commit, and for which code. The code is named by the tree
+# of the tracked files as they were when the run began, so the status
+# line can tell whether a result still holds: an edit since makes it
+# stale, and committing what was tested does not.
+#
+# Usage: report_run KIND [--] COMMAND...   KIND is build, test or e2e
+#        report_run -c 'COMMAND'           as npm's script shell
+#
+# npm runs every package.json script through its script shell, which
+# `script-shell` in ~/.npmrc sets to this script. A script named build,
+# test, test:NAME or e2e (not a watcher) is recorded, test:e2e as e2e;
+# every other one goes straight to /bin/sh. So `npm test` is recorded
+# whoever runs it, and no repository has to know about this script.
+#
+# A failure resets the repository's other records: a build, test or
+# end-to-end run that passed before it no longer counts.
+#
+# Every finished run is also a line in a log,
+# ~/.local/state/claude_statusline/runs.tsv: when it ended, the kind,
+# the seconds it took, its exit status, the repository and the commit,
+# tab-separated. `report_run --log [DAYS]` adds it up by repository and
+# kind for the last DAYS days (default 14).
+#
+# The command's output, input and exit status pass through untouched.
+# Nothing is recorded outside a git repository, or when the run is
+# interrupted: the record then goes back to what it was.
+
+sep=$'\x1f'
+log=${XDG_STATE_HOME:-$HOME/.local/state}/claude_statusline/runs.tsv
+
+# Runs, minutes and failures by repository and kind since DAYS days ago
+if [ "$1" = --log ]; then
+  [ -f "$log" ] || { printf 'No runs are logged yet.\n\n'; exit 0; }
+  awk -F '\t' -v since="$(( $(date +%s) - ${2:-14} * 86400 ))" '
+    $1 >= since {
+      key = $5 "\t" $2
+      runs[key]++
+      seconds[key] += $3
+      if ($4 != 0) failed[key]++
+    }
+    END {
+      for (key in runs) {
+        split(key, part, "\t")
+        printf "%5d runs %7.1f min %4d failed  %-6s %s\n", runs[key],
+          seconds[key] / 60, failed[key], part[2], part[1]
+      }
+    }' "$log" | sort -k3,3 -rn
+  echo
+  exit 0
+fi
+
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/claude_statusline/v3
+
+if [ "$1" = -c ]; then
+  case ${npm_lifecycle_event:-} in
+    *watch*) exec /bin/sh "$@" ;;
+    build) kind=build ;;
+    e2e | test:e2e) kind=e2e ;;
+    test | test:*) kind=test ;;
+    *) exec /bin/sh "$@" ;;
+  esac
+
+  set -- /bin/sh "$@"
+else
+  kind=$1
+  shift
+  [ "$1" = -- ] && shift
+
+  case $kind in
+    build | test | e2e) ;;
+    *) kind='' ;;
+  esac
+
+  if [ -z "$kind" ] || [ $# -eq 0 ]; then
+    printf '\nUsage: report_run build|test|e2e [--] COMMAND...\n\n' >&2
+    exit 64
+  fi
+fi
+
+# The repository the command runs in, as the status line finds it
+root=$PWD
+
+while [ -n "$root" ] && [ ! -e "$root/.git" ]; do
+  root=${root%/*}
+done
+
+[ -n "$root" ] || exec "$@"
+
+file=$cache/run-$kind-${root//[^A-Za-z0-9]/_}
+commit=$(git -C "$root" rev-parse HEAD 2> /dev/null)
+
+# The tree of the tracked files as they are now: HEAD's, or with
+# changes to commit, the one that staging them all in a copy of the
+# index makes (as bin/claude_statusline does)
+tree=$(git -C "$root" rev-parse 'HEAD^{tree}' 2> /dev/null)
+
+if ! git -C "$root" diff-index --quiet HEAD -- 2> /dev/null; then
+  mkdir -p "$cache" 2> /dev/null
+  scratch=$cache/index-$$
+  index=$(git -C "$root" rev-parse --path-format=absolute --git-path index)
+  command cp -f "$index" "$scratch" 2> /dev/null &&
+    tree=$(GIT_INDEX_FILE=$scratch git -C "$root" add -u 2> /dev/null &&
+      GIT_INDEX_FILE=$scratch git -C "$root" write-tree 2> /dev/null)
+  rm -f "$scratch" "$scratch.lock"
+fi
+before=''
+[ -f "$file" ] && before=$(command cat "$file" 2> /dev/null)
+
+# Replace the record with LINE all at once; a failure to is not the
+# command's problem
+record() {
+  mkdir -p "$cache" 2> /dev/null
+  printf '%s\n' "$1" > "$file.$$" 2> /dev/null &&
+    mv "$file.$$" "$file" 2> /dev/null
+}
+
+began=$(date +%s)
+record "running$sep$began$sep$commit$sep$tree"
+
+# An interrupt reaches the command too; wait for it to finish
+trap : INT TERM
+"$@"
+status=$?
+
+# One line in the log; a failure to write it is not the command's
+# problem
+mkdir -p "${log%/*}" 2> /dev/null
+printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "$kind" \
+  "$(( $(date +%s) - began ))" "$status" "$root" "$commit" \
+  >> "$log" 2> /dev/null
+
+if (( status == 0 )); then
+  record "ok$sep$(date +%s)$sep$commit$sep$tree"
+elif (( status > 128 )); then
+  if [ -n "$before" ]; then
+    record "$before"
+  else
+    rm -f "$file" 2> /dev/null
+  fi
+else
+  record "fail$sep$(date +%s)$sep$commit$sep$tree"
+
+  for other in build test e2e; do
+    [ "$other" = "$kind" ] ||
+      rm -f "$cache/run-$other-${root//[^A-Za-z0-9]/_}" 2> /dev/null
+  done
+fi
+
+exit "$status"
