@@ -1,3 +1,4 @@
+tap 'roots/tap'
 tap 'teamookla/speedtest'
 
 brew 'age'
@@ -66,6 +67,7 @@ brew 'svgo'
 brew 'tlrc'
 brew 'tmux'
 brew 'tree'
+brew 'roots/tap/trellis-cli'
 brew 'vim'
 brew 'wget'
 brew 'yarn'
@@ -189,6 +191,5 @@ mas 'Slack', id: 803453959
 mas 'Text Compare', id: 1552247688
 mas 'Tonaly Pro', id: 1590135777
 mas 'Vimari', id: 1480933944
-mas 'Xcode', id: 497799835
 
 # vim:ft=brewfile
