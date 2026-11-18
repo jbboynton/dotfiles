@@ -125,6 +125,10 @@ Startup speed is the main design constraint: count milliseconds. Nothing
 may start a program (`$(...)`, `eval "$(tool ...)"`) while the prompt is
 loading.
 
+- **`zshenv`** runs in every zsh, scripts and agent shells included.
+  It holds one line: mise's shims first on `PATH`. Agent shells are
+  neither login nor interactive, read nothing else, and so ran
+  Homebrew's Node where a project pins another. Keep it to assignments.
 - **`zprofile`** runs only in login shells. tmux sets
   `default-command "${SHELL}"`, so panes are not login shells: they inherit
   the environment of the tmux server. A change to `zprofile` only reaches
@@ -167,7 +171,7 @@ loading.
 | `fzf-tab.zsh` | fzf-tab settings. Tab accepts the highlighted completion. |
 | `homebrew.zsh` | Homebrew's completions on `fpath`. |
 | `keybindings.zsh` | Every key binding, history search included, in one place. |
-| `mise.zsh` | What `mise activate zsh --shims` prints, written out (checked by `env_drift`): mise's shims first on `PATH`, so `node` and `npm` are the version a project pins (`.nvmrc`) and the system's elsewhere. The North Foster Farm repo pins Node and its npm refuses any other. |
+| `mise.zsh` | What `mise activate zsh --shims` prints, written out (checked by `env_drift`): mise's shims first on `PATH`, so `node` and `npm` are the version a project pins (`.nvmrc`) and the system's elsewhere. The North Foster Farm repo pins Node and its npm refuses any other. `zshenv` has the same line; this one puts the shims first again after `zprofile` has added to `PATH`. |
 | `rbenv.zsh` | What `rbenv init -` prints, written out (checked by `env_drift`). It replaced a plugin that ran rbenv in every new shell, about 80 ms; James rarely runs Ruby but wants it to keep working. |
 | `prompt.zsh` | Path plus git status from gitstatus. gitstatus keeps a daemon, and the prompt waits at most 10 ms before updating in the background. |
 | `functions/` | One function per file. |
