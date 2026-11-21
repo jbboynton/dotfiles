@@ -2,6 +2,20 @@
 #
 # Attach or create tmux session named the same as current directory.
 
+# Never from Claude Code (it sets CLAUDECODE): inside tmux this switches
+# James's terminal to another session, and outside it starts a server
+if [ -n "$CLAUDECODE" ]; then
+  mark='‼︎'
+
+  if [ -t 2 ] && [ -z "$NO_COLOR" ]; then
+    mark=$(printf '\033[1;31m‼︎\033[0m')
+  fi
+
+  printf '%s tat does not run under Claude Code (CLAUDECODE is set)\n\n' \
+    "$mark" >&2
+  exit 1
+fi
+
 path_name="$(basename "$PWD" | tr . -)"
 session_name=${1-$path_name}
 

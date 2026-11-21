@@ -141,7 +141,9 @@ loading.
     agents get plain `cd`, `cp`, `mv` and `cat`. A new file in `zsh/`
     stays out of their shells until it joins that list. Exported
     variables such as `MANPAGER` still reach them from the pane Claude
-    was started in.
+    was started in. `tat` itself refuses to run while `CLAUDECODE` is
+    set: inside tmux it would switch James's terminal to another
+    session.
   - Claude Code loads the config once per session, into a snapshot, so
     a change reaches new sessions only. After the config it adds its own
     `grep` (a built-in ugrep that skips gitignored files) and `find` (a
