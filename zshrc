@@ -71,13 +71,21 @@ function custom_completions() {
   compdef g=git
 }
 
-# Load configs
+# Load configs; Claude Code's shells (CLAUDECODE is set) take only the
+# ones for tools and PATH, not the aliases and functions made for typing
 for zsh_source in $HOME/.zsh/**/*; do
+  if [[ -n $CLAUDECODE ]]; then
+    case ${zsh_source:t} in
+      homebrew.zsh|mise.zsh|rbenv.zsh) ;;
+      *) continue ;;
+    esac
+  fi
+
   source $zsh_source
 done
 
-# Start tmux
-[ -n "$TMUX" ] || tat
+# Start tmux, except in the shell Claude Code takes its snapshot from
+[[ -n $TMUX || -n $CLAUDECODE ]] || tat
 
 # # Uncomment to enable profiling
 # zprof | less

@@ -136,6 +136,18 @@ loading.
   `brew_env` rather than with `brew shellenv`.
 - **`zshrc`** sets up history and zinit, declares plugins, then sources
   every file under `~/.zsh/`.
+  - In Claude Code's shells (`CLAUDECODE` is set) it sources only
+    `homebrew.zsh`, `mise.zsh` and `rbenv.zsh`, and skips `tat`, so
+    agents get plain `cd`, `cp`, `mv` and `cat`. A new file in `zsh/`
+    stays out of their shells until it joins that list. Exported
+    variables such as `MANPAGER` still reach them from the pane Claude
+    was started in.
+  - Claude Code loads the config once per session, into a snapshot, so
+    a change reaches new sessions only. After the config it adds its own
+    `grep` (a built-in ugrep that skips gitignored files) and `find` (a
+    built-in bfs); `command grep` is GNU grep.
+  - `tmux.conf` removes `CLAUDECODE` from tmux's environment: a server
+    started from an agent's shell would otherwise hand it to every pane.
 - **zinit turbo** (`wait'0'`, `lucid`) loads anything that can wait until
   after the prompt: plugins, fzf's bindings, gitstatus. The main block's
   `atinit` runs `zicompinit`, so fzf-tab is listed first in that block,
