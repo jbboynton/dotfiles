@@ -306,6 +306,12 @@ Follow the existing history:
     TERM=alacritty tmux -L NAME ... new-session CMD` and pipe keys and
     SGR mouse clicks into its stdin; `FILE` then holds what tmux sent the
     terminal. Kill the server afterwards.
+  - Name the socket (`-L` or `-S`) in every tmux command a test runs,
+    the kill above all. `TMUX_TMPDIR` isolates nothing: an agent's shell
+    inherits `TMUX` from its pane, and tmux then uses that socket.
+    `TMUX_TMPDIR=DIR tmux kill-server` killed James's server on
+    2026-11-21. `tat` runs bare `tmux`, so a test of it points both
+    `TMUX_TMPDIR` and `TMUX` at the private server.
 - **Claude Code's editor** (Ctrl-G) is `bin/claude_edit`, set as `EDITOR`
   under `env` in `~/.claude/settings.json` (not in this repo), so only
   Claude Code sees it. It opens vim in the pane below Claude's, holding
