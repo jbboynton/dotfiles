@@ -22,17 +22,17 @@
 		<key>geocode</key>
 		<true/>
 		<key>latitude</key>
-		<real>41.836652244642586</real>
+		<real>41.836327326897454</real>
 		<key>longitude</key>
-		<real>-71.46893287919434</real>
+		<real>-71.46882077033212</real>
 		<key>name</key>
-		<string>6 Woonasquatucket Ave</string>
+		<string>2 Woonasquatucket Ave</string>
 		<key>region</key>
 		<string>Providence County</string>
 		<key>state</key>
 		<string>RI</string>
 		<key>time</key>
-		<real>1794989690.081193</real>
+		<real>1795477698.4346619</real>
 	</dict>
 	<key>Notifications.State</key>
 	<dict>
