@@ -1,6 +1,5 @@
-# Zshenv
-# Read by every zsh, scripts and agent shells included, so nothing here
-# may start a program
+# Sourced by zsh at startup—use only in-process builtins and assignments.
+# Anything that forks (a command, a $(...)) will slow every shell.
 
 # mise's shims first on PATH, so a shell that reads neither zprofile nor
 # zshrc still runs the version a project pins. What `mise activate zsh
