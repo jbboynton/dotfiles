@@ -14,22 +14,19 @@ let g:ale_pattern_options = {
   \   '.*\.env$': { 'ale_enabled': 0 }
   \ }
 
-" HTML markup has no line length limit; only its rendered text wraps at 80
-function! WrapHtmlText(buffer) abort
-  return {'command': 'wrap_html_text 80'}
-endfunction
-
+" HTML in the buffer is laid out at Prettier's 80; what goes to disk is
+" set when it's written (autoload/htmlformat.vim)
 augroup aleHtml
   autocmd!
   autocmd FileType html
-    \ let b:ale_javascript_prettier_options = '--print-width 100000'
+    \ let b:ale_javascript_prettier_options = '--print-width 80'
 augroup end
 
 let g:ale_fixers = {
   \   '*': ['remove_trailing_lines', 'trim_whitespace'],
   \   'css': ['prettier'],
   \   'graphql': ['prettier'],
-  \   'html': ['prettier', function('WrapHtmlText')],
+  \   'html': ['prettier'],
   \   'javascript': ['prettier'],
   \   'javascriptreact': ['prettier'],
   \   'json': ['prettier'],

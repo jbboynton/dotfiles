@@ -526,6 +526,12 @@ Follow the existing history:
   error's color (`t_Cs`, `t_AU` in `vim/rcfiles/general`). Vim's word
   list is `vim/spell/en.utf-8.add`; `config/aspell/personal.en.pws` is
   aspell's, empty and unused by Vim.
+- **HTML in Vim** differs between buffer and disk
+  (`vim/autoload/htmlformat.vim`). Opening a file lays it out with
+  Prettier at 80, leaving it unmodified. `:w` writes Prettier at 100000
+  piped through `bin/wrap_html_text 80`, so on disk only rendered text
+  wraps, and the buffer keeps what was being edited. PHP and Blade
+  source the HTML ftplugin too and are left alone.
 - **Chat state.** Claude Code hooks in `~/.claude/settings.json` (global,
   not in this repo) run `bin/agent_state`, which records on the chat's
   tmux pane whether Claude is `working`, `blocked` (a permission prompt or
