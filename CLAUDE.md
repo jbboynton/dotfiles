@@ -543,6 +543,9 @@ Follow the existing history:
     prints or fails can change what Claude does.
   - No hook fires when James denies a permission prompt; the state
     corrects itself at the next tool call or the end of the turn.
+- **Writing rules** for Claude are `claude/rules/writing.md`, linked as
+  `~/.claude/rules/writing.md`, which Claude Code loads in every
+  session. A project's brand voice layers on top, in that project.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
