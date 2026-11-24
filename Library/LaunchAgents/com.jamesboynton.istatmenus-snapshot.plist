@@ -8,8 +8,9 @@
   are shown). The copies are in Library/Preferences/ in the repo, linked next
   to the originals. The repo is public, so the license, the device's
   authorization, update bookkeeping, menu bar positions and the cached ISS
-  orbit data are left out. Restoring with defaults import merges, so the
-  left-out keys stay as they are.
+  orbit data are left out, and so is the last weather location (a street
+  address). Restoring with defaults import merges, so the left-out keys
+  stay as they are.
 
   rc link installs this file as a copy, not a link (COPY_ALWAYS in rcrc),
   because launchd won't load a symlinked LaunchAgent. After rc link, load it:
@@ -23,7 +24,7 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>'/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.menubar.7' '--drop' '^(License|Device|Updates|Status)$' '/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist' 'Library/Preferences/com.bjango.istatmenus.menubar.7.plist.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.status' '--drop' '^(NSStatusItem|Zarya|Item\.Visibility$)' '/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist' 'Library/Preferences/com.bjango.istatmenus.status.plist.bak'</string>
+    <string>'/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.menubar.7' '--drop' '^(License|Device|Updates|Status)$' '/Users/james/Library/Preferences/com.bjango.istatmenus.menubar.7.plist' 'Library/Preferences/com.bjango.istatmenus.menubar.7.plist.bak'; '/Users/james/.dotfiles/bin/snapshot_config' '--defaults' 'com.bjango.istatmenus.status' '--drop' '^(NSStatusItem|Zarya|Item\.Visibility$|Location-Last$)' '/Users/james/Library/Preferences/com.bjango.istatmenus.status.plist' 'Library/Preferences/com.bjango.istatmenus.status.plist.bak'</string>
   </array>
   <key>WatchPaths</key>
   <array>

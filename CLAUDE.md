@@ -101,7 +101,9 @@ Options, all in `snapshot_config`'s header:
   update checks, menu bar positions) and anything private. The repo is
   public; iStat Menus' license and device authorization are dropped. So
   is its `Item.Visibility`, which records whether each menu bar item is
-  showing right now and flips many times a day.
+  showing right now and flips many times a day, and its `Location-Last`,
+  the weather's last location as a street address. That address was
+  purged from the repo's history on November 23.
 - `--keychain SERVICE` refuses to write or commit if that Keychain item's
   value turns up in the copy.
 
