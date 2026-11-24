@@ -126,9 +126,11 @@ may start a program (`$(...)`, `eval "$(tool ...)"`) while the prompt is
 loading.
 
 - **`zshenv`** runs in every zsh, scripts and agent shells included.
-  It holds one line: mise's shims first on `PATH`. Agent shells are
-  neither login nor interactive, read nothing else, and so ran
-  Homebrew's Node where a project pins another. Keep it to assignments.
+  It holds two lines: mise's shims first on `PATH`, and
+  `FZF_DEFAULT_OPTS_FILE` (fzf's colors, `config/fzf/fzfrc`), which
+  must reach tmux popups' shells too. Agent shells are neither login
+  nor interactive, read nothing else, and so ran Homebrew's Node where
+  a project pins another. Keep it to assignments.
 - **`zprofile`** runs only in login shells. tmux sets
   `default-command "${SHELL}"`, so panes are not login shells: they inherit
   the environment of the tmux server. A change to `zprofile` only reaches
@@ -302,6 +304,11 @@ Follow the existing history:
     popup's command, so the script asks tmux for the client. `prefix
     Tab` and `prefix Shift-Tab` are tmux 3.8's own pickers. tmux-fzf,
     for commands and key bindings, is moved to `prefix C-f`.
+  - Colors: tmux 3.8 draws popups, menus, messages and copy-mode
+    highlights in ten theme colors with fixed values of its own (its
+    dark grey looked brown here). `tmux.conf` sets each to the ANSI
+    color it stands for, as fzf's `fzfrc` does, so both follow
+    Alacritty's palette.
   - **Test tmux changes on a private server, never James's:**
     `tmux -L NAME -f CONF`, with the plugin lines stripped from the copy of
     `tmux.conf` (continuum would restore, then autosave over, his saved

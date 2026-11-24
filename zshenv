@@ -6,3 +6,6 @@
 # --shims` prints, written out (checked by `env_drift`); zsh/mise.zsh
 # puts them first again after zprofile has added to PATH
 path=($HOME/.local/share/mise/shims ${path:#$HOME/.local/share/mise/shims})
+
+# fzf's colors, for every fzf (tmux popups too)
+export FZF_DEFAULT_OPTS_FILE=$HOME/.config/fzf/fzfrc
