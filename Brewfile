@@ -73,7 +73,7 @@ brew 'vim'
 brew 'weasyprint'
 brew 'wget'
 brew 'yarn'
-brew 'yj'
+brew 'yq'
 brew 'yt-dlp'
 brew 'zsh'
 
