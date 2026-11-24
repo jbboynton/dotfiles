@@ -4,13 +4,20 @@
 Written to run after Prettier, which applies one print width to
 markup and text alike. Run Prettier with an effectively unlimited
 width so tags and attributes stay on one line, then pipe the result
-through this to wrap only the text. Vim's ALE runs the pair as HTML
-fixers (see vim/rcplugins/ale).
+through this to wrap only the text. Vim runs the pair when it writes
+an HTML file (see vim/autoload/htmlformat.vim).
 
 Markup is never wrapped: lines break only at whitespace that sits in
-text, outside any tag. Lines with no rendered text, and everything
-inside comments, <pre>, <textarea>, <script> and <style>, pass through
-untouched.
+text, outside any tag, so a long opening tag stays on one line. Lines
+with no rendered text, and everything inside comments, <pre>,
+<textarea>, <script> and <style>, pass through untouched.
+
+A line too long to fit that is one block element, opening with a tag
+and ending with its matching closing tag, is split: the opening tag on
+its own line at the original indent, the text between filled two
+spaces further in, and the closing tag on its own line at the original
+indent. Inline elements (a, em, span and the like) are never split
+this way, since a break beside them adds a visible space.
 
 Usage: wrap_html_text [WIDTH]  (default 80)
 """
@@ -20,6 +27,15 @@ import sys
 
 RAW_ELEMENTS = ("pre", "textarea", "script", "style")
 RAW_OPEN = re.compile(r"<(%s)\b" % "|".join(RAW_ELEMENTS), re.I)
+TAG_NAME = re.compile(r"<(/?)([a-zA-Z][\w:.-]*)")
+
+# Elements whose edges render a break as a space, so they are never split.
+INLINE_ELEMENTS = frozenset("""
+    a abbr acronym b bdi bdo big br button cite code data del dfn em font
+    i img input ins kbd label map mark meter object output picture
+    progress q ruby rp rt s samp select small span strike strong sub sup
+    svg textarea time tt u var video audio wbr
+""".split())
 
 
 def tokenize(text):
@@ -57,13 +73,42 @@ def tokenize(text):
     return tokens
 
 
-def wrap(line, width):
+def is_one_block(tokens):
+    """True when tokens open a block element and end with its close."""
+    if tokens[0][0] != "tag" or tokens[-1][0] != "tag":
+        return False
+    first = TAG_NAME.match(tokens[0][1])
+    if not first or first.group(1) or tokens[0][1].endswith("/>"):
+        return False
+    name = first.group(2).lower()
+    if name in INLINE_ELEMENTS:
+        return False
+
+    depth = 0
+    for index, (kind, value) in enumerate(tokens):
+        tag = TAG_NAME.match(value) if kind == "tag" else None
+        if not tag or tag.group(2).lower() != name or value.endswith("/>"):
+            continue
+        depth += -1 if tag.group(1) else 1
+        if depth == 0:
+            return index == len(tokens) - 1
+    return False
+
+
+def wrap(line, width, nest=True):
+    """Wrap one line. With nest, text after a leading tag nests a level."""
     if len(line) <= width:
         return [line]
     indent = line[:len(line) - len(line.lstrip())]
     tokens = tokenize(line.strip())
     if not any(kind == "text" for kind, _ in tokens):
         return [line]
+
+    if is_one_block(tokens):
+        inner = "".join(value for _, value in tokens[1:-1]).strip()
+        return ([indent + tokens[0][1]]
+                + wrap(indent + "  " + inner, width, nest=False)
+                + [indent + tokens[-1][1]])
 
     # Glue tags and text into unbreakable words; spaces separate them.
     words = [""]
@@ -74,8 +119,9 @@ def wrap(line, width):
             words[-1] += value
     words = [w for w in words if w]
 
-    # Text continues at the same indent; text after a tag nests a level.
-    cont = indent if tokens[0][0] == "text" else indent + "  "
+    # Text continues at the same indent; text after a tag nests a level,
+    # except inside a split block, whose text is already a level in.
+    cont = indent if tokens[0][0] == "text" or not nest else indent + "  "
     lines = [indent + words[0]]
     for word in words[1:]:
         if len(lines[-1]) + 1 + len(word) <= width:
