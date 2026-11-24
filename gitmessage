@@ -1,0 +1,22 @@
+
+
+# header ends at column 50 ----------------------|
+# Header: imperative, sentence case, no trailing period, 50 chars max.
+#   Example: Add a pick-up day picker to checkout
+# Never put an issue or PR number in the header.
+#
+# Then one blank line, then a one-sentence summary of the commit.
+#
+# Then one blank line, then the rest of the commit, written in Markdown.
+# Wrap the body at 72 characters. Only URLs may run longer.
+# body wraps at column 72 ---------------------------------------------|
+#
+# Images go in a one-column table, the image in the header cell and the
+# caption in the one row:
+#
+# | ![Alt text](image-url) |
+# |:---:|
+# | Caption |
+#
+# Lines starting with "#" are removed when you commit. For a heading,
+# underline it with "=" or "-" instead.
