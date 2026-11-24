@@ -18,6 +18,9 @@ files in it a session should read:
 - `.ignored/handoff-tmux-queue.md`: where the tmux work stands (see Open
   items), and `.ignored/tmux-tests/`, the scripts that test it on a
   private tmux server.
+- `.ignored/claude-toolbox.md` (and `.json`): every Claude plugin, skill
+  and connector, what each is for, and the plan to install them on
+  demand rather than keep them all enabled.
 
 ## How files get into place: rcm, through `rc`
 
@@ -618,7 +621,7 @@ Maestro and its Engine, then run the `plutil` command in the copy's header.
 
 ## Open items
 
-As of November 16, 2026:
+As of November 23, 2026:
 
 - The tmux work is in two parts. Part 1 (PR 31) landed on November 16.
   Part 2 (PR 32, `tmux-quality-of-life-2`) is `claude_queue`, a queue in
@@ -639,10 +642,10 @@ As of November 16, 2026:
   superseded by it.
 - Clean up old backups and unused configs once everything is confirmed
   working.
-- The home folder audit (brief: `.ignored/home-audit.md`), which includes
-  the unfinished Homebrew cleanup.
-  That cleanup's whole state (decisions, rules, restore notes) is in
-  `~/Notes/brew-todo.md`; read it before touching Homebrew.
+- The home folder audit (brief: `.ignored/home-audit.md`). Its Homebrew
+  cleanup is done, and landed on November 23. `~/Notes/brew-todo.md`
+  keeps that cleanup's decisions and restore notes. Read it before
+  touching Homebrew.
 - Still to build: a vim write hook that offers a one-word command to commit
   a changed dotfile through Claude Code.
 - The QuickTime recording macros ("Start QuickTime movie recording" and
