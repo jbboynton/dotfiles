@@ -47,6 +47,7 @@
   conflictstyle = zdiff3
 [commit]
   gpgsign = true
+  template = ~/.gitmessage
 [pull]
   ff = only
 [init]

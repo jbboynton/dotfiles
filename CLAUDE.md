@@ -549,9 +549,9 @@ Follow the existing history:
 - **Writing rules** for Claude are `claude/rules/writing.md`, linked as
   `~/.claude/rules/writing.md`, which Claude Code loads in every
   session. A project's brand voice layers on top, in that project.
-- **`gitmessage`** (`~/.gitmessage`) is a commit message template with
-  `#` comments. Git uses it only once `commit.template` is set in
-  `gitconfig`, which James has not done yet.
+- **`gitmessage`** (`~/.gitmessage`) is the commit message template,
+  set as `commit.template` in `gitconfig`. Its comments use `#`, git's
+  default comment character.
 - **gh**: `config/gh/config.yml` is managed. `hosts.yml` holds the login
   token and is gitignored. Never commit it.
 
