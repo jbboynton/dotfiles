@@ -1,17 +1,17 @@
 #!/usr/bin/env -S osascript -l JavaScript
 // Bring Claude's window to the current Space. Claude has no New Window
-// command and ignores menu commands while it's in the background, so this
-// does what a person would: activate Claude (macOS switches to its Space),
-// hold the window's title bar, and switch back, which carries the window
-// along. Bound to shift-opt-cmd-/ in Keyboard Maestro (shift-cmd-/ still
-// switches to Claude).
+// command and ignores menu commands while it's in the background, so: activate
+// Claude (macOS switches to its Space), minimize its window, go back to the
+// starting Space, and restore the window there. A minimized window belongs to
+// no Space, so it comes back on the current one. Bound to shift-opt-cmd-/ in
+// Keyboard Maestro (shift-cmd-/ still switches to Claude).
 //
 // The way back is counted, not guessed: the window server's (private,
 // read-only) Spaces calls give the ordered Spaces and the current one, so it
 // works with any number of Spaces. If "Switch to Desktop N" is turned on for
 // the Space to return to, it jumps there in one move; otherwise it steps with
-// control-arrow. Needs Accessibility permission to post mouse and key
-// events, so it runs from Keyboard Maestro.
+// control-arrow. Needs Accessibility permission (minimizing, key events), so
+// it runs from Keyboard Maestro.
 
 ObjC.import('CoreGraphics');
 ObjC.import('Foundation');
@@ -24,11 +24,12 @@ var cid = $.CGSMainConnectionID();
 
 // The display's Spaces in order and the index of the current one
 function spaces() {
-  var active = $.CGSGetActiveSpace(cid);
+  // The active Space comes back as a 64-bit value, not a plain number
+  var active = Number($.CGSGetActiveSpace(cid));
   var displays = ObjC.deepUnwrap($.CGSCopyManagedDisplaySpaces(cid));
 
   for (var i = 0; i < displays.length; i++) {
-    var ids = displays[i].Spaces.map(function (s) { return s.ManagedSpaceID; });
+    var ids = displays[i].Spaces.map(function (s) { return Number(s.ManagedSpaceID); });
     var at = ids.indexOf(active);
     if (at >= 0) return { ids: ids, at: at };
   }
@@ -65,10 +66,6 @@ function desktopShortcut(n) {
   return [entry.value.parameters[1], entry.value.parameters[2]];
 }
 
-function mouse(type, x, y) {
-  $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, $.CGPointMake(x, y), $.kCGMouseButtonLeft));
-}
-
 function key(code, flags) {
   [true, false].forEach(function (down) {
     var e = $.CGEventCreateKeyboardEvent(null, code, down);
@@ -77,9 +74,10 @@ function key(code, flags) {
   });
 }
 
-// Wait until the active Space is the one wanted (up to 1.5 s)
+// Wait until the active Space is the one wanted (up to 2.5 s; a switch takes
+// about 1.2 s on a high refresh rate display)
 function waitForSpace(index) {
-  for (var i = 0; i < 60; i++) {
+  for (var i = 0; i < 100; i++) {
     var s = spaces();
     if (s && s.at === index) return true;
     delay(0.025);
@@ -97,6 +95,15 @@ function waitForModifiersUp() {
   }
 }
 
+// Claude's windows as Accessibility sees them (this Space, plus minimized ones)
+function axWindows() {
+  return Application('System Events').processes.byName('Claude').windows();
+}
+
+function minimized(win) {
+  return win.attributes.byName('AXMinimized').value();
+}
+
 function run() {
   var claude = Application('Claude');
   var w = claudeWindow();
@@ -107,36 +114,34 @@ function run() {
   }
 
   waitForModifiersUp();
-  var pointer = $.CGEventGetLocation($.CGEventCreate(null));
   var start = spaces();
 
-  // macOS switches to Claude's Space on activation. The window shows as on
-  // screen as soon as the slide starts; the active Space only changes once it
-  // lands, so wait for that (up to 1.5 s).
+  // macOS switches to Claude's Space on activation; the active Space changes
+  // once the slide lands
   claude.activate();
   var there = spaces();
 
-  for (var i = 0; i < 60 && start && there && there.at === start.at; i++) {
+  for (var i = 0; i < 100 && start && there && there.at === start.at; i++) {
     delay(0.025);
     there = spaces();
   }
 
   if (!start || !there || there.at === start.at) return 'Claude activated; no Space switch to undo';
 
-  delay(0.15);
-  w = claudeWindow();
-  var x = w.b.X + w.b.Width - 300, y = w.b.Y + 22;
+  // Minimize the main window: the largest one Accessibility sees here
+  var main = null;
+  axWindows().forEach(function (win) {
+    var size = win.size();
+    if (!minimized(win) && (!main || size[0] * size[1] > main.size()[0] * main.size()[1])) main = win;
+  });
 
-  // Hold the title bar, nudging it so macOS treats it as a window drag
-  mouse($.kCGEventLeftMouseDown, x, y);
-  delay(0.06);
-  mouse($.kCGEventLeftMouseDragged, x + 4, y);
-  delay(0.03);
-  mouse($.kCGEventLeftMouseDragged, x + 8, y);
-  delay(0.08);
+  if (!main) return 'Claude activated, but no window to minimize';
+  main.attributes.byName('AXMinimized').value = true;
 
-  // Back to the starting Space, carrying the window: one jump if "Switch to
-  // Desktop N" is on for it, otherwise one control-arrow per Space
+  for (var m = 0; m < 40 && !minimized(main); m++) delay(0.025);
+
+  // Back to the starting Space: one jump if "Switch to Desktop N" is on for
+  // it, otherwise one control-arrow per Space
   var shortcut = desktopShortcut(start.at + 1);
   var steps = start.at - there.at;
   var arrived = false;
@@ -154,13 +159,15 @@ function run() {
     }
   }
 
-  // Drag back to where the grab started, so the window ends up where it was
-  mouse($.kCGEventLeftMouseDragged, x, y);
-  delay(0.03);
-  mouse($.kCGEventLeftMouseUp, x, y);
-  delay(0.05);
-  $.CGWarpMouseCursorPosition(pointer);
+  // Restore it here, then bring Claude forward
+  var restored = false;
+  axWindows().forEach(function (win) {
+    if (!restored && minimized(win)) {
+      win.attributes.byName('AXMinimized').value = false;
+      restored = true;
+    }
+  });
   claude.activate();
 
-  return 'moved back ' + Math.abs(steps) + ' Space(s)' + (shortcut ? ' with a Desktop shortcut' : '') + '; arrived: ' + arrived;
+  return 'back ' + Math.abs(steps) + ' Space(s)' + (shortcut ? ' with a Desktop shortcut' : '') + '; arrived: ' + arrived + '; restored: ' + restored;
 }
