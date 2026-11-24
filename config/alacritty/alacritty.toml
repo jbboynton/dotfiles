@@ -22,6 +22,12 @@ red = "#bf616a"
 white = "#d8dee9"
 yellow = "#ebcb8b"
 
+# bat's base16-256 theme draws numbers in color 16, which it expects to
+# be base16's orange; left alone it is black, so it takes normal yellow
+[[colors.indexed_colors]]
+index = 16
+color = "#ebcb8b"
+
 [colors.primary]
 background = "#21272a"
 foreground = "#d8dee9"
