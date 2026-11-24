@@ -1,0 +1,6 @@
+# fzf colors, from Alacritty's palette by ANSI number
+--color=fg:-1,bg:-1,fg+:15,bg+:8,gutter:-1
+--color=hl:6,hl+:14,query:-1,prompt:6,pointer:6,marker:2
+--color=info:4,spinner:4,header:4,label:6,preview-label:6
+--color=border:8,preview-border:8,separator:8,scrollbar:8
+--color=preview-scrollbar:8
