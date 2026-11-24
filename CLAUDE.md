@@ -296,9 +296,12 @@ Follow the existing history:
     pane. A path that wraps onto a second row is not matched.
     Option-click (`M-MouseDown1Pane`) opens any path in vim instead: a
     folder, an image, or a bare name such as `bin`.
-  - Fuzzy pickers: `prefix Tab` (windows) and `prefix Shift-Tab`
-    (sessions) are tmux 3.8's own. `prefix F` is tmux-fzf, for commands
-    and key bindings.
+  - Fuzzy pickers: `prefix f` (a window in any session) and `prefix F`
+    (a session) run `bin/tmux_pick`, fzf in a popup with a preview of
+    the pane, leaving out where you are. tmux expands no formats in a
+    popup's command, so the script asks tmux for the client. `prefix
+    Tab` and `prefix Shift-Tab` are tmux 3.8's own pickers. tmux-fzf,
+    for commands and key bindings, is moved to `prefix C-f`.
   - **Test tmux changes on a private server, never James's:**
     `tmux -L NAME -f CONF`, with the plugin lines stripped from the copy of
     `tmux.conf` (continuum would restore, then autosave over, his saved
